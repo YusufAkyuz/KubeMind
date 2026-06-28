@@ -1,5 +1,7 @@
 package com.kubemind.k8s;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,5 +22,11 @@ public class PodController {
     @GetMapping("/namespaces/{ns}/pods")
     public List<PodDto> pods(@PathVariable String ns) {
         return kubernetesService.listPods(ns);
+    }
+
+    @GetMapping("/namespaces/{ns}/pods/{pod}")
+    public ResponseEntity<PodDto> pod(@PathVariable String ns, @PathVariable String pod) {
+        var dto = kubernetesService.getPod(ns, pod);
+        return dto != null ? ResponseEntity.ok(dto) : ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
 }

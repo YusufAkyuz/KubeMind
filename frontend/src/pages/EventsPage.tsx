@@ -3,9 +3,21 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Layout } from '../components/Layout'
-import { DetailDrawer, DrawerRow } from '../components/DetailDrawer'
+import { PageHeader } from '../components/PageHeader'
+import { Table, Tr, Td } from '../components/Table'
+import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
+import { ErrorBanner } from '../components/ErrorBanner'
 import { formatAge } from '../utils/format'
 import type { K8sEvent } from '../types/k8s'
+
+const COLUMNS = [
+  { key: 'type', label: 'Type' },
+  { key: 'reason', label: 'Reason' },
+  { key: 'object', label: 'Object' },
+  { key: 'message', label: 'Message' },
+  { key: 'count', label: 'Count', className: 'text-right' },
+  { key: 'age', label: 'Last seen' },
+]
 
 export function EventsPage() {
   const { ns } = useParams<{ ns: string }>()
@@ -20,82 +32,69 @@ export function EventsPage() {
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-800">Events</h1>
-          {ns && <p className="text-sm text-gray-500 mt-0.5">namespace: <span className="font-medium">{ns}</span></p>}
-        </div>
-        {data && (
-          <span className="text-sm text-gray-500">{data.length} event{data.length !== 1 ? 's' : ''}</span>
-        )}
-      </div>
+      <PageHeader
+        title="Events"
+        subtitle={ns ? `namespace: ${ns}` : undefined}
+        count={data?.length}
+        noun="event"
+      />
 
-      {isLoading && <p className="text-gray-500 text-sm">Loading events…</p>}
-      {isError && (
-        <div className="text-sm text-red-600 bg-red-50 rounded-md px-4 py-3">
-          Could not load events: {(error as Error).message}
-        </div>
-      )}
+      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isError && <ErrorBanner message={`Could not load events: ${(error as Error).message}`} />}
 
       {data && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead>
-              <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Reason</th>
-                <th className="px-4 py-3">Object</th>
-                <th className="px-4 py-3">Message</th>
-                <th className="px-4 py-3 text-right">Count</th>
-                <th className="px-4 py-3">Last seen</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data.map((ev) => (
-                <tr
-                  key={ev.name}
-                  onClick={() => setSelected(ev)}
-                  className="hover:bg-blue-50 cursor-pointer transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-semibold ${ev.type === 'Warning' ? 'text-red-600' : 'text-gray-500'}`}>
-                      {ev.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{ev.reason ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
-                    {ev.involvedObjectKind}/{ev.involvedObjectName}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 max-w-[320px] truncate">{ev.message ?? '—'}</td>
-                  <td className="px-4 py-3 text-right text-gray-500">{ev.count}</td>
-                  <td className="px-4 py-3 text-gray-500">{formatAge(ev.lastTimestamp)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table columns={COLUMNS}>
+          {data.map((ev) => (
+            <Tr
+              key={ev.name}
+              onClick={() => setSelected(ev)}
+              highlighted={selected?.name === ev.name}
+            >
+              <Td>
+                <span className={`text-xs font-semibold ${ev.type === 'Warning' ? 'text-red-600' : 'text-gray-400'}`}>
+                  {ev.type}
+                </span>
+              </Td>
+              <Td className="text-gray-700 whitespace-nowrap">{ev.reason ?? '—'}</Td>
+              <Td className="text-xs text-gray-400 whitespace-nowrap">
+                {ev.involvedObjectKind}/{ev.involvedObjectName}
+              </Td>
+              <Td className="text-gray-600 max-w-xs truncate">{ev.message ?? '—'}</Td>
+              <Td className="text-right tabular-nums text-gray-400">{ev.count}</Td>
+              <Td className="text-gray-400 tabular-nums whitespace-nowrap">{formatAge(ev.lastTimestamp)}</Td>
+            </Tr>
+          ))}
+        </Table>
       )}
 
       <DetailDrawer
-        open={selected !== null}
-        title={`${selected?.reason ?? 'Event'}`}
+        open={!!selected}
+        title={selected?.reason ?? 'Event'}
+        subtitle={`${selected?.type} · ${selected?.involvedObjectKind}/${selected?.involvedObjectName}`}
         onClose={() => setSelected(null)}
       >
         {selected && (
           <>
+            <DrawerSection title="Event" />
             <DrawerRow label="Type" value={
-              <span className={selected.type === 'Warning' ? 'text-red-600 font-semibold' : undefined}>
+              <span className={selected.type === 'Warning' ? 'font-semibold text-red-600' : 'text-gray-600'}>
                 {selected.type}
               </span>
             } />
             <DrawerRow label="Reason" value={selected.reason} />
-            <DrawerRow label="Involved object" value={`${selected.involvedObjectKind}/${selected.involvedObjectName}`} />
             <DrawerRow label="Count" value={selected.count} />
             <DrawerRow label="First seen" value={formatAge(selected.firstTimestamp)} />
             <DrawerRow label="Last seen" value={formatAge(selected.lastTimestamp)} />
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Message</p>
-              <p className="text-sm text-gray-700 bg-gray-50 rounded-md px-3 py-2 whitespace-pre-wrap">{selected.message ?? '—'}</p>
+
+            <DrawerSection title="Involved object" />
+            <DrawerRow label="Kind" value={selected.involvedObjectKind} />
+            <DrawerRow label="Name" value={selected.involvedObjectName} />
+
+            <DrawerSection title="Message" />
+            <div className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2.5">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                {selected.message ?? '—'}
+              </p>
             </div>
           </>
         )}

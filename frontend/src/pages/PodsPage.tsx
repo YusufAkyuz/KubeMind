@@ -1,19 +1,34 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Layout } from '../components/Layout'
+import { PageHeader } from '../components/PageHeader'
+import { Table, Tr, Td } from '../components/Table'
 import { StatusBadge } from '../components/StatusBadge'
-import { DetailDrawer, DrawerRow } from '../components/DetailDrawer'
+import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
+import { ErrorBanner } from '../components/ErrorBanner'
 import { useSSE } from '../hooks/useSSE'
 import { formatAge } from '../utils/format'
+import { IconTerminal } from '../components/Icons'
 import type { Pod } from '../types/k8s'
+
+const COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'status', label: 'Status' },
+  { key: 'ready', label: 'Ready' },
+  { key: 'restarts', label: 'Restarts' },
+  { key: 'node', label: 'Node', className: 'hidden lg:table-cell' },
+  { key: 'ip', label: 'IP', className: 'hidden xl:table-cell' },
+  { key: 'age', label: 'Age' },
+]
 
 export function PodsPage() {
   const { ns } = useParams<{ ns: string }>()
+  const navigate = useNavigate()
   const [selected, setSelected] = useState<Pod | null>(null)
-
   const queryKey = ['pods', ns]
+
   const { data, isLoading, isError, error } = useQuery<Pod[]>({
     queryKey,
     queryFn: async () => (await api.get<Pod[]>(`/k8s/namespaces/${ns}/pods`)).data,
@@ -24,98 +39,87 @@ export function PodsPage() {
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-800">Pods</h1>
-          {ns && <p className="text-sm text-gray-500 mt-0.5">namespace: <span className="font-medium">{ns}</span></p>}
-        </div>
-        {data && (
-          <span className="text-sm text-gray-500">{data.length} pod{data.length !== 1 ? 's' : ''}</span>
-        )}
-      </div>
+      <PageHeader
+        title="Pods"
+        subtitle={ns ? `namespace: ${ns}` : undefined}
+        count={data?.length}
+        noun="pod"
+      />
 
-      {isLoading && <p className="text-gray-500 text-sm">Loading pods…</p>}
-      {isError && (
-        <div className="text-sm text-red-600 bg-red-50 rounded-md px-4 py-3">
-          Could not load pods: {(error as Error).message}
-        </div>
-      )}
+      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isError && <ErrorBanner message={`Could not load pods: ${(error as Error).message}`} />}
 
       {data && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead>
-              <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Ready</th>
-                <th className="px-4 py-3">Restarts</th>
-                <th className="px-4 py-3">Node</th>
-                <th className="px-4 py-3">IP</th>
-                <th className="px-4 py-3">Age</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data.map((pod) => {
-                const readyCount = pod.containers.filter((c) => c.ready).length
-                const highRestarts = pod.restartCount > 5
-                return (
-                  <tr
-                    key={`${pod.namespace}/${pod.name}`}
-                    onClick={() => setSelected(pod)}
-                    className="hover:bg-blue-50 cursor-pointer transition-colors"
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-800">{pod.name}</td>
-                    <td className="px-4 py-3"><StatusBadge status={pod.phase} /></td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {readyCount}/{pod.containers.length}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={highRestarts ? 'text-red-600 font-semibold' : 'text-gray-600'}>
-                        {pod.restartCount}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{pod.nodeName ?? '—'}</td>
-                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{pod.podIP ?? '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{formatAge(pod.creationTimestamp)}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Table columns={COLUMNS}>
+          {data.map((pod) => {
+            const readyCount = pod.containers.filter((c) => c.ready).length
+            const highRestarts = pod.restartCount > 5
+            return (
+              <Tr
+                key={`${pod.namespace}/${pod.name}`}
+                onClick={() => setSelected(pod)}
+                highlighted={selected?.name === pod.name}
+              >
+                <Td className="font-medium text-gray-900">{pod.name}</Td>
+                <Td><StatusBadge status={pod.phase} /></Td>
+                <Td className="tabular-nums text-gray-500">{readyCount}/{pod.containers.length}</Td>
+                <Td>
+                  <span className={highRestarts ? 'font-semibold text-red-600' : 'text-gray-500 tabular-nums'}>
+                    {pod.restartCount}
+                  </span>
+                </Td>
+                <Td className="hidden lg:table-cell text-gray-400 text-xs">{pod.nodeName ?? '—'}</Td>
+                <Td className="hidden xl:table-cell font-mono text-xs text-gray-400">{pod.podIP ?? '—'}</Td>
+                <Td className="text-gray-400 tabular-nums">{formatAge(pod.creationTimestamp)}</Td>
+              </Tr>
+            )
+          })}
+        </Table>
       )}
 
       <DetailDrawer
-        open={selected !== null}
+        open={!!selected}
         title={selected?.name ?? ''}
+        subtitle={`Pod · ${ns}`}
         onClose={() => setSelected(null)}
       >
         {selected && (
           <>
+            <DrawerSection title="Overview" />
             <DrawerRow label="Status" value={<StatusBadge status={selected.phase} />} />
             <DrawerRow label="Namespace" value={selected.namespace} />
             <DrawerRow label="Node" value={selected.nodeName} />
-            <DrawerRow label="Pod IP" value={selected.podIP} />
+            <DrawerRow label="Pod IP" value={<span className="font-mono text-xs">{selected.podIP}</span>} />
             <DrawerRow label="Restarts" value={selected.restartCount} />
             <DrawerRow label="Age" value={formatAge(selected.creationTimestamp)} />
 
             {selected.containers.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Containers</p>
-                <div className="space-y-2">
-                  {selected.containers.map((c) => (
-                    <div key={c.name} className="rounded-md border border-gray-200 px-3 py-2 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-gray-800">{c.name}</span>
+              <>
+                <DrawerSection title="Containers" />
+                {selected.containers.map((c) => (
+                  <div key={c.name} className="rounded-lg border border-gray-200 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-gray-900 truncate">{c.name}</span>
+                      <div className="flex items-center gap-2 shrink-0">
                         <StatusBadge status={c.ready ? 'Ready' : 'NotReady'} />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/namespaces/${ns}/pods/${selected.name}/logs?container=${c.name}`)
+                          }}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                          title="View logs"
+                        >
+                          <IconTerminal className="w-3.5 h-3.5" />
+                          Logs
+                        </button>
                       </div>
-                      <div className="text-gray-500 text-xs mt-1 font-mono break-all">{c.image}</div>
-                      <div className="text-gray-500 text-xs mt-0.5">Restarts: {c.restartCount}</div>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <p className="font-mono text-xs text-gray-400 break-all">{c.image}</p>
+                    <p className="text-xs text-gray-400">Restarts: {c.restartCount}</p>
+                  </div>
+                ))}
+              </>
             )}
           </>
         )}

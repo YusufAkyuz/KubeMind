@@ -6,6 +6,7 @@ import { NamespacesPage } from './pages/NamespacesPage'
 import { PodsPage } from './pages/PodsPage'
 import { DeploymentsPage } from './pages/DeploymentsPage'
 import { EventsPage } from './pages/EventsPage'
+import { LogsPage } from './pages/LogsPage'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
       <Route path="/namespaces/:ns/pods" element={<ProtectedRoute><PodsPage /></ProtectedRoute>} />
       <Route path="/namespaces/:ns/deployments" element={<ProtectedRoute><DeploymentsPage /></ProtectedRoute>} />
       <Route path="/namespaces/:ns/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
+      <Route path="/namespaces/:ns/pods/:pod/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
     </Routes>
   )
 }

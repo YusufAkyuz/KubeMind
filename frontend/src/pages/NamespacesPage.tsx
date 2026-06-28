@@ -2,9 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { Layout } from '../components/Layout'
+import { PageHeader } from '../components/PageHeader'
+import { Table, Tr, Td } from '../components/Table'
 import { StatusBadge } from '../components/StatusBadge'
+import { ErrorBanner } from '../components/ErrorBanner'
 import { formatAge } from '../utils/format'
 import type { Namespace } from '../types/k8s'
+
+const COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'status', label: 'Status' },
+  { key: 'age', label: 'Age' },
+]
 
 export function NamespacesPage() {
   const navigate = useNavigate()
@@ -15,47 +24,21 @@ export function NamespacesPage() {
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold text-gray-800">Namespaces</h1>
-        {data && (
-          <span className="text-sm text-gray-500">{data.length} namespace{data.length !== 1 ? 's' : ''}</span>
-        )}
-      </div>
+      <PageHeader title="Namespaces" count={data?.length} noun="namespace" />
 
-      {isLoading && <p className="text-gray-500 text-sm">Loading namespaces…</p>}
-      {isError && (
-        <div className="text-sm text-red-600 bg-red-50 rounded-md px-4 py-3">
-          Could not load namespaces: {(error as Error).message}. Is your cluster reachable?
-        </div>
-      )}
+      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isError && <ErrorBanner message={`Could not load namespaces: ${(error as Error).message}`} />}
 
       {data && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table className="w-full text-sm min-w-[400px]">
-            <thead>
-              <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Age</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data.map((ns) => (
-                <tr
-                  key={ns.name}
-                  onClick={() => navigate(`/namespaces/${ns.name}/pods`)}
-                  className="hover:bg-blue-50 cursor-pointer transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium text-blue-700">{ns.name}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={ns.phase ?? 'Unknown'} />
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{formatAge(ns.creationTimestamp)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table columns={COLUMNS} minWidth="360px">
+          {data.map((ns) => (
+            <Tr key={ns.name} onClick={() => navigate(`/namespaces/${ns.name}/pods`)}>
+              <Td className="font-medium text-blue-600">{ns.name}</Td>
+              <Td><StatusBadge status={ns.phase ?? 'Unknown'} /></Td>
+              <Td className="text-gray-400 tabular-nums">{formatAge(ns.creationTimestamp)}</Td>
+            </Tr>
+          ))}
+        </Table>
       )}
     </Layout>
   )

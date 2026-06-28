@@ -203,6 +203,14 @@ public class KubernetesService {
         );
     }
 
+    // ── Single resource ───────────────────────────────────────────────────────
+
+    public PodDto getPod(String namespace, String name) {
+        var pod = client.pods().inNamespace(namespace).withName(name).get();
+        if (pod == null) return null;
+        return toPodDto(pod);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String quantityStr(Quantity q) {
