@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    # Defaults target the Docker Postgres on host port 5433 (see deploy/docker-compose.yml).
+    # Override via SPRING_DATASOURCE_* env vars in any non-local deployment.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/kubemind}
+    username: ${SPRING_DATASOURCE_USERNAME:kubemind}
+    password: ${SPRING_DATASOURCE_PASSWORD:kubemind}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    com.kubemind: INFO
+
+# Phase 0 local admin seeding. Set KUBEMIND_ADMIN_PASSWORD in backend/.env (loaded via spring-dotenv).
+# If the password is empty, NO admin user is created -> non-local deployments have no default credential.
+kubemind:
+  admin:
+    username: ${KUBEMIND_ADMIN_USERNAME:admin}
+    password: ${KUBEMIND_ADMIN_PASSWORD:}

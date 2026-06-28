@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: kubemind-postgres
+    environment:
+      POSTGRES_DB: kubemind
+      POSTGRES_USER: kubemind
+      POSTGRES_PASSWORD: kubemind
+    ports:
+      # Host port 5433 to avoid clashing with a local Postgres on 5432.
+      # Inside the container Postgres still listens on 5432.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # Included now so infra is ready; the AI "Explain this" feature uses it in Phase 3.
+  # After 'up', run:  docker exec -it kubemind-ollama ollama pull qwen2.5-coder:7b
+  ollama:
+    image: ollama/ollama:latest
+    container_name: kubemind-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollamadata:/root/.ollama
+
+volumes:
+  pgdata:
+  ollamadata:
