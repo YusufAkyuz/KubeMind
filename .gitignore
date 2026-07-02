@@ -14,3 +14,8 @@ frontend/node_modules/.tmp/
 
 # OS
 .DS_Store
+
+# Claude / planning docs (local only — removed from git history)
+CLAUDE.md
+KubeMind-MVP-Plan.md
+.claude/

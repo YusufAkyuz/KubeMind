@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    # Defaults target the Docker Postgres on host port 5433 (see deploy/docker-compose.yml).
+    # Defaults target the local (Homebrew) Postgres on 5432.
     # Override via SPRING_DATASOURCE_* env vars in any non-local deployment.
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/kubemind}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/kubemind}
     username: ${SPRING_DATASOURCE_USERNAME:kubemind}
     password: ${SPRING_DATASOURCE_PASSWORD:kubemind}
   jpa:
