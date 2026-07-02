@@ -36,7 +36,7 @@ interface Props {
 }
 
 export function Sidebar({ onClose }: Props) {
-  const { username, logout } = useAuth()
+  const { username, isAdmin, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -121,6 +121,18 @@ export function Sidebar({ onClose }: Props) {
             </NavLink>
           )
         })}
+
+        {isAdmin && (
+          <>
+            <p className="px-3 pt-4 pb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+              Admin
+            </p>
+            <NavLink to="/audit" className={navLinkClass} onClick={onClose}>
+              <IconClipboard className="w-4 h-4 shrink-0" />
+              Audit log
+            </NavLink>
+          </>
+        )}
       </nav>
 
       {/* User footer */}

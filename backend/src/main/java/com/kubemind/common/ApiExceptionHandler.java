@@ -3,6 +3,7 @@ package com.kubemind.common;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -25,9 +26,29 @@ public class ApiExceptionHandler {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "The cluster denied this request (RBAC forbidden)."));
         }
+        if (ex.getCode() == HttpStatus.NOT_FOUND.value()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "The resource no longer exists in the cluster."));
+        }
+        if (ex.getCode() == HttpStatus.CONFLICT.value()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "The resource changed while you were editing it. Reload and retry."));
+        }
+        if (ex.getCode() == HttpStatus.UNPROCESSABLE_ENTITY.value()) {
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(Map.of("error", "The cluster rejected the manifest: " + ex.getMessage()));
+        }
         // code == 0 usually means the cluster was unreachable (connection refused, no kubeconfig, etc.).
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
             .body(Map.of("error", "Could not reach the Kubernetes cluster: " + ex.getMessage()));
+    }
+
+    // Thrown by @PreAuthorize inside MVC handlers; without this mapping the generic
+    // handler below would report a 500 instead of the honest 403.
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(Map.of("error", "You need the ADMIN role for this action."));
     }
 
     // Without this, the generic Exception handler below would swallow deliberate

@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '../api/client'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, apiErrorMessage } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { useToast } from '../components/Toast'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
 import { Table, Tr, Td } from '../components/Table'
@@ -27,8 +30,24 @@ const COLUMNS = [
 export function PodsPage() {
   const { ns } = useParams<{ ns: string }>()
   const navigate = useNavigate()
+  const { isAdmin } = useAuth()
+  const toast = useToast()
+  const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Pod | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const queryKey = ['pods', ns]
+
+  const deletePod = async () => {
+    if (!selected) return
+    try {
+      await api.delete(`/k8s/namespaces/${ns}/pods/${selected.name}`)
+      toast.success(`Pod ${selected.name} deleted`)
+      setSelected(null)
+      queryClient.invalidateQueries({ queryKey })
+    } catch (e) {
+      throw new Error(apiErrorMessage(e, 'Delete failed'))
+    }
+  }
 
   const { data, isLoading, isError, error } = useQuery<Pod[]>({
     queryKey,
@@ -98,6 +117,19 @@ export function PodsPage() {
             <DrawerRow label="Restarts" value={selected.restartCount} />
             <DrawerRow label="Age" value={formatAge(selected.creationTimestamp)} />
 
+            {isAdmin && (
+              <>
+                <DrawerSection title="Actions" />
+                <button
+                  onClick={() => setDeleteOpen(true)}
+                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium
+                             text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  Delete pod
+                </button>
+              </>
+            )}
+
             {selected.containers.length > 0 && (
               <>
                 <DrawerSection title="Containers" />
@@ -129,6 +161,22 @@ export function PodsPage() {
           </>
         )}
       </DetailDrawer>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title={`Delete pod ${selected?.name ?? ''}`}
+        message={
+          <>
+            The pod will be terminated. If it is managed by a Deployment/ReplicaSet a replacement
+            will be created automatically; a standalone pod is <span className="font-medium">gone for good</span>.
+          </>
+        }
+        confirmLabel="Delete"
+        danger
+        requireText={selected?.name}
+        onConfirm={deletePod}
+        onClose={() => setDeleteOpen(false)}
+      />
     </Layout>
   )
 }

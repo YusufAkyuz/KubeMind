@@ -10,6 +10,8 @@ import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDraw
 import { ErrorBanner } from '../components/ErrorBanner'
 import { useSSE } from '../hooks/useSSE'
 import { formatAge } from '../utils/format'
+import { useAuth } from '../auth/AuthContext'
+import { DeploymentActions } from '../components/DeploymentActions'
 import type { Deployment } from '../types/k8s'
 
 const COLUMNS = [
@@ -30,6 +32,7 @@ function replicaStatus(d: Deployment): string {
 
 export function DeploymentsPage() {
   const { ns } = useParams<{ ns: string }>()
+  const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<Deployment | null>(null)
   const queryKey = ['deployments', ns]
 
@@ -80,8 +83,19 @@ export function DeploymentsPage() {
         subtitle={`Deployment · ${ns}`}
         onClose={() => setSelected(null)}
       >
-        {selected && (
+        {selected && ns && (
           <>
+            {isAdmin && (
+              <div className="pb-3">
+                <DeploymentActions
+                  key={`${ns}/${selected.name}`}
+                  namespace={ns}
+                  deployment={selected}
+                  onActionDone={() => setSelected(null)}
+                />
+              </div>
+            )}
+
             <DrawerSection title="Overview" />
             <DrawerRow label="Status" value={<StatusBadge status={replicaStatus(selected)} />} />
             <DrawerRow label="Namespace" value={selected.namespace} />

@@ -19,7 +19,8 @@
 
     <properties>
         <java.version>21</java.version>
-        <fabric8.version>6.13.4</fabric8.version>
+        <!-- 7.x aligns with the Jackson 2.19 that Boot 3.5 manages; 6.13 NPEs on serialization. -->
+        <fabric8.version>7.3.1</fabric8.version>
         <spring-ai.version>1.0.0</spring-ai.version>
     </properties>
 
@@ -51,6 +52,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
@@ -88,6 +93,12 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-server-mock</artifactId>
+            <version>${fabric8.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

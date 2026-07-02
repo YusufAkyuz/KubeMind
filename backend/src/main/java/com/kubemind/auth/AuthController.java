@@ -43,7 +43,9 @@ public class AuthController {
         SecurityContextHolder.setContext(context);
         securityContextRepository.saveContext(context, httpRequest, httpResponse);
 
-        return ResponseEntity.ok(Map.of("username", authentication.getName()));
+        return ResponseEntity.ok(Map.of(
+            "username", authentication.getName(),
+            "role", extractRole(authentication)));
     }
 
     @GetMapping("/me")
@@ -51,7 +53,18 @@ public class AuthController {
         if (authentication == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        return ResponseEntity.ok(Map.of("username", authentication.getName()));
+        return ResponseEntity.ok(Map.of(
+            "username", authentication.getName(),
+            "role", extractRole(authentication)));
+    }
+
+    private String extractRole(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+            .map(a -> a.getAuthority())
+            .filter(a -> a.startsWith("ROLE_"))
+            .map(a -> a.substring("ROLE_".length()))
+            .findFirst()
+            .orElse("USER");
     }
 
     public record LoginRequest(String username, String password) {
