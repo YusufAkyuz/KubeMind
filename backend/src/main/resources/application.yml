@@ -14,6 +14,15 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      init:
+        pull-model-strategy: never
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:qwen2.5-coder:7b}
+          temperature: 0.2
 
 management:
   endpoints:

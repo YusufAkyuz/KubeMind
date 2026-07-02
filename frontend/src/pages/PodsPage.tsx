@@ -11,6 +11,7 @@ import { ErrorBanner } from '../components/ErrorBanner'
 import { useSSE } from '../hooks/useSSE'
 import { formatAge } from '../utils/format'
 import { IconTerminal } from '../components/Icons'
+import { ExplainPanel } from '../components/ExplainPanel'
 import type { Pod } from '../types/k8s'
 
 const COLUMNS = [
@@ -83,8 +84,12 @@ export function PodsPage() {
         subtitle={`Pod · ${ns}`}
         onClose={() => setSelected(null)}
       >
-        {selected && (
+        {selected && ns && (
           <>
+            <div className="pb-3">
+              <ExplainPanel key={`${ns}/${selected.name}`} namespace={ns} podName={selected.name} />
+            </div>
+
             <DrawerSection title="Overview" />
             <DrawerRow label="Status" value={<StatusBadge status={selected.phase} />} />
             <DrawerRow label="Namespace" value={selected.namespace} />

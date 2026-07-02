@@ -1,0 +1,159 @@
+package com.kubemind.ai;
+
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
+import io.fabric8.kubernetes.api.model.Event;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+
+/**
+ * Builds a compact, plain-text snapshot of a pod for the AI prompt:
+ * spec summary, container states, conditions, recent events, and the last
+ * N log lines. Everything passes through {@link Redactor} — Secret data is
+ * never collected at all (env values from secretKeyRef are masked without
+ * ever reading the Secret).
+ */
+@Component
+public class PodContextCollector {
+
+    private static final int LOG_TAIL_LINES = 100;
+    private static final int MAX_EVENTS = 20;
+
+    private final KubernetesClient client;
+
+    public PodContextCollector(KubernetesClient client) {
+        this.client = client;
+    }
+
+    /** @return the redacted context, or null if the pod does not exist. */
+    public String collect(String namespace, String podName) {
+        Pod pod = client.pods().inNamespace(namespace).withName(podName).get();
+        if (pod == null) return null;
+
+        StringBuilder sb = new StringBuilder(8_192);
+
+        // ── Pod summary ─────────────────────────────────────────────────────
+        sb.append("=== POD ===\n");
+        sb.append("name: ").append(pod.getMetadata().getName()).append('\n');
+        sb.append("namespace: ").append(namespace).append('\n');
+        var status = pod.getStatus();
+        sb.append("phase: ").append(status != null ? status.getPhase() : "Unknown").append('\n');
+        if (pod.getMetadata().getDeletionTimestamp() != null) {
+            sb.append("deletionTimestamp: ").append(pod.getMetadata().getDeletionTimestamp()).append('\n');
+        }
+        if (pod.getSpec() != null) {
+            sb.append("node: ").append(pod.getSpec().getNodeName()).append('\n');
+            sb.append("restartPolicy: ").append(pod.getSpec().getRestartPolicy()).append('\n');
+        }
+
+        // ── Conditions ──────────────────────────────────────────────────────
+        if (status != null && status.getConditions() != null && !status.getConditions().isEmpty()) {
+            sb.append("\n=== CONDITIONS ===\n");
+            status.getConditions().forEach(c -> {
+                sb.append(c.getType()).append('=').append(c.getStatus());
+                if (c.getReason() != null) sb.append(" reason=").append(c.getReason());
+                if (c.getMessage() != null) sb.append(" message=").append(Redactor.redactText(c.getMessage()));
+                sb.append('\n');
+            });
+        }
+
+        // ── Containers (spec + status) ──────────────────────────────────────
+        sb.append("\n=== CONTAINERS ===\n");
+        List<ContainerStatus> containerStatuses = status != null && status.getContainerStatuses() != null
+            ? status.getContainerStatuses() : List.of();
+
+        if (pod.getSpec() != null) {
+            for (Container c : pod.getSpec().getContainers()) {
+                sb.append("- name: ").append(c.getName()).append('\n');
+                sb.append("  image: ").append(c.getImage()).append('\n');
+
+                if (c.getEnv() != null && !c.getEnv().isEmpty()) {
+                    sb.append("  env:\n");
+                    c.getEnv().forEach(e -> {
+                        // Values sourced from Secrets are masked without ever being read.
+                        String value = e.getValueFrom() != null && e.getValueFrom().getSecretKeyRef() != null
+                            ? Redactor.MASK
+                            : Redactor.redactEnvValue(e.getName(), e.getValue());
+                        sb.append("    ").append(e.getName()).append('=').append(value).append('\n');
+                    });
+                }
+
+                containerStatuses.stream()
+                    .filter(cs -> c.getName().equals(cs.getName()))
+                    .findFirst()
+                    .ifPresent(cs -> appendContainerState(sb, cs));
+            }
+        }
+
+        // ── Recent events ───────────────────────────────────────────────────
+        List<Event> events = client.resources(Event.class).inNamespace(namespace).list().getItems().stream()
+            .filter(e -> e.getInvolvedObject() != null
+                && podName.equals(e.getInvolvedObject().getName())
+                && "Pod".equals(e.getInvolvedObject().getKind()))
+            .sorted((a, b) -> nullSafe(b.getLastTimestamp()).compareTo(nullSafe(a.getLastTimestamp())))
+            .limit(MAX_EVENTS)
+            .toList();
+
+        if (!events.isEmpty()) {
+            sb.append("\n=== RECENT EVENTS ===\n");
+            events.forEach(e -> sb.append('[').append(e.getType()).append("] ")
+                .append(e.getReason()).append(": ")
+                .append(Redactor.redactText(e.getMessage()))
+                .append(" (x").append(e.getCount() != null ? e.getCount() : 1).append(")\n"));
+        }
+
+        // ── Logs (last N lines per container, redacted) ─────────────────────
+        if (pod.getSpec() != null) {
+            for (Container c : pod.getSpec().getContainers()) {
+                sb.append("\n=== LOGS (").append(c.getName())
+                  .append(", last ").append(LOG_TAIL_LINES).append(" lines) ===\n");
+                try {
+                    String log = client.pods().inNamespace(namespace).withName(podName)
+                        .inContainer(c.getName())
+                        .tailingLines(LOG_TAIL_LINES)
+                        .getLog();
+                    sb.append(log == null || log.isBlank()
+                        ? "(no output)\n"
+                        : Redactor.redactText(log)).append('\n');
+                } catch (Exception e) {
+                    // e.g. container is waiting / never started — that itself is a useful signal
+                    sb.append("(logs unavailable: ").append(Redactor.redactText(e.getMessage())).append(")\n");
+                }
+            }
+        }
+
+        return sb.toString();
+    }
+
+    private void appendContainerState(StringBuilder sb, ContainerStatus cs) {
+        sb.append("  ready: ").append(Boolean.TRUE.equals(cs.getReady())).append('\n');
+        sb.append("  restartCount: ").append(cs.getRestartCount() != null ? cs.getRestartCount() : 0).append('\n');
+        var state = cs.getState();
+        if (state != null) {
+            if (state.getWaiting() != null) {
+                sb.append("  state: Waiting reason=").append(state.getWaiting().getReason());
+                if (state.getWaiting().getMessage() != null) {
+                    sb.append(" message=").append(Redactor.redactText(state.getWaiting().getMessage()));
+                }
+                sb.append('\n');
+            } else if (state.getTerminated() != null) {
+                sb.append("  state: Terminated reason=").append(state.getTerminated().getReason())
+                  .append(" exitCode=").append(state.getTerminated().getExitCode()).append('\n');
+            } else if (state.getRunning() != null) {
+                sb.append("  state: Running since=").append(state.getRunning().getStartedAt()).append('\n');
+            }
+        }
+        var last = cs.getLastState();
+        if (last != null && last.getTerminated() != null) {
+            sb.append("  lastState: Terminated reason=").append(last.getTerminated().getReason())
+              .append(" exitCode=").append(last.getTerminated().getExitCode()).append('\n');
+        }
+    }
+
+    private String nullSafe(String s) {
+        return s != null ? s : "";
+    }
+}

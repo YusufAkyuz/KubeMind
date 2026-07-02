@@ -13,13 +13,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  # Included now so infra is ready; the AI "Explain this" feature uses it in Phase 3.
-  # After 'up', run:  docker exec -it kubemind-ollama ollama pull qwen2.5-coder:7b
+  # AI backend for "Explain this" (Phase 3).
+  # On macOS prefer the native Ollama app (Metal GPU; Docker is CPU-only) — the
+  # backend default http://localhost:11434 points at it. This container is the
+  # fallback for machines without a native install: publish on 11435 to avoid
+  # clashing, pull the model (docker exec -it kubemind-ollama ollama pull
+  # qwen2.5-coder:7b) and set OLLAMA_BASE_URL=http://localhost:11435.
   ollama:
     image: ollama/ollama:latest
     container_name: kubemind-ollama
     ports:
-      - "11434:11434"
+      - "11435:11434"
     volumes:
       - ollamadata:/root/.ollama
 

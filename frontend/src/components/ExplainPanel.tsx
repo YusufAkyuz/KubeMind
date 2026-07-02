@@ -1,0 +1,129 @@
+import { useMutation } from '@tanstack/react-query'
+import axios from 'axios'
+import { api } from '../api/client'
+import { formatAge } from '../utils/format'
+
+interface ExplainResponse {
+  explanation: string
+  cached: boolean
+  model: string
+  createdAt: string
+}
+
+interface Props {
+  namespace: string
+  podName: string
+}
+
+/**
+ * Minimal markdown-ish renderer: fenced code blocks, bullet lines, paragraphs.
+ * Deliberately no markdown library — the model output is simple prose + bullets.
+ */
+function renderExplanation(text: string) {
+  const parts = text.split('```')
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <pre
+        key={i}
+        className="my-2 rounded-md bg-gray-900 text-gray-100 text-xs font-mono p-3 overflow-x-auto whitespace-pre-wrap"
+      >
+        {part.replace(/^[a-z]*\n/, '')}
+      </pre>
+    ) : (
+      <div key={i} className="space-y-1.5">
+        {part.split('\n').map((line, j) => {
+          const trimmed = line.trim()
+          if (!trimmed) return null
+          if (/^[-*•]\s/.test(trimmed)) {
+            return (
+              <p key={j} className="text-sm text-gray-700 leading-relaxed pl-4 relative">
+                <span className="absolute left-1 text-gray-400">•</span>
+                {trimmed.replace(/^[-*•]\s/, '')}
+              </p>
+            )
+          }
+          if (/^#{1,4}\s/.test(trimmed)) {
+            return (
+              <p key={j} className="text-sm font-semibold text-gray-900 pt-1">
+                {trimmed.replace(/^#{1,4}\s/, '')}
+              </p>
+            )
+          }
+          return (
+            <p key={j} className="text-sm text-gray-700 leading-relaxed">
+              {trimmed}
+            </p>
+          )
+        })}
+      </div>
+    )
+  )
+}
+
+export function ExplainPanel({ namespace, podName }: Props) {
+  const mutation = useMutation<ExplainResponse, unknown>({
+    mutationFn: async () =>
+      (await api.post<ExplainResponse>(`/k8s/namespaces/${namespace}/pods/${podName}/explain`)).data,
+  })
+
+  const errorMessage = mutation.isError
+    ? axios.isAxiosError(mutation.error) && mutation.error.response?.data?.error
+      ? String(mutation.error.response.data.error)
+      : 'Something went wrong while contacting the AI service.'
+    : null
+
+  return (
+    <div className="rounded-lg border border-gray-200 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <div>
+          <p className="text-sm font-medium text-gray-900">AI Diagnosis</p>
+          {mutation.data && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              {mutation.data.model}
+              {mutation.data.cached && ` · cached ${formatAge(mutation.data.createdAt)} ago`}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          className="shrink-0 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white
+                     hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {mutation.isPending ? 'Analyzing…' : mutation.data ? 'Re-analyze' : 'Explain'}
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="px-4 py-3">
+        {!mutation.data && !mutation.isPending && !mutation.isError && (
+          <p className="text-sm text-gray-400">
+            Ask the AI to analyze this pod's state, events, and recent logs.
+          </p>
+        )}
+
+        {mutation.isPending && (
+          <div className="space-y-2 animate-pulse py-1">
+            <div className="h-3 bg-gray-100 rounded w-4/5" />
+            <div className="h-3 bg-gray-100 rounded w-full" />
+            <div className="h-3 bg-gray-100 rounded w-3/5" />
+          </div>
+        )}
+
+        {errorMessage && (
+          <p className="text-sm text-red-600">{errorMessage}</p>
+        )}
+
+        {mutation.data && (
+          <>
+            <div className="space-y-2">{renderExplanation(mutation.data.explanation)}</div>
+            <p className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
+              AI-generated — verify before acting.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
