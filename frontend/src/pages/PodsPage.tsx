@@ -155,6 +155,19 @@ export function PodsPage() {
                           <IconTerminal className="w-3.5 h-3.5" />
                           Logs
                         </button>
+                        {isAdmin && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/clusters/${clusterId}/namespaces/${ns}/pods/${selected.name}/exec?container=${c.name}`)
+                            }}
+                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                            title="Open terminal"
+                          >
+                            <IconTerminal className="w-3.5 h-3.5" />
+                            Exec
+                          </button>
+                        )}
                       </div>
                     </div>
                     <p className="font-mono text-xs text-gray-400 break-all">{c.image}</p>

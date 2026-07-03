@@ -8,6 +8,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://localhost:8080',
+      // WebSocket upgrade for the interactive pod terminal.
+      '/ws': { target: 'ws://localhost:8080', ws: true },
     },
   },
 })

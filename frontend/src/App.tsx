@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -9,9 +10,14 @@ import { EventsPage } from './pages/EventsPage'
 import { LogsPage } from './pages/LogsPage'
 import { AuditPage } from './pages/AuditPage'
 import { ClustersPage } from './pages/ClustersPage'
+import { ChatWidget } from './components/ChatWidget'
+
+// Code-split: xterm.js only loads when a terminal is actually opened.
+const ExecPage = lazy(() => import('./pages/ExecPage').then((m) => ({ default: m.ExecPage })))
 
 export default function App() {
   return (
+    <>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
@@ -27,10 +33,19 @@ export default function App() {
       <Route path="/clusters/:clusterId/namespaces/:ns/deployments" element={<ProtectedRoute><DeploymentsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/exec" element={
+        <ProtectedRoute>
+          <Suspense fallback={<div className="p-8 text-sm text-gray-400">Loading terminal…</div>}>
+            <ExecPage />
+          </Suspense>
+        </ProtectedRoute>
+      } />
 
       {/* Admin */}
       <Route path="/settings/clusters" element={<ProtectedRoute><ClustersPage /></ProtectedRoute>} />
       <Route path="/audit" element={<ProtectedRoute><AuditPage /></ProtectedRoute>} />
     </Routes>
+    <ChatWidget />
+    </>
   )
 }
