@@ -19,17 +19,18 @@ const COLUMNS = [
   { key: 'age', label: 'Last seen' },
 ]
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 10
 
 export function EventsPage() {
   const { clusterId, ns } = useParams<{ clusterId: string; ns: string }>()
   const [selected, setSelected] = useState<K8sEvent | null>(null)
   const [page, setPage] = useState(0)
 
+  const noNamespace = ns === '_'
   const { data, isLoading, isError, error } = useQuery<K8sEvent[]>({
     queryKey: ['events', clusterId, ns],
     queryFn: async () => (await api.get<K8sEvent[]>(`/clusters/${clusterId}/namespaces/${ns}/events`)).data,
-    enabled: !!clusterId && !!ns,
+    enabled: !!clusterId && !!ns && !noNamespace,
     refetchInterval: 15_000,
   })
 
@@ -48,6 +49,11 @@ export function EventsPage() {
         noun="event"
       />
 
+      {noNamespace && (
+        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
+          <p className="text-sm text-gray-400">Select a namespace from the sidebar to view events.</p>
+        </div>
+      )}
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load events: ${(error as Error).message}`} />}
 

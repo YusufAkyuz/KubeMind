@@ -285,7 +285,7 @@ export function LogsPage() {
       {!follow && (
         <button
           onClick={scrollToBottom}
-          className="fixed bottom-6 right-6 flex items-center gap-1.5 px-3 py-2 rounded-full
+          className="fixed bottom-6 right-20 flex items-center gap-1.5 px-3 py-2 rounded-full
                      bg-blue-600 text-white text-xs font-medium shadow-lg hover:bg-blue-700 transition-colors z-10"
         >
           <IconArrowDown className="w-3.5 h-3.5" />

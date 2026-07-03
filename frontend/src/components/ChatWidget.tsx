@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { IconHelm, IconX } from './Icons'
+import { IconHelm, IconX, Logo } from './Icons'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -94,16 +94,17 @@ export function ChatWidget() {
 
   return (
     <>
-      {/* Launcher */}
+      {/* Launcher — compact circle so it never crowds page controls */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-blue-600 px-4 py-3
-                     text-sm font-medium text-white shadow-lg hover:bg-blue-700 transition-colors"
+          title="Ask AI"
+          className="fixed bottom-5 right-5 z-40 flex items-center justify-center w-12 h-12 rounded-full
+                     bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-lg
+                     hover:shadow-xl hover:scale-105 transition-all"
           aria-label="Open AI assistant"
         >
-          <IconHelm className="w-4 h-4" />
-          Ask AI
+          <IconHelm className="w-5 h-5" />
         </button>
       )}
 
@@ -114,7 +115,7 @@ export function ChatWidget() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
             <div className="flex items-center gap-2">
-              <IconHelm className="w-4 h-4 text-blue-600" />
+              <Logo className="w-5 h-5" />
               <span className="text-sm font-semibold text-gray-900">KubeMind Assistant</span>
             </div>
             <button

@@ -36,10 +36,11 @@ export function DeploymentsPage() {
   const [selected, setSelected] = useState<Deployment | null>(null)
   const queryKey = ['deployments', clusterId, ns]
 
+  const noNamespace = ns === '_'
   const { data, isLoading, isError, error } = useQuery<Deployment[]>({
     queryKey,
     queryFn: async () => (await api.get<Deployment[]>(`/clusters/${clusterId}/namespaces/${ns}/deployments`)).data,
-    enabled: !!clusterId && !!ns,
+    enabled: !!clusterId && !!ns && !noNamespace,
   })
 
   useSSE<Deployment[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/deployments` : null, queryKey)
@@ -53,6 +54,11 @@ export function DeploymentsPage() {
         noun="deployment"
       />
 
+      {noNamespace && (
+        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
+          <p className="text-sm text-gray-400">Select a namespace from the sidebar to view deployments.</p>
+        </div>
+      )}
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load deployments: ${(error as Error).message}`} />}
 

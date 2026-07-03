@@ -14,14 +14,14 @@ interface Props {
 
 export function Table({ columns, children, minWidth = '600px' }: Props) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl ring-1 ring-gray-200 bg-white shadow-sm">
       <table className="w-full text-sm" style={{ minWidth }}>
         <thead>
-          <tr className="border-b border-gray-200">
+          <tr className="border-b border-gray-200 bg-gray-50/60">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap ${col.className ?? ''}`}
+                className={`px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${col.className ?? ''}`}
               >
                 {col.label}
               </th>

@@ -32,7 +32,7 @@ const COLUMNS = [
   { key: 'result', label: 'Result' },
 ]
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 10
 
 export function AuditPage() {
   const [page, setPage] = useState(0)

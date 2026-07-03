@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import { Logo } from '../components/Icons'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -26,13 +27,18 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm bg-white p-8 rounded-xl shadow space-y-4"
+        className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-2xl space-y-4"
       >
-        <h1 className="text-2xl font-bold text-gray-800">KubeMind</h1>
-        <p className="text-sm text-gray-500">Sign in to your dashboard</p>
+        <div className="flex items-center gap-3">
+          <Logo className="w-9 h-9" />
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-gray-900">KubeMind</h1>
+            <p className="text-xs text-gray-400">AI-assisted Kubernetes dashboard</p>
+          </div>
+        </div>
         {error && <div className="text-sm text-red-600">{error}</div>}
         <input
           className="w-full border border-gray-300 rounded px-3 py-2"

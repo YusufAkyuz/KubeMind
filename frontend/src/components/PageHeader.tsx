@@ -12,7 +12,7 @@ export function PageHeader({ title, subtitle, count, noun, actions }: Props) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
       <div>
-        <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-gray-900">{title}</h1>
         {subtitle && <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-3">

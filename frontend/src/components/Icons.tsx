@@ -1,5 +1,36 @@
+import { useId } from 'react'
+
 interface IconProps {
   className?: string
+}
+
+/**
+ * KubeMind brand mark: gradient tile with a connected-nodes glyph
+ * (control plane + workloads). useId keeps gradient ids unique when
+ * the logo renders more than once on a page.
+ */
+export function Logo({ className = 'w-7 h-7' }: IconProps) {
+  const id = useId()
+  return (
+    <svg className={className} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#3b82f6" />
+          <stop offset="1" stopColor="#8b5cf6" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8" fill={`url(#${id})`} />
+      <g stroke="white" strokeWidth="1.6" strokeLinecap="round">
+        <line x1="16" y1="16" x2="16" y2="8.5" />
+        <line x1="16" y1="16" x2="9.5" y2="21.5" />
+        <line x1="16" y1="16" x2="22.5" y2="21.5" />
+      </g>
+      <circle cx="16" cy="16" r="3" fill="white" />
+      <circle cx="16" cy="8" r="2.1" fill="white" opacity="0.9" />
+      <circle cx="9" cy="22" r="2.1" fill="white" opacity="0.9" />
+      <circle cx="23" cy="22" r="2.1" fill="white" opacity="0.9" />
+    </svg>
+  )
 }
 
 export function IconServer({ className = 'w-4 h-4' }: IconProps) {

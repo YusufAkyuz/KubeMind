@@ -49,10 +49,11 @@ export function PodsPage() {
     }
   }
 
+  const noNamespace = ns === '_'
   const { data, isLoading, isError, error } = useQuery<Pod[]>({
     queryKey,
     queryFn: async () => (await api.get<Pod[]>(`/clusters/${clusterId}/namespaces/${ns}/pods`)).data,
-    enabled: !!clusterId && !!ns,
+    enabled: !!clusterId && !!ns && !noNamespace,
   })
 
   useSSE<Pod[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/pods` : null, queryKey)
@@ -66,6 +67,11 @@ export function PodsPage() {
         noun="pod"
       />
 
+      {noNamespace && (
+        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
+          <p className="text-sm text-gray-400">Select a namespace from the sidebar to view pods.</p>
+        </div>
+      )}
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load pods: ${(error as Error).message}`} />}
 
