@@ -1,5 +1,6 @@
 package com.kubemind.ai;
 
+import com.kubemind.cluster.ClusterClientFactory;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Event;
@@ -22,14 +23,15 @@ public class PodContextCollector {
     private static final int LOG_TAIL_LINES = 100;
     private static final int MAX_EVENTS = 20;
 
-    private final KubernetesClient client;
+    private final ClusterClientFactory clientFactory;
 
-    public PodContextCollector(KubernetesClient client) {
-        this.client = client;
+    public PodContextCollector(ClusterClientFactory clientFactory) {
+        this.clientFactory = clientFactory;
     }
 
     /** @return the redacted context, or null if the pod does not exist. */
-    public String collect(String namespace, String podName) {
+    public String collect(long clusterId, String namespace, String podName) {
+        KubernetesClient client = clientFactory.getClient(clusterId);
         Pod pod = client.pods().inNamespace(namespace).withName(podName).get();
         if (pod == null) return null;
 

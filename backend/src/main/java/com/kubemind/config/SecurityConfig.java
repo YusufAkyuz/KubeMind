@@ -46,6 +46,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                // Interactive exec is effectively full write access — ADMIN only,
+                // enforced at the WebSocket handshake (an HTTP GET upgrade).
+                .requestMatchers("/ws/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .exceptionHandling(ex -> ex.authenticationEntryPoint(
                 (request, response, authException) ->

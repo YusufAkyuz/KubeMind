@@ -33,8 +33,8 @@ public class ExplainService {
 
     public record ExplainResult(String explanation, boolean cached, String model, Instant createdAt) {}
 
-    public ExplainResult explainPod(String namespace, String podName) {
-        String context = contextCollector.collect(namespace, podName);
+    public ExplainResult explainPod(long clusterId, String namespace, String podName) {
+        String context = contextCollector.collect(clusterId, namespace, podName);
         if (context == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                 "Pod '" + podName + "' not found in namespace '" + namespace + "'");
@@ -59,7 +59,7 @@ public class ExplainService {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI model returned an empty response");
         }
 
-        var diagnosis = new AiDiagnosis("Pod", namespace, podName, stateHash, context, explanation, model);
+        var diagnosis = new AiDiagnosis(clusterId, "Pod", namespace, podName, stateHash, context, explanation, model);
         try {
             diagnosis = repository.save(diagnosis);
         } catch (DataIntegrityViolationException e) {

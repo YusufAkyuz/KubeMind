@@ -1,6 +1,7 @@
 package com.kubemind.k8s;
 
 import com.kubemind.audit.AuditService;
+import com.kubemind.cluster.ClusterClientFactory;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -19,6 +20,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @EnableKubernetesMockClient(crud = true)
 class KubernetesWriteServiceTest {
@@ -31,7 +33,9 @@ class KubernetesWriteServiceTest {
     @BeforeEach
     void setUp() {
         auditService = mock(AuditService.class);
-        service = new KubernetesWriteService(client, auditService);
+        var factory = mock(ClusterClientFactory.class);
+        when(factory.getClient(0L)).thenReturn(client);
+        service = new KubernetesWriteService(factory, auditService);
     }
 
     private Deployment sampleDeployment(String ns, String name, int replicas) {
@@ -54,20 +58,20 @@ class KubernetesWriteServiceTest {
 
     @Test
     void scaleRejectsOutOfRangeReplicas() {
-        assertThatThrownBy(() -> service.scaleDeployment("admin", "default", "web", -1))
+        assertThatThrownBy(() -> service.scaleDeployment("admin", 0L,"default", "web", -1))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("replicas");
-        assertThatThrownBy(() -> service.scaleDeployment("admin", "default", "web", 501))
+        assertThatThrownBy(() -> service.scaleDeployment("admin", 0L,"default", "web", 501))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("replicas");
     }
 
     @Test
     void scaleUnknownDeploymentReturns404AndAuditsFailure() {
-        assertThatThrownBy(() -> service.scaleDeployment("admin", "default", "ghost", 2))
+        assertThatThrownBy(() -> service.scaleDeployment("admin", 0L,"default", "ghost", 2))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("not found");
-        verify(auditService).record(eq("admin"), eq("SCALE_DEPLOYMENT"),
+        verify(auditService).record(eq("admin"), eq(0L), eq("SCALE_DEPLOYMENT"),
             eq("Deployment/default/ghost"), any(), eq(false), anyString());
     }
 
@@ -76,10 +80,10 @@ class KubernetesWriteServiceTest {
         client.apps().deployments().inNamespace("default")
             .resource(sampleDeployment("default", "web", 1)).create();
 
-        var dto = service.scaleDeployment("admin", "default", "web", 3);
+        var dto = service.scaleDeployment("admin", 0L,"default", "web", 3);
 
         assertThat(dto.desiredReplicas()).isEqualTo(3);
-        verify(auditService).record(eq("admin"), eq("SCALE_DEPLOYMENT"),
+        verify(auditService).record(eq("admin"), eq(0L), eq("SCALE_DEPLOYMENT"),
             eq("Deployment/default/web"), any(), eq(true), eq(null));
     }
 
@@ -87,7 +91,7 @@ class KubernetesWriteServiceTest {
 
     @Test
     void deleteUnknownPodReturns404() {
-        assertThatThrownBy(() -> service.deletePod("admin", "default", "ghost"))
+        assertThatThrownBy(() -> service.deletePod("admin", 0L,"default", "ghost"))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("not found");
     }
@@ -98,10 +102,10 @@ class KubernetesWriteServiceTest {
             .withNewMetadata().withName("p1").withNamespace("default").endMetadata()
             .build()).create();
 
-        service.deletePod("admin", "default", "p1");
+        service.deletePod("admin", 0L,"default", "p1");
 
         assertThat(client.pods().inNamespace("default").withName("p1").get()).isNull();
-        verify(auditService).record(eq("admin"), eq("DELETE_POD"),
+        verify(auditService).record(eq("admin"), eq(0L), eq("DELETE_POD"),
             eq("Pod/default/p1"), eq(null), eq(true), eq(null));
     }
 
@@ -113,10 +117,10 @@ class KubernetesWriteServiceTest {
             .resource(sampleDeployment("default", "web", 1)).create();
         String yaml = Serialization.asYaml(sampleDeployment("default", "other-name", 1));
 
-        assertThatThrownBy(() -> service.applyDeploymentYaml("admin", "default", "web", yaml))
+        assertThatThrownBy(() -> service.applyDeploymentYaml("admin", 0L,"default", "web", yaml))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("metadata.name");
-        verify(auditService).record(eq("admin"), eq("EDIT_DEPLOYMENT_YAML"),
+        verify(auditService).record(eq("admin"), eq(0L), eq("EDIT_DEPLOYMENT_YAML"),
             eq("Deployment/default/web"), any(), eq(false), anyString());
     }
 
@@ -124,16 +128,16 @@ class KubernetesWriteServiceTest {
     void applyYamlRejectsNamespaceChange() {
         String yaml = Serialization.asYaml(sampleDeployment("other-ns", "web", 1));
 
-        assertThatThrownBy(() -> service.applyDeploymentYaml("admin", "default", "web", yaml))
+        assertThatThrownBy(() -> service.applyDeploymentYaml("admin", 0L,"default", "web", yaml))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("metadata.namespace");
     }
 
     @Test
     void applyYamlRejectsGarbageInput() {
-        assertThatThrownBy(() -> service.applyDeploymentYaml("admin", "default", "web", "{not yaml:::"))
+        assertThatThrownBy(() -> service.applyDeploymentYaml("admin", 0L,"default", "web", "{not yaml:::"))
             .isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() -> service.applyDeploymentYaml("admin", "default", "web", "  "))
+        assertThatThrownBy(() -> service.applyDeploymentYaml("admin", 0L,"default", "web", "  "))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("empty");
     }
@@ -144,10 +148,10 @@ class KubernetesWriteServiceTest {
             .resource(sampleDeployment("default", "web", 1)).create();
         String yaml = Serialization.asYaml(sampleDeployment("default", "web", 4));
 
-        var dto = service.applyDeploymentYaml("admin", "default", "web", yaml);
+        var dto = service.applyDeploymentYaml("admin", 0L,"default", "web", yaml);
 
         assertThat(dto.desiredReplicas()).isEqualTo(4);
-        verify(auditService).record(eq("admin"), eq("EDIT_DEPLOYMENT_YAML"),
+        verify(auditService).record(eq("admin"), eq(0L), eq("EDIT_DEPLOYMENT_YAML"),
             eq("Deployment/default/web"), any(), eq(true), eq(null));
     }
 

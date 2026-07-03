@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/k8s")
+@RequestMapping("/api/clusters/{clusterId}")
 public class EventController {
 
     private final KubernetesService kubernetesService;
@@ -18,7 +18,7 @@ public class EventController {
     }
 
     @GetMapping("/namespaces/{ns}/events")
-    public List<EventDto> events(@PathVariable String ns) {
-        return kubernetesService.listEvents(ns);
+    public List<EventDto> events(@PathVariable long clusterId, @PathVariable String ns) {
+        return kubernetesService.listEvents(clusterId, ns);
     }
 }

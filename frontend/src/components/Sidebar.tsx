@@ -10,20 +10,7 @@ import {
   IconClipboard,
   IconHelm,
 } from './Icons'
-import type { Namespace } from '../types/k8s'
-import type { ComponentType } from 'react'
-
-interface NavItem {
-  to: string
-  label: string
-  Icon: ComponentType<{ className?: string }>
-  exact?: boolean
-}
-
-const CLUSTER_NAV: NavItem[] = [
-  { to: '/nodes', label: 'Nodes', Icon: IconServer },
-  { to: '/namespaces', label: 'Namespaces', Icon: IconFolder },
-]
+import type { Cluster, Namespace } from '../types/k8s'
 
 const WORKLOAD_NAV = [
   { suffix: 'pods', label: 'Pods', Icon: IconCube },
@@ -40,21 +27,39 @@ export function Sidebar({ onClose }: Props) {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const { data: namespaces } = useQuery<Namespace[]>({
-    queryKey: ['namespaces'],
-    queryFn: async () => (await api.get<Namespace[]>('/k8s/namespaces')).data,
+  // Derive current cluster and namespace from the URL
+  const clusterMatch = location.pathname.match(/^\/clusters\/(\d+)/)
+  const clusterId = clusterMatch ? clusterMatch[1] : '0'
+  const nsMatch = location.pathname.match(/^\/clusters\/\d+\/namespaces\/([^/]+)\//)
+  const currentNs = nsMatch ? nsMatch[1] : null
+
+  const { data: clusters } = useQuery<Cluster[]>({
+    queryKey: ['clusters'],
+    queryFn: async () => (await api.get<Cluster[]>('/clusters')).data,
     staleTime: 30_000,
   })
 
-  const nsMatch = location.pathname.match(/^\/namespaces\/([^/]+)\//)
-  const currentNs = nsMatch ? nsMatch[1] : null
+  const { data: namespaces } = useQuery<Namespace[]>({
+    queryKey: ['namespaces', clusterId],
+    queryFn: async () => (await api.get<Namespace[]>(`/clusters/${clusterId}/namespaces`)).data,
+    staleTime: 30_000,
+  })
+
+  const currentCluster = clusters?.find((c) => String(c.id) === clusterId)
+
+  const handleClusterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value
+    // Namespaces differ between clusters — land on nodes, the safe cluster-wide page.
+    navigate(`/clusters/${id}/nodes`)
+    onClose?.()
+  }
 
   const handleNsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const ns = e.target.value
     if (!ns) return
     navigate(currentNs
       ? location.pathname.replace(`/namespaces/${currentNs}/`, `/namespaces/${ns}/`)
-      : `/namespaces/${ns}/pods`)
+      : `/clusters/${clusterId}/namespaces/${ns}/pods`)
     onClose?.()
   }
 
@@ -72,6 +77,34 @@ export function Sidebar({ onClose }: Props) {
       <div className="flex items-center gap-2.5 px-5 h-14 border-b border-gray-200 shrink-0">
         <IconHelm className="w-5 h-5 text-blue-600" />
         <span className="text-[15px] font-semibold tracking-tight text-gray-900">KubeMind</span>
+      </div>
+
+      {/* Cluster switcher */}
+      <div className="px-4 py-3 border-b border-gray-200 shrink-0">
+        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+          Cluster
+        </label>
+        <div className="flex items-center gap-2">
+          <select
+            value={clusterId}
+            onChange={handleClusterChange}
+            className="w-full text-sm border border-gray-300 rounded-md px-2.5 py-1.5 bg-white text-gray-700
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {(clusters ?? [{ id: 0, name: 'local', builtIn: true } as Cluster]).map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          {currentCluster && !currentCluster.builtIn && (
+            <span
+              title={currentCluster.lastCheckOk === false ? 'Unreachable at last check' : 'Healthy at last check'}
+              className={`shrink-0 w-2 h-2 rounded-full ${
+                currentCluster.lastCheckOk === false ? 'bg-red-500'
+                : currentCluster.lastCheckOk === true ? 'bg-emerald-500' : 'bg-gray-300'
+              }`}
+            />
+          )}
+        </div>
       </div>
 
       {/* Namespace selector */}
@@ -97,36 +130,39 @@ export function Sidebar({ onClose }: Props) {
         <p className="px-3 pb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
           Cluster
         </p>
-        {CLUSTER_NAV.map(({ to, label, Icon }) => (
-          <NavLink key={to} to={to} className={navLinkClass} onClick={onClose} end>
-            <Icon className="w-4 h-4 shrink-0" />
-            {label}
-          </NavLink>
-        ))}
+        <NavLink to={`/clusters/${clusterId}/nodes`} className={navLinkClass} onClick={onClose} end>
+          <IconServer className="w-4 h-4 shrink-0" />
+          Nodes
+        </NavLink>
+        <NavLink to={`/clusters/${clusterId}/namespaces`} className={navLinkClass} onClick={onClose} end>
+          <IconFolder className="w-4 h-4 shrink-0" />
+          Namespaces
+        </NavLink>
 
         <p className="px-3 pt-4 pb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
           Workloads
         </p>
-        {WORKLOAD_NAV.map(({ suffix, label, Icon }) => {
-          const ns = currentNs ?? '_'
-          return (
-            <NavLink
-              key={suffix}
-              to={`/namespaces/${ns}/${suffix}`}
-              className={navLinkClass}
-              onClick={onClose}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
-            </NavLink>
-          )
-        })}
+        {WORKLOAD_NAV.map(({ suffix, label, Icon }) => (
+          <NavLink
+            key={suffix}
+            to={`/clusters/${clusterId}/namespaces/${currentNs ?? '_'}/${suffix}`}
+            className={navLinkClass}
+            onClick={onClose}
+          >
+            <Icon className="w-4 h-4 shrink-0" />
+            {label}
+          </NavLink>
+        ))}
 
         {isAdmin && (
           <>
             <p className="px-3 pt-4 pb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
               Admin
             </p>
+            <NavLink to="/settings/clusters" className={navLinkClass} onClick={onClose}>
+              <IconServer className="w-4 h-4 shrink-0" />
+              Clusters
+            </NavLink>
             <NavLink to="/audit" className={navLinkClass} onClick={onClose}>
               <IconClipboard className="w-4 h-4 shrink-0" />
               Audit log

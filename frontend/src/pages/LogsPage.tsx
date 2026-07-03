@@ -20,7 +20,7 @@ type ConnState = 'connecting' | 'connected' | 'paused' | 'error' | 'closed'
 let lineIdSeq = 0
 
 export function LogsPage() {
-  const { ns, pod } = useParams<{ ns: string; pod: string }>()
+  const { clusterId, ns, pod } = useParams<{ clusterId: string; ns: string; pod: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const container = searchParams.get('container') ?? ''
 
@@ -37,20 +37,20 @@ export function LogsPage() {
 
   // Fetch pod to get container list
   const { data: podData } = useQuery<Pod>({
-    queryKey: ['pod', ns, pod],
-    queryFn: async () => (await api.get<Pod>(`/k8s/namespaces/${ns}/pods/${pod}`)).data,
-    enabled: !!ns && !!pod,
+    queryKey: ['pod', clusterId, ns, pod],
+    queryFn: async () => (await api.get<Pod>(`/clusters/${clusterId}/namespaces/${ns}/pods/${pod}`)).data,
+    enabled: !!clusterId && !!ns && !!pod,
     staleTime: 60_000,
   })
 
   const containerName = container || podData?.containers[0]?.name || ''
 
   const connect = useCallback(() => {
-    if (!ns || !pod || !containerName || cancelledRef.current) return
+    if (!clusterId || !ns || !pod || !containerName || cancelledRef.current) return
 
     esRef.current?.close()
 
-    const url = `/api/k8s/namespaces/${ns}/pods/${pod}/logs/stream?container=${encodeURIComponent(containerName)}&tailLines=${TAIL_LINES}`
+    const url = `/api/clusters/${clusterId}/namespaces/${ns}/pods/${pod}/logs/stream?container=${encodeURIComponent(containerName)}&tailLines=${TAIL_LINES}`
     const es = new EventSource(url, { withCredentials: true })
     esRef.current = es
     setConnState('connecting')
@@ -79,7 +79,7 @@ export function LogsPage() {
         if (!cancelledRef.current) connect()
       }, RECONNECT_DELAY_MS)
     }
-  }, [ns, pod, containerName])
+  }, [clusterId, ns, pod, containerName])
 
   // (Re)connect when container changes
   useEffect(() => {
@@ -148,11 +148,11 @@ export function LogsPage() {
     <Layout>
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm text-gray-400 mb-4 flex-wrap">
-        <Link to={`/namespaces/${ns}/pods`} className="hover:text-gray-700 transition-colors">
+        <Link to={`/clusters/${clusterId}/namespaces/${ns}/pods`} className="hover:text-gray-700 transition-colors">
           {ns}
         </Link>
         <IconChevronRight className="w-3.5 h-3.5 shrink-0" />
-        <Link to={`/namespaces/${ns}/pods`} className="hover:text-gray-700 transition-colors">
+        <Link to={`/clusters/${clusterId}/namespaces/${ns}/pods`} className="hover:text-gray-700 transition-colors">
           {pod}
         </Link>
         <IconChevronRight className="w-3.5 h-3.5 shrink-0" />

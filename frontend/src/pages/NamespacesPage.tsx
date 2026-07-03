@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
@@ -17,9 +17,11 @@ const COLUMNS = [
 
 export function NamespacesPage() {
   const navigate = useNavigate()
+  const { clusterId } = useParams<{ clusterId: string }>()
   const { data, isLoading, isError, error } = useQuery<Namespace[]>({
-    queryKey: ['namespaces'],
-    queryFn: async () => (await api.get<Namespace[]>('/k8s/namespaces')).data,
+    queryKey: ['namespaces', clusterId],
+    queryFn: async () => (await api.get<Namespace[]>(`/clusters/${clusterId}/namespaces`)).data,
+    enabled: !!clusterId,
   })
 
   return (
@@ -32,7 +34,7 @@ export function NamespacesPage() {
       {data && (
         <Table columns={COLUMNS} minWidth="360px">
           {data.map((ns) => (
-            <Tr key={ns.name} onClick={() => navigate(`/namespaces/${ns.name}/pods`)}>
+            <Tr key={ns.name} onClick={() => navigate(`/clusters/${clusterId}/namespaces/${ns.name}/pods`)}>
               <Td className="font-medium text-blue-600">{ns.name}</Td>
               <Td><StatusBadge status={ns.phase ?? 'Unknown'} /></Td>
               <Td className="text-gray-400 tabular-nums">{formatAge(ns.creationTimestamp)}</Td>

@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/k8s")
+@RequestMapping("/api/clusters/{clusterId}")
 public class DeploymentController {
 
     private final KubernetesService kubernetesService;
@@ -18,7 +18,7 @@ public class DeploymentController {
     }
 
     @GetMapping("/namespaces/{ns}/deployments")
-    public List<DeploymentDto> deployments(@PathVariable String ns) {
-        return kubernetesService.listDeployments(ns);
+    public List<DeploymentDto> deployments(@PathVariable long clusterId, @PathVariable String ns) {
+        return kubernetesService.listDeployments(clusterId, ns);
     }
 }

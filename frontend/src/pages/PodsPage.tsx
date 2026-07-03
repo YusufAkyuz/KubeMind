@@ -28,19 +28,19 @@ const COLUMNS = [
 ]
 
 export function PodsPage() {
-  const { ns } = useParams<{ ns: string }>()
+  const { clusterId, ns } = useParams<{ clusterId: string; ns: string }>()
   const navigate = useNavigate()
   const { isAdmin } = useAuth()
   const toast = useToast()
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Pod | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const queryKey = ['pods', ns]
+  const queryKey = ['pods', clusterId, ns]
 
   const deletePod = async () => {
     if (!selected) return
     try {
-      await api.delete(`/k8s/namespaces/${ns}/pods/${selected.name}`)
+      await api.delete(`/clusters/${clusterId}/namespaces/${ns}/pods/${selected.name}`)
       toast.success(`Pod ${selected.name} deleted`)
       setSelected(null)
       queryClient.invalidateQueries({ queryKey })
@@ -51,11 +51,11 @@ export function PodsPage() {
 
   const { data, isLoading, isError, error } = useQuery<Pod[]>({
     queryKey,
-    queryFn: async () => (await api.get<Pod[]>(`/k8s/namespaces/${ns}/pods`)).data,
-    enabled: !!ns,
+    queryFn: async () => (await api.get<Pod[]>(`/clusters/${clusterId}/namespaces/${ns}/pods`)).data,
+    enabled: !!clusterId && !!ns,
   })
 
-  useSSE<Pod[]>(ns ? `/api/k8s/watch/namespaces/${ns}/pods` : null, queryKey)
+  useSSE<Pod[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/pods` : null, queryKey)
 
   return (
     <Layout>
@@ -106,7 +106,12 @@ export function PodsPage() {
         {selected && ns && (
           <>
             <div className="pb-3">
-              <ExplainPanel key={`${ns}/${selected.name}`} namespace={ns} podName={selected.name} />
+              <ExplainPanel
+                key={`${clusterId}/${ns}/${selected.name}`}
+                clusterId={clusterId!}
+                namespace={ns}
+                podName={selected.name}
+              />
             </div>
 
             <DrawerSection title="Overview" />
@@ -142,7 +147,7 @@ export function PodsPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigate(`/namespaces/${ns}/pods/${selected.name}/logs?container=${c.name}`)
+                            navigate(`/clusters/${clusterId}/namespaces/${ns}/pods/${selected.name}/logs?container=${c.name}`)
                           }}
                           className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
                           title="View logs"

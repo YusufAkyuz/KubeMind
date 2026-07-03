@@ -1,12 +1,12 @@
 package com.kubemind.k8s;
 
+import com.kubemind.cluster.ClusterClientFactory;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -17,16 +17,16 @@ import java.util.stream.Collectors;
 @Service
 public class KubernetesService {
 
-    private final KubernetesClient client;
+    private final ClusterClientFactory clientFactory;
 
-    public KubernetesService(KubernetesClient client) {
-        this.client = client;
+    public KubernetesService(ClusterClientFactory clientFactory) {
+        this.clientFactory = clientFactory;
     }
 
     // ── Namespaces ────────────────────────────────────────────────────────────
 
-    public List<NamespaceDto> listNamespaces() {
-        return client.namespaces().list().getItems().stream()
+    public List<NamespaceDto> listNamespaces(long clusterId) {
+        return clientFactory.getClient(clusterId).namespaces().list().getItems().stream()
             .map(ns -> new NamespaceDto(
                 ns.getMetadata().getName(),
                 ns.getStatus() != null ? ns.getStatus().getPhase() : null,
@@ -36,8 +36,8 @@ public class KubernetesService {
 
     // ── Nodes ─────────────────────────────────────────────────────────────────
 
-    public List<NodeDto> listNodes() {
-        return client.nodes().list().getItems().stream()
+    public List<NodeDto> listNodes(long clusterId) {
+        return clientFactory.getClient(clusterId).nodes().list().getItems().stream()
             .map(this::toNodeDto)
             .toList();
     }
@@ -86,11 +86,19 @@ public class KubernetesService {
 
     // ── Pods ──────────────────────────────────────────────────────────────────
 
-    public List<PodDto> listPods(String namespace) {
+    public List<PodDto> listPods(long clusterId, String namespace) {
+        var client = clientFactory.getClient(clusterId);
         var items = "all".equals(namespace)
             ? client.pods().inAnyNamespace().list().getItems()
             : client.pods().inNamespace(namespace).list().getItems();
         return items.stream().map(this::toPodDto).toList();
+    }
+
+    public PodDto getPod(long clusterId, String namespace, String name) {
+        var pod = clientFactory.getClient(clusterId).pods()
+            .inNamespace(namespace).withName(name).get();
+        if (pod == null) return null;
+        return toPodDto(pod);
     }
 
     private PodDto toPodDto(Pod pod) {
@@ -136,7 +144,8 @@ public class KubernetesService {
 
     // ── Deployments ───────────────────────────────────────────────────────────
 
-    public List<DeploymentDto> listDeployments(String namespace) {
+    public List<DeploymentDto> listDeployments(long clusterId, String namespace) {
+        var client = clientFactory.getClient(clusterId);
         var items = "all".equals(namespace)
             ? client.apps().deployments().inAnyNamespace().list().getItems()
             : client.apps().deployments().inNamespace(namespace).list().getItems();
@@ -174,7 +183,8 @@ public class KubernetesService {
 
     // ── Events ────────────────────────────────────────────────────────────────
 
-    public List<EventDto> listEvents(String namespace) {
+    public List<EventDto> listEvents(long clusterId, String namespace) {
+        var client = clientFactory.getClient(clusterId);
         var items = "all".equals(namespace)
             ? client.resources(Event.class).inAnyNamespace().list().getItems()
             : client.resources(Event.class).inNamespace(namespace).list().getItems();
@@ -201,14 +211,6 @@ public class KubernetesService {
             e.getLastTimestamp(),
             e.getFirstTimestamp()
         );
-    }
-
-    // ── Single resource ───────────────────────────────────────────────────────
-
-    public PodDto getPod(String namespace, String name) {
-        var pod = client.pods().inNamespace(namespace).withName(name).get();
-        if (pod == null) return null;
-        return toPodDto(pod);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

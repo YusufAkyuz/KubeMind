@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Layout } from '../components/Layout'
@@ -22,15 +23,17 @@ const COLUMNS = [
 ]
 
 export function NodesPage() {
+  const { clusterId } = useParams<{ clusterId: string }>()
   const [selected, setSelected] = useState<NodeResource | null>(null)
-  const queryKey = ['nodes']
+  const queryKey = ['nodes', clusterId]
 
   const { data, isLoading, isError, error } = useQuery<NodeResource[]>({
     queryKey,
-    queryFn: async () => (await api.get<NodeResource[]>('/k8s/nodes')).data,
+    queryFn: async () => (await api.get<NodeResource[]>(`/clusters/${clusterId}/nodes`)).data,
+    enabled: !!clusterId,
   })
 
-  useSSE<NodeResource[]>('/api/k8s/watch/nodes', queryKey)
+  useSSE<NodeResource[]>(clusterId ? `/api/clusters/${clusterId}/watch/nodes` : null, queryKey)
 
   return (
     <Layout>

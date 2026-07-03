@@ -7,6 +7,7 @@ import { useToast } from './Toast'
 import type { Deployment } from '../types/k8s'
 
 interface Props {
+  clusterId: string
   namespace: string
   deployment: Deployment
   onActionDone?: () => void
@@ -14,7 +15,7 @@ interface Props {
 
 type Dialog = 'scale' | 'restart' | 'yaml' | null
 
-export function DeploymentActions({ namespace, deployment, onActionDone }: Props) {
+export function DeploymentActions({ clusterId, namespace, deployment, onActionDone }: Props) {
   const [dialog, setDialog] = useState<Dialog>(null)
   const [replicas, setReplicas] = useState(deployment.desiredReplicas)
   const [yaml, setYaml] = useState('')
@@ -24,10 +25,10 @@ export function DeploymentActions({ namespace, deployment, onActionDone }: Props
   const toast = useToast()
   const queryClient = useQueryClient()
 
-  const base = `/k8s/namespaces/${namespace}/deployments/${deployment.name}`
+  const base = `/clusters/${clusterId}/namespaces/${namespace}/deployments/${deployment.name}`
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['deployments', namespace] })
+    queryClient.invalidateQueries({ queryKey: ['deployments', clusterId, namespace] })
     onActionDone?.()
   }
 

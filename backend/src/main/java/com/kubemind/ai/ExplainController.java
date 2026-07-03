@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Instant;
 
 @RestController
-@RequestMapping("/api/k8s")
+@RequestMapping("/api/clusters/{clusterId}")
 public class ExplainController {
 
     private final ExplainService explainService;
@@ -20,8 +20,9 @@ public class ExplainController {
     public record ExplainResponse(String explanation, boolean cached, String model, Instant createdAt) {}
 
     @PostMapping("/namespaces/{ns}/pods/{pod}/explain")
-    public ExplainResponse explainPod(@PathVariable String ns, @PathVariable String pod) {
-        var result = explainService.explainPod(ns, pod);
+    public ExplainResponse explainPod(@PathVariable long clusterId,
+                                      @PathVariable String ns, @PathVariable String pod) {
+        var result = explainService.explainPod(clusterId, ns, pod);
         return new ExplainResponse(result.explanation(), result.cached(), result.model(), result.createdAt());
     }
 }

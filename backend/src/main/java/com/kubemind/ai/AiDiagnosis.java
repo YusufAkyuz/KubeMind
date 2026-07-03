@@ -52,8 +52,9 @@ public class AiDiagnosis {
 
     protected AiDiagnosis() {} // JPA
 
-    public AiDiagnosis(String resourceKind, String resourceNs, String resourceName,
+    public AiDiagnosis(Long clusterId, String resourceKind, String resourceNs, String resourceName,
                        String stateHash, String prompt, String response, String model) {
+        this.clusterId = clusterId;
         this.resourceKind = resourceKind;
         this.resourceNs = resourceNs;
         this.resourceName = resourceName;

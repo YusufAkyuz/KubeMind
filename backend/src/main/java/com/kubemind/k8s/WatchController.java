@@ -1,9 +1,6 @@
 package com.kubemind.k8s;
 
-import io.fabric8.kubernetes.api.model.Node;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
+import com.kubemind.cluster.ClusterClientFactory;
 import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
@@ -19,43 +16,43 @@ import java.util.List;
 import java.util.function.Supplier;
 
 @RestController
-@RequestMapping("/api/k8s/watch")
+@RequestMapping("/api/clusters/{clusterId}/watch")
 public class WatchController {
 
-    private final KubernetesClient client;
+    private final ClusterClientFactory clientFactory;
     private final KubernetesService kubernetesService;
 
-    public WatchController(KubernetesClient client, KubernetesService kubernetesService) {
-        this.client = client;
+    public WatchController(ClusterClientFactory clientFactory, KubernetesService kubernetesService) {
+        this.clientFactory = clientFactory;
         this.kubernetesService = kubernetesService;
     }
 
     @GetMapping(value = "/nodes", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter watchNodes() {
+    public SseEmitter watchNodes(@PathVariable long clusterId) {
         SseEmitter emitter = new SseEmitter(0L);
-        sendEvent(emitter, "init", kubernetesService.listNodes());
-        Watch watch = client.nodes().watch(new ListRefreshWatcher<>(emitter,
-            () -> kubernetesService.listNodes()));
+        sendEvent(emitter, "init", kubernetesService.listNodes(clusterId));
+        Watch watch = clientFactory.getClient(clusterId).nodes()
+            .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listNodes(clusterId)));
         bindCleanup(emitter, watch);
         return emitter;
     }
 
     @GetMapping(value = "/namespaces/{ns}/pods", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter watchPods(@PathVariable String ns) {
+    public SseEmitter watchPods(@PathVariable long clusterId, @PathVariable String ns) {
         SseEmitter emitter = new SseEmitter(0L);
-        sendEvent(emitter, "init", kubernetesService.listPods(ns));
-        Watch watch = client.pods().inNamespace(ns).watch(new ListRefreshWatcher<>(emitter,
-            () -> kubernetesService.listPods(ns)));
+        sendEvent(emitter, "init", kubernetesService.listPods(clusterId, ns));
+        Watch watch = clientFactory.getClient(clusterId).pods().inNamespace(ns)
+            .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listPods(clusterId, ns)));
         bindCleanup(emitter, watch);
         return emitter;
     }
 
     @GetMapping(value = "/namespaces/{ns}/deployments", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter watchDeployments(@PathVariable String ns) {
+    public SseEmitter watchDeployments(@PathVariable long clusterId, @PathVariable String ns) {
         SseEmitter emitter = new SseEmitter(0L);
-        sendEvent(emitter, "init", kubernetesService.listDeployments(ns));
-        Watch watch = client.apps().deployments().inNamespace(ns).watch(new ListRefreshWatcher<>(emitter,
-            () -> kubernetesService.listDeployments(ns)));
+        sendEvent(emitter, "init", kubernetesService.listDeployments(clusterId, ns));
+        Watch watch = clientFactory.getClient(clusterId).apps().deployments().inNamespace(ns)
+            .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listDeployments(clusterId, ns)));
         bindCleanup(emitter, watch);
         return emitter;
     }

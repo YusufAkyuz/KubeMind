@@ -1,6 +1,6 @@
 package com.kubemind.k8s;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
+import com.kubemind.cluster.ClusterClientFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,13 +17,13 @@ import java.io.InputStreamReader;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @RestController
-@RequestMapping("/api/k8s")
+@RequestMapping("/api/clusters/{clusterId}")
 public class LogController {
 
-    private final KubernetesClient client;
+    private final ClusterClientFactory clientFactory;
 
-    public LogController(KubernetesClient client) {
-        this.client = client;
+    public LogController(ClusterClientFactory clientFactory) {
+        this.clientFactory = clientFactory;
     }
 
     /**
@@ -40,11 +40,13 @@ public class LogController {
     @GetMapping(value = "/namespaces/{ns}/pods/{pod}/logs/stream",
                 produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamLogs(
+        @PathVariable long clusterId,
         @PathVariable String ns,
         @PathVariable String pod,
         @RequestParam(required = false, defaultValue = "") String container,
         @RequestParam(defaultValue = "200") int tailLines
     ) {
+        var client = clientFactory.getClient(clusterId);
         var podObj = client.pods().inNamespace(ns).withName(pod).get();
         if (podObj == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,

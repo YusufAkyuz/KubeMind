@@ -19,16 +19,25 @@ const COLUMNS = [
   { key: 'age', label: 'Last seen' },
 ]
 
+const PAGE_SIZE = 50
+
 export function EventsPage() {
-  const { ns } = useParams<{ ns: string }>()
+  const { clusterId, ns } = useParams<{ clusterId: string; ns: string }>()
   const [selected, setSelected] = useState<K8sEvent | null>(null)
+  const [page, setPage] = useState(0)
 
   const { data, isLoading, isError, error } = useQuery<K8sEvent[]>({
-    queryKey: ['events', ns],
-    queryFn: async () => (await api.get<K8sEvent[]>(`/k8s/namespaces/${ns}/events`)).data,
-    enabled: !!ns,
+    queryKey: ['events', clusterId, ns],
+    queryFn: async () => (await api.get<K8sEvent[]>(`/clusters/${clusterId}/namespaces/${ns}/events`)).data,
+    enabled: !!clusterId && !!ns,
     refetchInterval: 15_000,
   })
+
+  // Events are fetched and sorted whole (K8s continue-tokens can't preserve the
+  // sort across pages), so paginate client-side.
+  const totalPages = data ? Math.max(1, Math.ceil(data.length / PAGE_SIZE)) : 1
+  const safePage = Math.min(page, totalPages - 1)
+  const pageRows = data ? data.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE) : []
 
   return (
     <Layout>
@@ -42,29 +51,59 @@ export function EventsPage() {
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load events: ${(error as Error).message}`} />}
 
-      {data && (
-        <Table columns={COLUMNS}>
-          {data.map((ev) => (
-            <Tr
-              key={ev.name}
-              onClick={() => setSelected(ev)}
-              highlighted={selected?.name === ev.name}
-            >
-              <Td>
-                <span className={`text-xs font-semibold ${ev.type === 'Warning' ? 'text-red-600' : 'text-gray-400'}`}>
-                  {ev.type}
-                </span>
-              </Td>
-              <Td className="text-gray-700 whitespace-nowrap">{ev.reason ?? '—'}</Td>
-              <Td className="text-xs text-gray-400 whitespace-nowrap">
-                {ev.involvedObjectKind}/{ev.involvedObjectName}
-              </Td>
-              <Td className="text-gray-600 max-w-xs truncate">{ev.message ?? '—'}</Td>
-              <Td className="text-right tabular-nums text-gray-400">{ev.count}</Td>
-              <Td className="text-gray-400 tabular-nums whitespace-nowrap">{formatAge(ev.lastTimestamp)}</Td>
-            </Tr>
-          ))}
-        </Table>
+      {data && data.length === 0 && (
+        <div className="rounded-lg border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
+          <p className="text-sm text-gray-400">No events in this namespace.</p>
+        </div>
+      )}
+
+      {data && data.length > 0 && (
+        <>
+          <Table columns={COLUMNS}>
+            {pageRows.map((ev) => (
+              <Tr
+                key={ev.name}
+                onClick={() => setSelected(ev)}
+                highlighted={selected?.name === ev.name}
+              >
+                <Td>
+                  <span className={`text-xs font-semibold ${ev.type === 'Warning' ? 'text-red-600' : 'text-gray-400'}`}>
+                    {ev.type}
+                  </span>
+                </Td>
+                <Td className="text-gray-700 whitespace-nowrap">{ev.reason ?? '—'}</Td>
+                <Td className="text-xs text-gray-400 whitespace-nowrap">
+                  {ev.involvedObjectKind}/{ev.involvedObjectName}
+                </Td>
+                <Td className="text-gray-600 max-w-xs truncate">{ev.message ?? '—'}</Td>
+                <Td className="text-right tabular-nums text-gray-400">{ev.count}</Td>
+                <Td className="text-gray-400 tabular-nums whitespace-nowrap">{formatAge(ev.lastTimestamp)}</Td>
+              </Tr>
+            ))}
+          </Table>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600
+                           hover:bg-gray-50 disabled:opacity-40 transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-gray-400">Page {safePage + 1} of {totalPages}</span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={safePage + 1 >= totalPages}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600
+                           hover:bg-gray-50 disabled:opacity-40 transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <DetailDrawer

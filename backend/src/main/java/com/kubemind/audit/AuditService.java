@@ -38,7 +38,7 @@ public class AuditService {
      * but it is logged loudly.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void record(String username, String action, String resourceRef,
+    public void record(String username, Long clusterId, String action, String resourceRef,
                        Map<String, Object> payload, boolean success, String message) {
         try {
             Long userId = userRepository.findByUsername(username)
@@ -55,7 +55,7 @@ public class AuditService {
             }
 
             String result = success ? "SUCCESS" : truncate("FAILED: " + message);
-            repository.save(new AuditLog(userId, username, action, resourceRef, payloadJson, result));
+            repository.save(new AuditLog(userId, username, clusterId, action, resourceRef, payloadJson, result));
         } catch (Exception e) {
             log.error("AUDIT WRITE FAILED action={} resource={} user={} - {}",
                 action, resourceRef, username, e.getMessage());

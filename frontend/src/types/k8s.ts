@@ -1,3 +1,13 @@
+export interface Cluster {
+  id: number
+  name: string
+  builtIn: boolean
+  createdBy: string | null
+  createdAt: string | null
+  lastCheckedAt: string | null
+  lastCheckOk: boolean | null
+}
+
 export interface Namespace {
   name: string
   phase: string | null

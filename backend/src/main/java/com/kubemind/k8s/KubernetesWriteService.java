@@ -1,8 +1,8 @@
 package com.kubemind.k8s;
 
 import com.kubemind.audit.AuditService;
+import com.kubemind.cluster.ClusterClientFactory;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,17 +19,18 @@ public class KubernetesWriteService {
 
     static final int MAX_REPLICAS = 500;
 
-    private final KubernetesClient client;
+    private final ClusterClientFactory clientFactory;
     private final AuditService auditService;
 
-    public KubernetesWriteService(KubernetesClient client, AuditService auditService) {
-        this.client = client;
+    public KubernetesWriteService(ClusterClientFactory clientFactory, AuditService auditService) {
+        this.clientFactory = clientFactory;
         this.auditService = auditService;
     }
 
     // ── Scale ─────────────────────────────────────────────────────────────────
 
-    public DeploymentDto scaleDeployment(String username, String ns, String name, int replicas) {
+    public DeploymentDto scaleDeployment(String username, long clusterId,
+                                         String ns, String name, int replicas) {
         if (replicas < 0 || replicas > MAX_REPLICAS) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "replicas must be between 0 and " + MAX_REPLICAS);
@@ -37,59 +38,63 @@ public class KubernetesWriteService {
         String ref = "Deployment/" + ns + "/" + name;
         Map<String, Object> payload = Map.of("replicas", replicas);
         try {
+            var client = clientFactory.getClient(clusterId);
             var existing = client.apps().deployments().inNamespace(ns).withName(name).get();
             if (existing == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
             }
             var scaled = client.apps().deployments().inNamespace(ns).withName(name).scale(replicas);
-            auditService.record(username, "SCALE_DEPLOYMENT", ref, payload, true, null);
+            auditService.record(username, clusterId, "SCALE_DEPLOYMENT", ref, payload, true, null);
             return toDto(scaled);
         } catch (Exception e) {
-            auditService.record(username, "SCALE_DEPLOYMENT", ref, payload, false, e.getMessage());
+            auditService.record(username, clusterId, "SCALE_DEPLOYMENT", ref, payload, false, e.getMessage());
             throw e;
         }
     }
 
     // ── Rollout restart ───────────────────────────────────────────────────────
 
-    public DeploymentDto restartDeployment(String username, String ns, String name) {
+    public DeploymentDto restartDeployment(String username, long clusterId, String ns, String name) {
         String ref = "Deployment/" + ns + "/" + name;
         try {
+            var client = clientFactory.getClient(clusterId);
             var existing = client.apps().deployments().inNamespace(ns).withName(name).get();
             if (existing == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
             }
             var restarted = client.apps().deployments().inNamespace(ns).withName(name)
                 .rolling().restart();
-            auditService.record(username, "RESTART_DEPLOYMENT", ref, null, true, null);
+            auditService.record(username, clusterId, "RESTART_DEPLOYMENT", ref, null, true, null);
             return toDto(restarted);
         } catch (Exception e) {
-            auditService.record(username, "RESTART_DEPLOYMENT", ref, null, false, e.getMessage());
+            auditService.record(username, clusterId, "RESTART_DEPLOYMENT", ref, null, false, e.getMessage());
             throw e;
         }
     }
 
     // ── Delete pod ────────────────────────────────────────────────────────────
 
-    public void deletePod(String username, String ns, String name) {
+    public void deletePod(String username, long clusterId, String ns, String name) {
         String ref = "Pod/" + ns + "/" + name;
         try {
+            var client = clientFactory.getClient(clusterId);
             var existing = client.pods().inNamespace(ns).withName(name).get();
             if (existing == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
             }
             client.pods().inNamespace(ns).withName(name).delete();
-            auditService.record(username, "DELETE_POD", ref, null, true, null);
+            auditService.record(username, clusterId, "DELETE_POD", ref, null, true, null);
         } catch (Exception e) {
-            auditService.record(username, "DELETE_POD", ref, null, false, e.getMessage());
+            auditService.record(username, clusterId, "DELETE_POD", ref, null, false, e.getMessage());
             throw e;
         }
     }
 
     // ── YAML get / apply ──────────────────────────────────────────────────────
 
-    public String getDeploymentYaml(String ns, String name) {
-        var deployment = client.apps().deployments().inNamespace(ns).withName(name).get();
+    public String getDeploymentYaml(long clusterId, String ns, String name) {
+        var deployment = clientFactory.getClient(clusterId).apps().deployments()
+            .inNamespace(ns).withName(name).get();
         if (deployment == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                 "Deployment/" + ns + "/" + name + " not found");
@@ -99,7 +104,8 @@ public class KubernetesWriteService {
         return Serialization.asYaml(deployment);
     }
 
-    public DeploymentDto applyDeploymentYaml(String username, String ns, String name, String yaml) {
+    public DeploymentDto applyDeploymentYaml(String username, long clusterId,
+                                             String ns, String name, String yaml) {
         String ref = "Deployment/" + ns + "/" + name;
         // Payload stores a size marker, not the full YAML — keep the audit table lean;
         // the resulting state is queryable from the cluster itself.
@@ -133,11 +139,12 @@ public class KubernetesWriteService {
             }
             parsed.getMetadata().setNamespace(ns);
 
-            var updated = client.apps().deployments().inNamespace(ns).resource(parsed).update();
-            auditService.record(username, "EDIT_DEPLOYMENT_YAML", ref, payload, true, null);
+            var updated = clientFactory.getClient(clusterId).apps().deployments()
+                .inNamespace(ns).resource(parsed).update();
+            auditService.record(username, clusterId, "EDIT_DEPLOYMENT_YAML", ref, payload, true, null);
             return toDto(updated);
         } catch (Exception e) {
-            auditService.record(username, "EDIT_DEPLOYMENT_YAML", ref, payload, false, e.getMessage());
+            auditService.record(username, clusterId, "EDIT_DEPLOYMENT_YAML", ref, payload, false, e.getMessage());
             throw e;
         }
     }

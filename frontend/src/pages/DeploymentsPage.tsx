@@ -31,18 +31,18 @@ function replicaStatus(d: Deployment): string {
 }
 
 export function DeploymentsPage() {
-  const { ns } = useParams<{ ns: string }>()
+  const { clusterId, ns } = useParams<{ clusterId: string; ns: string }>()
   const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<Deployment | null>(null)
-  const queryKey = ['deployments', ns]
+  const queryKey = ['deployments', clusterId, ns]
 
   const { data, isLoading, isError, error } = useQuery<Deployment[]>({
     queryKey,
-    queryFn: async () => (await api.get<Deployment[]>(`/k8s/namespaces/${ns}/deployments`)).data,
-    enabled: !!ns,
+    queryFn: async () => (await api.get<Deployment[]>(`/clusters/${clusterId}/namespaces/${ns}/deployments`)).data,
+    enabled: !!clusterId && !!ns,
   })
 
-  useSSE<Deployment[]>(ns ? `/api/k8s/watch/namespaces/${ns}/deployments` : null, queryKey)
+  useSSE<Deployment[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/deployments` : null, queryKey)
 
   return (
     <Layout>
@@ -88,7 +88,8 @@ export function DeploymentsPage() {
             {isAdmin && (
               <div className="pb-3">
                 <DeploymentActions
-                  key={`${ns}/${selected.name}`}
+                  key={`${clusterId}/${ns}/${selected.name}`}
+                  clusterId={clusterId!}
                   namespace={ns}
                   deployment={selected}
                   onActionDone={() => setSelected(null)}

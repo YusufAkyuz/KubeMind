@@ -11,6 +11,7 @@ interface ExplainResponse {
 }
 
 interface Props {
+  clusterId: string
   namespace: string
   podName: string
 }
@@ -60,10 +61,10 @@ function renderExplanation(text: string) {
   )
 }
 
-export function ExplainPanel({ namespace, podName }: Props) {
+export function ExplainPanel({ clusterId, namespace, podName }: Props) {
   const mutation = useMutation<ExplainResponse, unknown>({
     mutationFn: async () =>
-      (await api.post<ExplainResponse>(`/k8s/namespaces/${namespace}/pods/${podName}/explain`)).data,
+      (await api.post<ExplainResponse>(`/clusters/${clusterId}/namespaces/${namespace}/pods/${podName}/explain`)).data,
   })
 
   const errorMessage = mutation.isError

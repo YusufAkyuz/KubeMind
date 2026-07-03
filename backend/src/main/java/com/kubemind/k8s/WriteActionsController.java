@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * inside {@link KubernetesWriteService}.
  */
 @RestController
-@RequestMapping("/api/k8s")
+@RequestMapping("/api/clusters/{clusterId}")
 @PreAuthorize("hasRole('ADMIN')")
 public class WriteActionsController {
 
@@ -34,34 +34,39 @@ public class WriteActionsController {
     public record ScaleRequest(@Min(0) @Max(KubernetesWriteService.MAX_REPLICAS) int replicas) {}
 
     @PostMapping("/namespaces/{ns}/deployments/{name}/scale")
-    public DeploymentDto scale(@PathVariable String ns, @PathVariable String name,
+    public DeploymentDto scale(@PathVariable long clusterId,
+                               @PathVariable String ns, @PathVariable String name,
                                @Valid @RequestBody ScaleRequest request, Authentication auth) {
-        return writeService.scaleDeployment(auth.getName(), ns, name, request.replicas());
+        return writeService.scaleDeployment(auth.getName(), clusterId, ns, name, request.replicas());
     }
 
     @PostMapping("/namespaces/{ns}/deployments/{name}/restart")
-    public DeploymentDto restart(@PathVariable String ns, @PathVariable String name,
+    public DeploymentDto restart(@PathVariable long clusterId,
+                                 @PathVariable String ns, @PathVariable String name,
                                  Authentication auth) {
-        return writeService.restartDeployment(auth.getName(), ns, name);
+        return writeService.restartDeployment(auth.getName(), clusterId, ns, name);
     }
 
     @DeleteMapping("/namespaces/{ns}/pods/{name}")
-    public ResponseEntity<Void> deletePod(@PathVariable String ns, @PathVariable String name,
+    public ResponseEntity<Void> deletePod(@PathVariable long clusterId,
+                                          @PathVariable String ns, @PathVariable String name,
                                           Authentication auth) {
-        writeService.deletePod(auth.getName(), ns, name);
+        writeService.deletePod(auth.getName(), clusterId, ns, name);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping(value = "/namespaces/{ns}/deployments/{name}/yaml",
                 produces = "application/yaml")
-    public String getYaml(@PathVariable String ns, @PathVariable String name) {
-        return writeService.getDeploymentYaml(ns, name);
+    public String getYaml(@PathVariable long clusterId,
+                          @PathVariable String ns, @PathVariable String name) {
+        return writeService.getDeploymentYaml(clusterId, ns, name);
     }
 
     @PutMapping(value = "/namespaces/{ns}/deployments/{name}/yaml",
                 consumes = {MediaType.TEXT_PLAIN_VALUE, "application/yaml"})
-    public DeploymentDto applyYaml(@PathVariable String ns, @PathVariable String name,
+    public DeploymentDto applyYaml(@PathVariable long clusterId,
+                                   @PathVariable String ns, @PathVariable String name,
                                    @RequestBody String yaml, Authentication auth) {
-        return writeService.applyDeploymentYaml(auth.getName(), ns, name, yaml);
+        return writeService.applyDeploymentYaml(auth.getName(), clusterId, ns, name, yaml);
     }
 }

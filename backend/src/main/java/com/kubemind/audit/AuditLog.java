@@ -49,10 +49,11 @@ public class AuditLog {
 
     protected AuditLog() {} // JPA
 
-    public AuditLog(Long userId, String username, String action,
+    public AuditLog(Long userId, String username, Long clusterId, String action,
                     String resourceRef, String payload, String result) {
         this.userId = userId;
         this.username = username;
+        this.clusterId = clusterId;
         this.action = action;
         this.resourceRef = resourceRef;
         this.payload = payload;

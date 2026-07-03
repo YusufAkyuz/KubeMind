@@ -40,3 +40,7 @@ kubemind:
   admin:
     username: ${KUBEMIND_ADMIN_USERNAME:admin}
     password: ${KUBEMIND_ADMIN_PASSWORD:}
+  encryption:
+    # base64-encoded 32 bytes (openssl rand -base64 32). Empty -> remote cluster
+    # registration is disabled; the built-in local cluster keeps working.
+    key: ${KUBEMIND_ENCRYPTION_KEY:}
