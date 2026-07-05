@@ -5,6 +5,7 @@ import { Table, Tr, Td } from '../components/Table'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
+import { CreateResourceButton } from '../components/CreateResourceButton'
 import { formatAge } from '../utils/format'
 import type { ServiceResource } from '../types/k8s'
 
@@ -17,13 +18,14 @@ const COLUMNS = [
 ]
 
 export function ServicesPage() {
-  const { ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<ServiceResource>('services')
+  const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<ServiceResource>('services')
   const [selected, setSelected] = useState<ServiceResource | null>(null)
 
   return (
     <Layout>
       <PageHeader title="Services" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
-                  count={data?.length} noun="service" />
+                  count={data?.length} noun="service"
+                  actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Service" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('services')} />}
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
@@ -13,6 +13,7 @@ import {
   IconNetwork,
   IconDatabase,
   IconChevronDown,
+  IconPlus,
   Logo,
 } from './Icons'
 import type { Cluster, Namespace } from '../types/k8s'
@@ -168,6 +169,18 @@ export function Sidebar({ onClose }: Props) {
             {namespaces?.map((ns) => <option key={ns.name} value={ns.name}>{ns.name}</option>)}
           </select>
         </div>
+        {isAdmin && currentNs && (
+          <Link
+            to={`/clusters/${clusterId}/namespaces/${currentNs}/create`}
+            onClick={onClose}
+            className="flex items-center justify-center gap-1.5 w-full rounded-lg
+                       bg-gradient-to-br from-blue-600 to-violet-600 px-3 py-2 text-sm font-medium
+                       text-white hover:opacity-90 transition-opacity"
+          >
+            <IconPlus className="w-4 h-4" />
+            Create resource
+          </Link>
+        )}
       </div>
 
       {/* Navigation */}

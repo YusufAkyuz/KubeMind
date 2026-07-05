@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { streamText } from '../utils/streamFetch'
 import { IconHelm, IconX, Logo } from './Icons'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
-}
-
-/** Reads Spring's readable CSRF cookie so streaming fetch() calls pass CSRF. */
-function csrfToken(): string {
-  const match = document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))
-  return match ? decodeURIComponent(match.split('=')[1]) : ''
 }
 
 export function ChatWidget() {
@@ -44,24 +39,7 @@ export function ChatWidget() {
     setStreaming(true)
 
     try {
-      const res = await fetch(`/api/clusters/${clusterId}/chat`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': csrfToken() },
-        body: JSON.stringify({ messages: history }),
-      })
-      if (!res.ok || !res.body) {
-        throw new Error(res.status === 403 ? 'Not authorized' : `Request failed (${res.status})`)
-      }
-
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      // Stream tokens into the last (assistant) message.
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
+      await streamText(`/api/clusters/${clusterId}/chat`, { messages: history }, (chunk) => {
         setMessages((prev) => {
           const next = [...prev]
           next[next.length - 1] = {
@@ -70,7 +48,7 @@ export function ChatWidget() {
           }
           return next
         })
-      }
+      })
     } catch (e) {
       setMessages((prev) => {
         const next = [...prev]

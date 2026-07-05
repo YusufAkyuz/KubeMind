@@ -7,6 +7,7 @@ import { Table, Tr, Td } from '../components/Table'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
+import { CreateResourceButton } from '../components/CreateResourceButton'
 import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
 import type { Secret } from '../types/k8s'
@@ -37,7 +38,8 @@ export function SecretsPage() {
   return (
     <Layout>
       <PageHeader title="Secrets" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
-                  count={data?.length} noun="secret" />
+                  count={data?.length} noun="secret"
+                  actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Secret" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('secrets')} />}
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}

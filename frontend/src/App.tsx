@@ -18,6 +18,7 @@ import { ServicesPage } from './pages/ServicesPage'
 import { IngressesPage } from './pages/IngressesPage'
 import { PvcsPage } from './pages/PvcsPage'
 import { PvsPage } from './pages/PvsPage'
+import { CreateResourcePage } from './pages/CreateResourcePage'
 import { ChatWidget } from './components/ChatWidget'
 
 // Code-split: xterm.js only loads when a terminal is actually opened.
@@ -48,6 +49,7 @@ export default function App() {
       <Route path="/clusters/:clusterId/namespaces/:ns/ingresses" element={<ProtectedRoute><IngressesPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/persistentvolumeclaims" element={<ProtectedRoute><PvcsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/persistentvolumes" element={<ProtectedRoute><PvsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/create" element={<ProtectedRoute><CreateResourcePage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/exec" element={
         <ProtectedRoute>

@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,11 +67,11 @@ public class ChatController {
                     .messages(history)
                     .stream()
                     .content()
-                    .doOnNext(token -> writeChunk(out, token))
+                    .doOnNext(token -> AiStreaming.writeChunk(out,token))
                     .blockLast();
             } catch (Exception e) {
                 log.warn("Chat stream failed: {}", e.getMessage());
-                writeChunk(out, "\n\n[The AI service is unavailable. Is Ollama running?]");
+                AiStreaming.writeChunk(out,"\n\n[The AI service is unavailable. Is Ollama running?]");
             }
         };
     }
@@ -95,13 +94,4 @@ public class ChatController {
         return messages;
     }
 
-    private void writeChunk(java.io.OutputStream out, String token) {
-        if (token == null || token.isEmpty()) return;
-        try {
-            out.write(token.getBytes(StandardCharsets.UTF_8));
-            out.flush();
-        } catch (Exception e) {
-            throw new RuntimeException(e); // aborts the stream (client disconnected)
-        }
-    }
 }

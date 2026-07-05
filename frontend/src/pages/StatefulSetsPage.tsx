@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
+import { CreateResourceButton } from '../components/CreateResourceButton'
 import { formatAge } from '../utils/format'
 import type { StatefulSet } from '../types/k8s'
 
@@ -25,13 +26,14 @@ function status(s: StatefulSet): string {
 }
 
 export function StatefulSetsPage() {
-  const { ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<StatefulSet>('statefulsets')
+  const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<StatefulSet>('statefulsets')
   const [selected, setSelected] = useState<StatefulSet | null>(null)
 
   return (
     <Layout>
       <PageHeader title="StatefulSets" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
-                  count={data?.length} noun="statefulset" />
+                  count={data?.length} noun="statefulset"
+                  actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="StatefulSet" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('statefulsets')} />}
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}

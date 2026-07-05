@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
+import { CreateResourceButton } from '../components/CreateResourceButton'
 import { formatAge } from '../utils/format'
 import type { DaemonSet } from '../types/k8s'
 
@@ -25,13 +26,14 @@ function status(d: DaemonSet): string {
 }
 
 export function DaemonSetsPage() {
-  const { ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<DaemonSet>('daemonsets')
+  const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<DaemonSet>('daemonsets')
   const [selected, setSelected] = useState<DaemonSet | null>(null)
 
   return (
     <Layout>
       <PageHeader title="DaemonSets" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
-                  count={data?.length} noun="daemonset" />
+                  count={data?.length} noun="daemonset"
+                  actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="DaemonSet" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('daemonsets')} />}
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}

@@ -5,6 +5,7 @@ import { Table, Tr, Td } from '../components/Table'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
+import { CreateResourceButton } from '../components/CreateResourceButton'
 import { formatAge } from '../utils/format'
 import type { Ingress } from '../types/k8s'
 
@@ -16,13 +17,14 @@ const COLUMNS = [
 ]
 
 export function IngressesPage() {
-  const { ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<Ingress>('ingresses')
+  const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<Ingress>('ingresses')
   const [selected, setSelected] = useState<Ingress | null>(null)
 
   return (
     <Layout>
       <PageHeader title="Ingresses" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
-                  count={data?.length} noun="ingress" />
+                  count={data?.length} noun="ingress"
+                  actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Ingress" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('ingresses')} />}
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}

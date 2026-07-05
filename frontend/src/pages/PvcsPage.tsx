@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
+import { CreateResourceButton } from '../components/CreateResourceButton'
 import { formatAge } from '../utils/format'
 import type { Pvc } from '../types/k8s'
 
@@ -21,14 +22,15 @@ const COLUMNS = [
 const PHASE: Record<string, string> = { Bound: 'Ready', Pending: 'Pending', Lost: 'Failed' }
 
 export function PvcsPage() {
-  const { ns, noNamespace, data, isLoading, isError, error } =
+  const { clusterId, ns, noNamespace, data, isLoading, isError, error } =
     useNamespacedList<Pvc>('persistentvolumeclaims')
   const [selected, setSelected] = useState<Pvc | null>(null)
 
   return (
     <Layout>
       <PageHeader title="Persistent Volume Claims" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
-                  count={data?.length} noun="claim" />
+                  count={data?.length} noun="claim"
+                  actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="PersistentVolumeClaim" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('persistent volume claims')} />}
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}

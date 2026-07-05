@@ -12,6 +12,7 @@ import { useSSE } from '../hooks/useSSE'
 import { formatAge } from '../utils/format'
 import { useAuth } from '../auth/AuthContext'
 import { DeploymentActions } from '../components/DeploymentActions'
+import { CreateResourceButton } from '../components/CreateResourceButton'
 import type { Deployment } from '../types/k8s'
 
 const COLUMNS = [
@@ -52,6 +53,7 @@ export function DeploymentsPage() {
         subtitle={ns ? `namespace: ${ns}` : undefined}
         count={data?.length}
         noun="deployment"
+        actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Deployment" />}
       />
 
       {noNamespace && (

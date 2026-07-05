@@ -15,6 +15,7 @@ import { useSSE } from '../hooks/useSSE'
 import { formatAge } from '../utils/format'
 import { IconTerminal } from '../components/Icons'
 import { ExplainPanel } from '../components/ExplainPanel'
+import { CreateResourceButton } from '../components/CreateResourceButton'
 import type { Pod } from '../types/k8s'
 
 const COLUMNS = [
@@ -65,6 +66,7 @@ export function PodsPage() {
         subtitle={ns ? `namespace: ${ns}` : undefined}
         count={data?.length}
         noun="pod"
+        actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Pod" />}
       />
 
       {noNamespace && (

@@ -32,7 +32,7 @@ public class ApiExceptionHandler {
         }
         if (ex.getCode() == HttpStatus.CONFLICT.value()) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", "The resource changed while you were editing it. Reload and retry."));
+                .body(Map.of("error", "The resource already exists, or was changed by someone else. Reload and retry."));
         }
         if (ex.getCode() == HttpStatus.UNPROCESSABLE_ENTITY.value()) {
             return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
