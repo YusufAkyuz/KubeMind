@@ -118,7 +118,8 @@ export function PodsPage() {
                 key={`${clusterId}/${ns}/${selected.name}`}
                 clusterId={clusterId!}
                 namespace={ns}
-                podName={selected.name}
+                kind="Pod"
+                name={selected.name}
               />
             </div>
 

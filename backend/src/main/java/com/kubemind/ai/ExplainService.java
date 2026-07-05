@@ -1,5 +1,6 @@
 package com.kubemind.ai;
 
+import com.kubemind.k8s.ResourceEditService;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -16,16 +17,19 @@ import java.util.HexFormat;
 @Service
 public class ExplainService {
 
-    private final PodContextCollector contextCollector;
+    private final PodContextCollector podContextCollector;
+    private final ResourceContextCollector resourceContextCollector;
     private final AiDiagnosisRepository repository;
     private final ChatClient chatClient;
     private final String model;
 
-    public ExplainService(PodContextCollector contextCollector,
+    public ExplainService(PodContextCollector podContextCollector,
+                          ResourceContextCollector resourceContextCollector,
                           AiDiagnosisRepository repository,
                           ChatClient chatClient,
                           @Value("${spring.ai.ollama.chat.options.model}") String model) {
-        this.contextCollector = contextCollector;
+        this.podContextCollector = podContextCollector;
+        this.resourceContextCollector = resourceContextCollector;
         this.repository = repository;
         this.chatClient = chatClient;
         this.model = model;
@@ -34,12 +38,28 @@ public class ExplainService {
     public record ExplainResult(String explanation, boolean cached, String model, Instant createdAt) {}
 
     public ExplainResult explainPod(long clusterId, String namespace, String podName) {
-        String context = contextCollector.collect(clusterId, namespace, podName);
+        String context = podContextCollector.collect(clusterId, namespace, podName);
         if (context == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                 "Pod '" + podName + "' not found in namespace '" + namespace + "'");
         }
+        return explain(clusterId, "Pod", namespace, podName, context);
+    }
 
+    public ExplainResult explainResource(long clusterId, String kind, String namespace, String name) {
+        if (!ResourceEditService.EDITABLE_KINDS.contains(kind)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Kind '" + kind + "' is not supported here.");
+        }
+        String context = resourceContextCollector.collect(clusterId, kind, namespace, name);
+        if (context == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                kind + " '" + name + "' not found in namespace '" + namespace + "'");
+        }
+        return explain(clusterId, kind, namespace, name, context);
+    }
+
+    private ExplainResult explain(long clusterId, String kind, String namespace, String name, String context) {
         String stateHash = sha256(context);
 
         var cachedDiagnosis = repository.findFirstByStateHash(stateHash);
@@ -59,7 +79,7 @@ public class ExplainService {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI model returned an empty response");
         }
 
-        var diagnosis = new AiDiagnosis(clusterId, "Pod", namespace, podName, stateHash, context, explanation, model);
+        var diagnosis = new AiDiagnosis(clusterId, kind, namespace, name, stateHash, context, explanation, model);
         try {
             diagnosis = repository.save(diagnosis);
         } catch (DataIntegrityViolationException e) {

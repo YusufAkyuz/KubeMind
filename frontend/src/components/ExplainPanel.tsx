@@ -14,13 +14,18 @@ interface ExplainResponse {
 interface Props {
   clusterId: string
   namespace: string
-  podName: string
+  /** "Pod" uses its own richer endpoint (includes logs); every other kind uses the generic one. */
+  kind: string
+  name: string
 }
 
-export function ExplainPanel({ clusterId, namespace, podName }: Props) {
+export function ExplainPanel({ clusterId, namespace, kind, name }: Props) {
+  const path = kind === 'Pod'
+    ? `/clusters/${clusterId}/namespaces/${namespace}/pods/${name}/explain`
+    : `/clusters/${clusterId}/namespaces/${namespace}/resources/${kind}/${name}/explain`
+
   const mutation = useMutation<ExplainResponse, unknown>({
-    mutationFn: async () =>
-      (await api.post<ExplainResponse>(`/clusters/${clusterId}/namespaces/${namespace}/pods/${podName}/explain`)).data,
+    mutationFn: async () => (await api.post<ExplainResponse>(path)).data,
   })
 
   const errorMessage = mutation.isError
@@ -56,7 +61,7 @@ export function ExplainPanel({ clusterId, namespace, podName }: Props) {
       <div className="px-4 py-3">
         {!mutation.data && !mutation.isPending && !mutation.isError && (
           <p className="text-sm text-gray-400">
-            Ask the AI to analyze this pod's state, events, and recent logs.
+            Ask the AI to analyze this {kind.toLowerCase()}'s state{kind === 'Pod' ? ', events, and recent logs' : ' and recent events'}.
           </p>
         )}
 

@@ -13,6 +13,7 @@ import { formatAge } from '../utils/format'
 import { useAuth } from '../auth/AuthContext'
 import { DeploymentActions } from '../components/DeploymentActions'
 import { CreateResourceButton } from '../components/CreateResourceButton'
+import { ExplainPanel } from '../components/ExplainPanel'
 import type { Deployment } from '../types/k8s'
 
 const COLUMNS = [
@@ -93,6 +94,16 @@ export function DeploymentsPage() {
       >
         {selected && ns && (
           <>
+            <div className="pb-3">
+              <ExplainPanel
+                key={`${clusterId}/${ns}/${selected.name}`}
+                clusterId={clusterId!}
+                namespace={ns}
+                kind="Deployment"
+                name={selected.name}
+              />
+            </div>
+
             {isAdmin && (
               <div className="pb-3">
                 <DeploymentActions

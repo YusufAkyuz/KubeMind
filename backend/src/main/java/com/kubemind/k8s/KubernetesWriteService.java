@@ -2,8 +2,12 @@ package com.kubemind.k8s;
 
 import com.kubemind.audit.AuditService;
 import com.kubemind.cluster.ClusterClientFactory;
+import io.fabric8.kubernetes.api.model.apps.DaemonSet;
+import io.fabric8.kubernetes.api.model.apps.DaemonSetBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.utils.Serialization;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.api.model.apps.StatefulSet;
+import io.fabric8.kubernetes.api.model.apps.StatefulSetBuilder;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -11,8 +15,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.Map;
 
 /**
- * All cluster WRITE operations live here, and every one of them — success or
- * failure — goes through the audit log. Do not add a write path anywhere else.
+ * Cluster WRITE operations that are kind-specific enough to need their own
+ * typed logic (replica scaling, rollout restart, pod delete) rather than the
+ * generic YAML create/edit paths. Every operation — success or failure —
+ * goes through the audit log. Do not add a write path anywhere else.
  */
 @Service
 public class KubernetesWriteService {
@@ -31,10 +37,7 @@ public class KubernetesWriteService {
 
     public DeploymentDto scaleDeployment(String username, long clusterId,
                                          String ns, String name, int replicas) {
-        if (replicas < 0 || replicas > MAX_REPLICAS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "replicas must be between 0 and " + MAX_REPLICAS);
-        }
+        validateReplicas(replicas);
         String ref = "Deployment/" + ns + "/" + name;
         Map<String, Object> payload = Map.of("replicas", replicas);
         try {
@@ -44,10 +47,30 @@ public class KubernetesWriteService {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
             }
             var scaled = client.apps().deployments().inNamespace(ns).withName(name).scale(replicas);
-            auditService.record(username, clusterId, "SCALE_DEPLOYMENT", ref, payload, true, null);
-            return toDto(scaled);
+            auditService.record(username, clusterId, "SCALE_RESOURCE", ref, payload, true, null);
+            return toDeploymentDto(scaled);
         } catch (Exception e) {
-            auditService.record(username, clusterId, "SCALE_DEPLOYMENT", ref, payload, false, e.getMessage());
+            auditService.record(username, clusterId, "SCALE_RESOURCE", ref, payload, false, e.getMessage());
+            throw e;
+        }
+    }
+
+    public StatefulSetDto scaleStatefulSet(String username, long clusterId,
+                                           String ns, String name, int replicas) {
+        validateReplicas(replicas);
+        String ref = "StatefulSet/" + ns + "/" + name;
+        Map<String, Object> payload = Map.of("replicas", replicas);
+        try {
+            var client = clientFactory.getClient(clusterId);
+            var existing = client.apps().statefulSets().inNamespace(ns).withName(name).get();
+            if (existing == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
+            }
+            var scaled = client.apps().statefulSets().inNamespace(ns).withName(name).scale(replicas);
+            auditService.record(username, clusterId, "SCALE_RESOURCE", ref, payload, true, null);
+            return toStatefulSetDto(scaled);
+        } catch (Exception e) {
+            auditService.record(username, clusterId, "SCALE_RESOURCE", ref, payload, false, e.getMessage());
             throw e;
         }
     }
@@ -62,12 +85,64 @@ public class KubernetesWriteService {
             if (existing == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
             }
+            // Fabric8's .rolling().restart() sends a patch the API server rejects
+            // with 422 on this cluster/version combo — replicate what
+            // `kubectl rollout restart` actually does instead: stamp the pod
+            // template with a restart annotation via a plain edit+update.
             var restarted = client.apps().deployments().inNamespace(ns).withName(name)
-                .rolling().restart();
-            auditService.record(username, clusterId, "RESTART_DEPLOYMENT", ref, null, true, null);
-            return toDto(restarted);
+                .edit(d -> new DeploymentBuilder(d)
+                    .editSpec().editTemplate().editMetadata()
+                        .addToAnnotations("kubectl.kubernetes.io/restartedAt", java.time.Instant.now().toString())
+                    .endMetadata().endTemplate().endSpec()
+                    .build());
+            auditService.record(username, clusterId, "RESTART_RESOURCE", ref, null, true, null);
+            return toDeploymentDto(restarted);
         } catch (Exception e) {
-            auditService.record(username, clusterId, "RESTART_DEPLOYMENT", ref, null, false, e.getMessage());
+            auditService.record(username, clusterId, "RESTART_RESOURCE", ref, null, false, e.getMessage());
+            throw e;
+        }
+    }
+
+    public StatefulSetDto restartStatefulSet(String username, long clusterId, String ns, String name) {
+        String ref = "StatefulSet/" + ns + "/" + name;
+        try {
+            var client = clientFactory.getClient(clusterId);
+            var existing = client.apps().statefulSets().inNamespace(ns).withName(name).get();
+            if (existing == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
+            }
+            var restarted = client.apps().statefulSets().inNamespace(ns).withName(name)
+                .edit(s -> new StatefulSetBuilder(s)
+                    .editSpec().editTemplate().editMetadata()
+                        .addToAnnotations("kubectl.kubernetes.io/restartedAt", java.time.Instant.now().toString())
+                    .endMetadata().endTemplate().endSpec()
+                    .build());
+            auditService.record(username, clusterId, "RESTART_RESOURCE", ref, null, true, null);
+            return toStatefulSetDto(restarted);
+        } catch (Exception e) {
+            auditService.record(username, clusterId, "RESTART_RESOURCE", ref, null, false, e.getMessage());
+            throw e;
+        }
+    }
+
+    public DaemonSetDto restartDaemonSet(String username, long clusterId, String ns, String name) {
+        String ref = "DaemonSet/" + ns + "/" + name;
+        try {
+            var client = clientFactory.getClient(clusterId);
+            var existing = client.apps().daemonSets().inNamespace(ns).withName(name).get();
+            if (existing == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
+            }
+            var restarted = client.apps().daemonSets().inNamespace(ns).withName(name)
+                .edit(d -> new DaemonSetBuilder(d)
+                    .editSpec().editTemplate().editMetadata()
+                        .addToAnnotations("kubectl.kubernetes.io/restartedAt", java.time.Instant.now().toString())
+                    .endMetadata().endTemplate().endSpec()
+                    .build());
+            auditService.record(username, clusterId, "RESTART_RESOURCE", ref, null, true, null);
+            return toDaemonSetDto(restarted);
+        } catch (Exception e) {
+            auditService.record(username, clusterId, "RESTART_RESOURCE", ref, null, false, e.getMessage());
             throw e;
         }
     }
@@ -90,68 +165,16 @@ public class KubernetesWriteService {
         }
     }
 
-    // ── YAML get / apply ──────────────────────────────────────────────────────
-
-    public String getDeploymentYaml(long clusterId, String ns, String name) {
-        var deployment = clientFactory.getClient(clusterId).apps().deployments()
-            .inNamespace(ns).withName(name).get();
-        if (deployment == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                "Deployment/" + ns + "/" + name + " not found");
-        }
-        // managedFields is server bookkeeping — pure noise in an editor.
-        deployment.getMetadata().setManagedFields(null);
-        return Serialization.asYaml(deployment);
-    }
-
-    public DeploymentDto applyDeploymentYaml(String username, long clusterId,
-                                             String ns, String name, String yaml) {
-        String ref = "Deployment/" + ns + "/" + name;
-        // Payload stores a size marker, not the full YAML — keep the audit table lean;
-        // the resulting state is queryable from the cluster itself.
-        Map<String, Object> payload = Map.of("yamlBytes", yaml != null ? yaml.length() : 0);
-        try {
-            if (yaml == null || yaml.isBlank()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is empty");
-            }
-
-            Deployment parsed;
-            try {
-                parsed = Serialization.unmarshal(yaml, Deployment.class);
-            } catch (Exception e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid YAML: " + rootMessage(e));
-            }
-            if (parsed == null || parsed.getMetadata() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "YAML does not describe a Deployment");
-            }
-            // The edited manifest must still be THIS deployment — renaming or moving
-            // it via the editor would silently create a different resource.
-            if (!name.equals(parsed.getMetadata().getName())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "metadata.name must remain '" + name + "'");
-            }
-            String parsedNs = parsed.getMetadata().getNamespace();
-            if (parsedNs != null && !ns.equals(parsedNs)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "metadata.namespace must remain '" + ns + "'");
-            }
-            parsed.getMetadata().setNamespace(ns);
-
-            var updated = clientFactory.getClient(clusterId).apps().deployments()
-                .inNamespace(ns).resource(parsed).update();
-            auditService.record(username, clusterId, "EDIT_DEPLOYMENT_YAML", ref, payload, true, null);
-            return toDto(updated);
-        } catch (Exception e) {
-            auditService.record(username, clusterId, "EDIT_DEPLOYMENT_YAML", ref, payload, false, e.getMessage());
-            throw e;
-        }
-    }
-
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private DeploymentDto toDto(Deployment d) {
+    private void validateReplicas(int replicas) {
+        if (replicas < 0 || replicas > MAX_REPLICAS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "replicas must be between 0 and " + MAX_REPLICAS);
+        }
+    }
+
+    private DeploymentDto toDeploymentDto(Deployment d) {
         var meta = d.getMetadata();
         var spec = d.getSpec();
         var status = d.getStatus();
@@ -172,8 +195,41 @@ public class KubernetesWriteService {
         );
     }
 
-    private String rootMessage(Throwable t) {
-        while (t.getCause() != null) t = t.getCause();
-        return t.getMessage();
+    private StatefulSetDto toStatefulSetDto(StatefulSet s) {
+        var meta = s.getMetadata();
+        var spec = s.getSpec();
+        var status = s.getStatus();
+        String image = spec != null && spec.getTemplate() != null
+            && spec.getTemplate().getSpec() != null
+            && !spec.getTemplate().getSpec().getContainers().isEmpty()
+            ? spec.getTemplate().getSpec().getContainers().get(0).getImage() : null;
+        return new StatefulSetDto(
+            meta.getName(),
+            meta.getNamespace(),
+            spec != null && spec.getReplicas() != null ? spec.getReplicas() : 0,
+            status != null && status.getReadyReplicas() != null ? status.getReadyReplicas() : 0,
+            spec != null ? spec.getServiceName() : null,
+            image,
+            meta.getCreationTimestamp()
+        );
+    }
+
+    private DaemonSetDto toDaemonSetDto(DaemonSet d) {
+        var meta = d.getMetadata();
+        var spec = d.getSpec();
+        var status = d.getStatus();
+        String image = spec != null && spec.getTemplate() != null
+            && spec.getTemplate().getSpec() != null
+            && !spec.getTemplate().getSpec().getContainers().isEmpty()
+            ? spec.getTemplate().getSpec().getContainers().get(0).getImage() : null;
+        return new DaemonSetDto(
+            meta.getName(),
+            meta.getNamespace(),
+            status != null && status.getDesiredNumberScheduled() != null ? status.getDesiredNumberScheduled() : 0,
+            status != null && status.getNumberReady() != null ? status.getNumberReady() : 0,
+            status != null && status.getNumberAvailable() != null ? status.getNumberAvailable() : 0,
+            image,
+            meta.getCreationTimestamp()
+        );
     }
 }

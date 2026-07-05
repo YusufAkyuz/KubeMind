@@ -8,6 +8,8 @@ import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDraw
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { CreateResourceButton } from '../components/CreateResourceButton'
+import { EditYamlButton } from '../components/EditYamlButton'
+import { ExplainPanel } from '../components/ExplainPanel'
 import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
 import type { Secret } from '../types/k8s'
@@ -60,8 +62,24 @@ export function SecretsPage() {
 
       <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Secret · ${ns}`}
                     onClose={() => { setSelected(null); reveal.reset() }}>
-        {selected && (
+        {selected && ns && (
           <>
+            <div className="pb-3">
+              <ExplainPanel
+                key={`${clusterId}/${ns}/${selected.name}`}
+                clusterId={clusterId!}
+                namespace={ns}
+                kind="Secret"
+                name={selected.name}
+              />
+            </div>
+
+            {isAdmin && (
+              <div className="pb-3">
+                <EditYamlButton clusterId={clusterId!} ns={ns} kind="Secret" name={selected.name} />
+              </div>
+            )}
+
             <DrawerSection title="Overview" />
             <DrawerRow label="Type" value={<span className="font-mono text-xs">{selected.type}</span>} />
             <DrawerRow label="Namespace" value={selected.namespace} />

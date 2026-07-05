@@ -6,6 +6,9 @@ import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDraw
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { CreateResourceButton } from '../components/CreateResourceButton'
+import { EditYamlButton } from '../components/EditYamlButton'
+import { ExplainPanel } from '../components/ExplainPanel'
+import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
 import type { ServiceResource } from '../types/k8s'
 
@@ -19,6 +22,7 @@ const COLUMNS = [
 
 export function ServicesPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<ServiceResource>('services')
+  const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<ServiceResource | null>(null)
 
   return (
@@ -47,8 +51,24 @@ export function ServicesPage() {
 
       <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Service · ${ns}`}
                     onClose={() => setSelected(null)}>
-        {selected && (
+        {selected && ns && (
           <>
+            <div className="pb-3">
+              <ExplainPanel
+                key={`${clusterId}/${ns}/${selected.name}`}
+                clusterId={clusterId!}
+                namespace={ns}
+                kind="Service"
+                name={selected.name}
+              />
+            </div>
+
+            {isAdmin && (
+              <div className="pb-3">
+                <EditYamlButton clusterId={clusterId!} ns={ns} kind="Service" name={selected.name} />
+              </div>
+            )}
+
             <DrawerSection title="Overview" />
             <DrawerRow label="Type" value={selected.type} />
             <DrawerRow label="Namespace" value={selected.namespace} />

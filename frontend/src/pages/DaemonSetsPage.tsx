@@ -7,6 +7,9 @@ import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDraw
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { CreateResourceButton } from '../components/CreateResourceButton'
+import { DaemonSetActions } from '../components/DaemonSetActions'
+import { ExplainPanel } from '../components/ExplainPanel'
+import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
 import type { DaemonSet } from '../types/k8s'
 
@@ -27,6 +30,7 @@ function status(d: DaemonSet): string {
 
 export function DaemonSetsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<DaemonSet>('daemonsets')
+  const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<DaemonSet | null>(null)
 
   return (
@@ -57,8 +61,30 @@ export function DaemonSetsPage() {
 
       <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`DaemonSet · ${ns}`}
                     onClose={() => setSelected(null)}>
-        {selected && (
+        {selected && ns && (
           <>
+            <div className="pb-3">
+              <ExplainPanel
+                key={`${clusterId}/${ns}/${selected.name}`}
+                clusterId={clusterId!}
+                namespace={ns}
+                kind="DaemonSet"
+                name={selected.name}
+              />
+            </div>
+
+            {isAdmin && (
+              <div className="pb-3">
+                <DaemonSetActions
+                  key={`actions-${clusterId}/${ns}/${selected.name}`}
+                  clusterId={clusterId!}
+                  namespace={ns}
+                  daemonSet={selected}
+                  onActionDone={() => setSelected(null)}
+                />
+              </div>
+            )}
+
             <DrawerSection title="Overview" />
             <DrawerRow label="Status" value={<StatusBadge status={status(selected)} />} />
             <DrawerRow label="Namespace" value={selected.namespace} />

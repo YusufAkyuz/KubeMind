@@ -6,6 +6,9 @@ import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDraw
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { CreateResourceButton } from '../components/CreateResourceButton'
+import { EditYamlButton } from '../components/EditYamlButton'
+import { ExplainPanel } from '../components/ExplainPanel'
+import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
 import type { ConfigMap } from '../types/k8s'
 
@@ -17,6 +20,7 @@ const COLUMNS = [
 
 export function ConfigMapsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<ConfigMap>('configmaps')
+  const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<ConfigMap | null>(null)
 
   return (
@@ -46,8 +50,24 @@ export function ConfigMapsPage() {
 
       <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`ConfigMap · ${ns}`}
                     onClose={() => setSelected(null)}>
-        {selected && (
+        {selected && ns && (
           <>
+            <div className="pb-3">
+              <ExplainPanel
+                key={`${clusterId}/${ns}/${selected.name}`}
+                clusterId={clusterId!}
+                namespace={ns}
+                kind="ConfigMap"
+                name={selected.name}
+              />
+            </div>
+
+            {isAdmin && (
+              <div className="pb-3">
+                <EditYamlButton clusterId={clusterId!} ns={ns} kind="ConfigMap" name={selected.name} />
+              </div>
+            )}
+
             <DrawerSection title="Overview" />
             <DrawerRow label="Namespace" value={selected.namespace} />
             <DrawerRow label="Age" value={formatAge(selected.creationTimestamp)} />

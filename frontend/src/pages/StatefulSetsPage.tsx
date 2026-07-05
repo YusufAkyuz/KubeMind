@@ -7,6 +7,9 @@ import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDraw
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { CreateResourceButton } from '../components/CreateResourceButton'
+import { StatefulSetActions } from '../components/StatefulSetActions'
+import { ExplainPanel } from '../components/ExplainPanel'
+import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
 import type { StatefulSet } from '../types/k8s'
 
@@ -27,6 +30,7 @@ function status(s: StatefulSet): string {
 
 export function StatefulSetsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<StatefulSet>('statefulsets')
+  const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<StatefulSet | null>(null)
 
   return (
@@ -57,8 +61,30 @@ export function StatefulSetsPage() {
 
       <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`StatefulSet · ${ns}`}
                     onClose={() => setSelected(null)}>
-        {selected && (
+        {selected && ns && (
           <>
+            <div className="pb-3">
+              <ExplainPanel
+                key={`${clusterId}/${ns}/${selected.name}`}
+                clusterId={clusterId!}
+                namespace={ns}
+                kind="StatefulSet"
+                name={selected.name}
+              />
+            </div>
+
+            {isAdmin && (
+              <div className="pb-3">
+                <StatefulSetActions
+                  key={`actions-${clusterId}/${ns}/${selected.name}`}
+                  clusterId={clusterId!}
+                  namespace={ns}
+                  statefulSet={selected}
+                  onActionDone={() => setSelected(null)}
+                />
+              </div>
+            )}
+
             <DrawerSection title="Overview" />
             <DrawerRow label="Status" value={<StatusBadge status={status(selected)} />} />
             <DrawerRow label="Namespace" value={selected.namespace} />
