@@ -3,20 +3,57 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import type { ComponentType } from 'react'
 import {
   IconServer,
   IconFolder,
   IconCube,
-  IconLayers,
   IconClipboard,
+  IconSliders,
+  IconNetwork,
+  IconDatabase,
+  IconChevronDown,
   Logo,
 } from './Icons'
 import type { Cluster, Namespace } from '../types/k8s'
 
-const WORKLOAD_NAV = [
-  { suffix: 'pods', label: 'Pods', Icon: IconCube },
-  { suffix: 'deployments', label: 'Deployments', Icon: IconLayers },
-  { suffix: 'events', label: 'Events', Icon: IconClipboard },
+type IconType = ComponentType<{ className?: string }>
+
+interface NavGroup {
+  key: string
+  label: string
+  Icon: IconType
+  items: { suffix: string; label: string }[]
+}
+
+// Namespaced resource groups (Lens-style). Cluster-wide items handled separately.
+const GROUPS: NavGroup[] = [
+  {
+    key: 'workloads', label: 'Workloads', Icon: IconCube, items: [
+      { suffix: 'pods', label: 'Pods' },
+      { suffix: 'deployments', label: 'Deployments' },
+      { suffix: 'statefulsets', label: 'StatefulSets' },
+      { suffix: 'daemonsets', label: 'DaemonSets' },
+      { suffix: 'events', label: 'Events' },
+    ],
+  },
+  {
+    key: 'config', label: 'Config', Icon: IconSliders, items: [
+      { suffix: 'configmaps', label: 'ConfigMaps' },
+      { suffix: 'secrets', label: 'Secrets' },
+    ],
+  },
+  {
+    key: 'network', label: 'Network', Icon: IconNetwork, items: [
+      { suffix: 'services', label: 'Services' },
+      { suffix: 'ingresses', label: 'Ingresses' },
+    ],
+  },
+  {
+    key: 'storage', label: 'Storage', Icon: IconDatabase, items: [
+      { suffix: 'persistentvolumeclaims', label: 'Persistent Volume Claims' },
+    ],
+  },
 ]
 
 interface Props {
@@ -28,53 +65,46 @@ export function Sidebar({ onClose }: Props) {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Derive current cluster and namespace from the URL
   const clusterMatch = location.pathname.match(/^\/clusters\/(\d+)/)
   const clusterId = clusterMatch ? clusterMatch[1] : '0'
   const nsMatch = location.pathname.match(/^\/clusters\/\d+\/namespaces\/([^/]+)\//)
   const urlNs = nsMatch ? nsMatch[1] : null
 
   // Remember the last namespace per cluster so leaving a namespaced page
-  // (e.g. via Nodes) doesn't force re-selecting it on the way back.
+  // doesn't force re-selecting it on the way back.
   const storageKey = `kubemind.ns.${clusterId}`
   const [storedNs, setStoredNs] = useState<string | null>(() => localStorage.getItem(storageKey))
-
+  useEffect(() => { setStoredNs(localStorage.getItem(storageKey)) }, [storageKey])
   useEffect(() => {
-    setStoredNs(localStorage.getItem(storageKey))
-  }, [storageKey])
-
-  useEffect(() => {
-    if (urlNs && urlNs !== '_') {
-      localStorage.setItem(storageKey, urlNs)
-      setStoredNs(urlNs)
-    }
+    if (urlNs && urlNs !== '_') { localStorage.setItem(storageKey, urlNs); setStoredNs(urlNs) }
   }, [urlNs, storageKey])
+
+  // Which nav group is expanded (remembered across navigations).
+  const [openGroup, setOpenGroup] = useState<string>(() => localStorage.getItem('kubemind.navGroup') ?? 'workloads')
+  const toggleGroup = (key: string) => {
+    const next = openGroup === key ? '' : key
+    setOpenGroup(next)
+    localStorage.setItem('kubemind.navGroup', next)
+  }
 
   const { data: clusters } = useQuery<Cluster[]>({
     queryKey: ['clusters'],
     queryFn: async () => (await api.get<Cluster[]>('/clusters')).data,
     staleTime: 30_000,
   })
-
   const { data: namespaces } = useQuery<Namespace[]>({
     queryKey: ['namespaces', clusterId],
     queryFn: async () => (await api.get<Namespace[]>(`/clusters/${clusterId}/namespaces`)).data,
     staleTime: 30_000,
   })
 
-  // Drop a remembered namespace that no longer exists on this cluster.
-  const remembered = storedNs && namespaces && !namespaces.some((n) => n.name === storedNs)
-    ? null
-    : storedNs
+  const remembered = storedNs && namespaces && !namespaces.some((n) => n.name === storedNs) ? null : storedNs
   const currentNs = (urlNs && urlNs !== '_' ? urlNs : null) ?? remembered
-
   const currentCluster = clusters?.find((c) => String(c.id) === clusterId)
 
   const handleClusterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    navigate(`/clusters/${e.target.value}/nodes`)
-    onClose?.()
+    navigate(`/clusters/${e.target.value}/nodes`); onClose?.()
   }
-
   const handleNsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const ns = e.target.value
     if (!ns) return
@@ -84,19 +114,24 @@ export function Sidebar({ onClose }: Props) {
     onClose?.()
   }
 
-  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  const linkClass = ({ isActive }: { isActive: boolean }) =>
     [
-      'group flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-      isActive
-        ? 'bg-blue-500/15 text-blue-300 font-medium'
+      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+      isActive ? 'bg-blue-500/15 text-blue-300 font-medium'
+        : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
+    ].join(' ')
+
+  const subLinkClass = ({ isActive }: { isActive: boolean }) =>
+    [
+      'block pl-11 pr-3 py-1.5 rounded-lg text-[13px] transition-colors',
+      isActive ? 'bg-blue-500/15 text-blue-300 font-medium'
         : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
     ].join(' ')
 
   const selectClass =
     'w-full text-sm border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-800 text-slate-200 ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-
-  const sectionLabel = 'px-3 pb-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-widest'
+  const label = 'block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5'
 
   return (
     <aside className="flex flex-col h-full w-64 bg-slate-900 select-none">
@@ -106,77 +141,90 @@ export function Sidebar({ onClose }: Props) {
         <span className="text-[15px] font-semibold tracking-tight text-white">KubeMind</span>
       </div>
 
-      {/* Cluster switcher */}
-      <div className="px-4 py-3 border-b border-slate-800 shrink-0">
-        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
-          Cluster
-        </label>
-        <div className="flex items-center gap-2">
-          <select value={clusterId} onChange={handleClusterChange} className={selectClass}>
-            {(clusters ?? [{ id: 0, name: 'local', builtIn: true } as Cluster]).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          {currentCluster && !currentCluster.builtIn && (
-            <span
-              title={currentCluster.lastCheckOk === false ? 'Unreachable at last check' : 'Healthy at last check'}
-              className={`shrink-0 w-2 h-2 rounded-full ${
-                currentCluster.lastCheckOk === false ? 'bg-red-500'
-                : currentCluster.lastCheckOk === true ? 'bg-emerald-500' : 'bg-slate-600'
-              }`}
-            />
-          )}
+      {/* Cluster + namespace selectors */}
+      <div className="px-4 py-3 border-b border-slate-800 shrink-0 space-y-3">
+        <div>
+          <label className={label}>Cluster</label>
+          <div className="flex items-center gap-2">
+            <select value={clusterId} onChange={handleClusterChange} className={selectClass}>
+              {(clusters ?? [{ id: 0, name: 'local', builtIn: true } as Cluster]).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {currentCluster && !currentCluster.builtIn && (
+              <span
+                title={currentCluster.lastCheckOk === false ? 'Unreachable' : 'Healthy'}
+                className={`shrink-0 w-2 h-2 rounded-full ${
+                  currentCluster.lastCheckOk === false ? 'bg-red-500'
+                  : currentCluster.lastCheckOk === true ? 'bg-emerald-500' : 'bg-slate-600'}`}
+              />
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Namespace selector */}
-      <div className="px-4 py-3 border-b border-slate-800 shrink-0">
-        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
-          Namespace
-        </label>
-        <select value={currentNs ?? ''} onChange={handleNsChange} className={selectClass}>
-          <option value="">Select namespace…</option>
-          {namespaces?.map((ns) => (
-            <option key={ns.name} value={ns.name}>{ns.name}</option>
-          ))}
-        </select>
+        <div>
+          <label className={label}>Namespace</label>
+          <select value={currentNs ?? ''} onChange={handleNsChange} className={selectClass}>
+            <option value="">Select namespace…</option>
+            {namespaces?.map((ns) => <option key={ns.name} value={ns.name}>{ns.name}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        <p className={sectionLabel}>Cluster</p>
-        <NavLink to={`/clusters/${clusterId}/nodes`} className={navLinkClass} onClick={onClose} end>
-          <IconServer className="w-4 h-4 shrink-0" />
-          Nodes
+        {/* Cluster-wide */}
+        <NavLink to={`/clusters/${clusterId}/nodes`} className={linkClass} onClick={onClose} end>
+          <IconServer className="w-4 h-4 shrink-0" /> Nodes
         </NavLink>
-        <NavLink to={`/clusters/${clusterId}/namespaces`} className={navLinkClass} onClick={onClose} end>
-          <IconFolder className="w-4 h-4 shrink-0" />
-          Namespaces
+        <NavLink to={`/clusters/${clusterId}/namespaces`} className={linkClass} onClick={onClose} end>
+          <IconFolder className="w-4 h-4 shrink-0" /> Namespaces
         </NavLink>
 
-        <p className={`${sectionLabel} pt-5`}>Workloads</p>
-        {WORKLOAD_NAV.map(({ suffix, label, Icon }) => (
-          <NavLink
-            key={suffix}
-            to={`/clusters/${clusterId}/namespaces/${currentNs ?? '_'}/${suffix}`}
-            className={navLinkClass}
-            onClick={onClose}
-          >
-            <Icon className="w-4 h-4 shrink-0" />
-            {label}
-          </NavLink>
-        ))}
+        {/* Namespaced groups */}
+        {GROUPS.map(({ key, label: groupLabel, Icon, items }) => {
+          const expanded = openGroup === key
+          return (
+            <div key={key}>
+              <button
+                onClick={() => toggleGroup(key)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300
+                           hover:bg-slate-800/70 transition-colors"
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="flex-1 text-left">{groupLabel}</span>
+                <IconChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${expanded ? '' : '-rotate-90'}`} />
+              </button>
+              {expanded && (
+                <div className="mt-0.5 space-y-0.5">
+                  {items.map((item) => (
+                    <NavLink
+                      key={item.suffix}
+                      to={`/clusters/${clusterId}/namespaces/${currentNs ?? '_'}/${item.suffix}`}
+                      className={subLinkClass}
+                      onClick={onClose}
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        {/* Storage — cluster-scoped PV sits alongside the namespaced PVC group above */}
+        <NavLink to={`/clusters/${clusterId}/persistentvolumes`} className={linkClass} onClick={onClose} end>
+          <IconDatabase className="w-4 h-4 shrink-0" /> Persistent Volumes
+        </NavLink>
 
         {isAdmin && (
           <>
-            <p className={`${sectionLabel} pt-5`}>Admin</p>
-            <NavLink to="/settings/clusters" className={navLinkClass} onClick={onClose}>
-              <IconServer className="w-4 h-4 shrink-0" />
-              Clusters
+            <div className="my-2 border-t border-slate-800" />
+            <NavLink to="/settings/clusters" className={linkClass} onClick={onClose}>
+              <IconServer className="w-4 h-4 shrink-0" /> Clusters
             </NavLink>
-            <NavLink to="/audit" className={navLinkClass} onClick={onClose}>
-              <IconClipboard className="w-4 h-4 shrink-0" />
-              Audit log
+            <NavLink to="/audit" className={linkClass} onClick={onClose}>
+              <IconClipboard className="w-4 h-4 shrink-0" /> Audit log
             </NavLink>
           </>
         )}
@@ -185,10 +233,8 @@ export function Sidebar({ onClose }: Props) {
       {/* User footer */}
       <div className="shrink-0 px-4 py-3 border-t border-slate-800">
         <p className="text-sm font-medium text-slate-200 truncate">{username}</p>
-        <button
-          onClick={() => { logout(); onClose?.() }}
-          className="mt-0.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-        >
+        <button onClick={() => { logout(); onClose?.() }}
+                className="mt-0.5 text-xs text-slate-500 hover:text-slate-300 transition-colors">
           Sign out
         </button>
       </div>

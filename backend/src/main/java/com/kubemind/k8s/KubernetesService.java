@@ -213,7 +213,173 @@ public class KubernetesService {
         );
     }
 
+    // ── Config ────────────────────────────────────────────────────────────────
+
+    public List<ConfigMapDto> listConfigMaps(long clusterId, String namespace) {
+        return clientFactory.getClient(clusterId).configMaps().inNamespace(namespace)
+            .list().getItems().stream()
+            .map(cm -> new ConfigMapDto(
+                cm.getMetadata().getName(),
+                cm.getMetadata().getNamespace(),
+                cm.getData() != null ? cm.getData() : Map.of(),
+                cm.getBinaryData() != null ? cm.getBinaryData().size() : 0,
+                cm.getMetadata().getCreationTimestamp()))
+            .toList();
+    }
+
+    public List<SecretDto> listSecrets(long clusterId, String namespace) {
+        return clientFactory.getClient(clusterId).secrets().inNamespace(namespace)
+            .list().getItems().stream()
+            .map(s -> new SecretDto(
+                s.getMetadata().getName(),
+                s.getMetadata().getNamespace(),
+                s.getType(),
+                s.getData() != null ? s.getData().keySet().stream().sorted().toList() : List.of(),
+                s.getMetadata().getCreationTimestamp()))
+            .toList();
+    }
+
+    // ── Workloads (beyond deployments) ────────────────────────────────────────
+
+    public List<StatefulSetDto> listStatefulSets(long clusterId, String namespace) {
+        return clientFactory.getClient(clusterId).apps().statefulSets().inNamespace(namespace)
+            .list().getItems().stream()
+            .map(s -> new StatefulSetDto(
+                s.getMetadata().getName(),
+                s.getMetadata().getNamespace(),
+                s.getSpec() != null && s.getSpec().getReplicas() != null ? s.getSpec().getReplicas() : 0,
+                s.getStatus() != null && s.getStatus().getReadyReplicas() != null ? s.getStatus().getReadyReplicas() : 0,
+                s.getSpec() != null ? s.getSpec().getServiceName() : null,
+                firstImage(s.getSpec() != null && s.getSpec().getTemplate() != null
+                    && s.getSpec().getTemplate().getSpec() != null
+                    ? s.getSpec().getTemplate().getSpec().getContainers() : null),
+                s.getMetadata().getCreationTimestamp()))
+            .toList();
+    }
+
+    public List<DaemonSetDto> listDaemonSets(long clusterId, String namespace) {
+        return clientFactory.getClient(clusterId).apps().daemonSets().inNamespace(namespace)
+            .list().getItems().stream()
+            .map(d -> new DaemonSetDto(
+                d.getMetadata().getName(),
+                d.getMetadata().getNamespace(),
+                d.getStatus() != null && d.getStatus().getDesiredNumberScheduled() != null
+                    ? d.getStatus().getDesiredNumberScheduled() : 0,
+                d.getStatus() != null && d.getStatus().getNumberReady() != null
+                    ? d.getStatus().getNumberReady() : 0,
+                d.getStatus() != null && d.getStatus().getNumberAvailable() != null
+                    ? d.getStatus().getNumberAvailable() : 0,
+                firstImage(d.getSpec() != null && d.getSpec().getTemplate() != null
+                    && d.getSpec().getTemplate().getSpec() != null
+                    ? d.getSpec().getTemplate().getSpec().getContainers() : null),
+                d.getMetadata().getCreationTimestamp()))
+            .toList();
+    }
+
+    // ── Network ───────────────────────────────────────────────────────────────
+
+    public List<ServiceDto> listServices(long clusterId, String namespace) {
+        return clientFactory.getClient(clusterId).services().inNamespace(namespace)
+            .list().getItems().stream()
+            .map(s -> {
+                var spec = s.getSpec();
+                List<String> ports = spec != null && spec.getPorts() != null
+                    ? spec.getPorts().stream().map(p -> {
+                        StringBuilder sb = new StringBuilder();
+                        if (p.getName() != null) sb.append(p.getName()).append(' ');
+                        sb.append(p.getPort());
+                        if (p.getTargetPort() != null) sb.append('→').append(p.getTargetPort().toString());
+                        if (p.getNodePort() != null) sb.append(" (:").append(p.getNodePort()).append(')');
+                        sb.append('/').append(p.getProtocol() != null ? p.getProtocol() : "TCP");
+                        return sb.toString();
+                      }).toList()
+                    : List.of();
+                return new ServiceDto(
+                    s.getMetadata().getName(),
+                    s.getMetadata().getNamespace(),
+                    spec != null && spec.getType() != null ? spec.getType() : "ClusterIP",
+                    spec != null ? spec.getClusterIP() : null,
+                    ports,
+                    spec != null && spec.getSelector() != null ? spec.getSelector() : Map.of(),
+                    s.getMetadata().getCreationTimestamp());
+            })
+            .toList();
+    }
+
+    public List<IngressDto> listIngresses(long clusterId, String namespace) {
+        return clientFactory.getClient(clusterId).network().v1().ingresses().inNamespace(namespace)
+            .list().getItems().stream()
+            .map(ing -> {
+                List<IngressDto.Rule> rules = ing.getSpec() != null && ing.getSpec().getRules() != null
+                    ? ing.getSpec().getRules().stream().flatMap(r -> {
+                        String host = r.getHost() != null ? r.getHost() : "*";
+                        if (r.getHttp() == null || r.getHttp().getPaths() == null) {
+                            return java.util.stream.Stream.of(new IngressDto.Rule(host, "/", "—"));
+                        }
+                        return r.getHttp().getPaths().stream().map(p -> {
+                            String backend = "—";
+                            if (p.getBackend() != null && p.getBackend().getService() != null) {
+                                var svc = p.getBackend().getService();
+                                backend = svc.getName() + (svc.getPort() != null && svc.getPort().getNumber() != null
+                                    ? ":" + svc.getPort().getNumber() : "");
+                            }
+                            return new IngressDto.Rule(host, p.getPath() != null ? p.getPath() : "/", backend);
+                        });
+                      }).toList()
+                    : List.of();
+                return new IngressDto(
+                    ing.getMetadata().getName(),
+                    ing.getMetadata().getNamespace(),
+                    ing.getSpec() != null ? ing.getSpec().getIngressClassName() : null,
+                    rules,
+                    ing.getMetadata().getCreationTimestamp());
+            })
+            .toList();
+    }
+
+    // ── Storage ───────────────────────────────────────────────────────────────
+
+    public List<PvcDto> listPersistentVolumeClaims(long clusterId, String namespace) {
+        return clientFactory.getClient(clusterId).persistentVolumeClaims().inNamespace(namespace)
+            .list().getItems().stream()
+            .map(pvc -> new PvcDto(
+                pvc.getMetadata().getName(),
+                pvc.getMetadata().getNamespace(),
+                pvc.getStatus() != null ? pvc.getStatus().getPhase() : "Unknown",
+                pvc.getSpec() != null ? pvc.getSpec().getVolumeName() : null,
+                pvc.getStatus() != null && pvc.getStatus().getCapacity() != null
+                    ? quantityStr(pvc.getStatus().getCapacity().get("storage")) : null,
+                pvc.getSpec() != null && pvc.getSpec().getAccessModes() != null
+                    ? pvc.getSpec().getAccessModes() : List.of(),
+                pvc.getSpec() != null ? pvc.getSpec().getStorageClassName() : null,
+                pvc.getMetadata().getCreationTimestamp()))
+            .toList();
+    }
+
+    public List<PvDto> listPersistentVolumes(long clusterId) {
+        return clientFactory.getClient(clusterId).persistentVolumes()
+            .list().getItems().stream()
+            .map(pv -> new PvDto(
+                pv.getMetadata().getName(),
+                pv.getStatus() != null ? pv.getStatus().getPhase() : "Unknown",
+                pv.getSpec() != null && pv.getSpec().getCapacity() != null
+                    ? quantityStr(pv.getSpec().getCapacity().get("storage")) : null,
+                pv.getSpec() != null && pv.getSpec().getAccessModes() != null
+                    ? pv.getSpec().getAccessModes() : List.of(),
+                pv.getSpec() != null ? pv.getSpec().getPersistentVolumeReclaimPolicy() : null,
+                pv.getSpec() != null ? pv.getSpec().getStorageClassName() : null,
+                pv.getSpec() != null && pv.getSpec().getClaimRef() != null
+                    ? pv.getSpec().getClaimRef().getNamespace() + "/" + pv.getSpec().getClaimRef().getName()
+                    : null,
+                pv.getMetadata().getCreationTimestamp()))
+            .toList();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private String firstImage(List<io.fabric8.kubernetes.api.model.Container> containers) {
+        return containers != null && !containers.isEmpty() ? containers.get(0).getImage() : null;
+    }
 
     private String quantityStr(Quantity q) {
         return q != null ? q.toString() : null;

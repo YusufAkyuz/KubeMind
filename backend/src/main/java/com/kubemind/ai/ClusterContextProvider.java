@@ -1,8 +1,14 @@
 package com.kubemind.ai;
 
 import com.kubemind.cluster.ClusterClientFactory;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  * Builds a compact, redacted snapshot of a cluster for the chat assistant so it
@@ -36,31 +42,39 @@ public class ClusterContextProvider {
                 sb.append("- ").append(n.getMetadata().getName()).append(": ").append(ready).append('\n');
             });
 
-            sb.append("\n=== NAMESPACES ===\n");
+            // Fetch all pods once; used for both per-namespace counts and the unhealthy list.
+            List<Pod> pods = client.pods().inAnyNamespace().list().getItems();
+            Map<String, Long> podsPerNs = pods.stream().collect(Collectors.groupingBy(
+                p -> p.getMetadata().getNamespace(), TreeMap::new, Collectors.counting()));
+
+            sb.append("\n=== NAMESPACES (name: pod count) ===\n");
             var namespaces = client.namespaces().list().getItems();
-            namespaces.stream().limit(MAX_NAMESPACES)
-                .forEach(ns -> sb.append("- ").append(ns.getMetadata().getName()).append('\n'));
+            namespaces.stream().limit(MAX_NAMESPACES).forEach(ns -> {
+                String name = ns.getMetadata().getName();
+                sb.append("- ").append(name).append(": ")
+                  .append(podsPerNs.getOrDefault(name, 0L)).append(" pods\n");
+            });
             if (namespaces.size() > MAX_NAMESPACES) {
                 sb.append("… and ").append(namespaces.size() - MAX_NAMESPACES).append(" more\n");
             }
 
             sb.append("\n=== UNHEALTHY PODS (not Running/Succeeded) ===\n");
-            long[] shown = {0};
-            boolean[] any = {false};
-            client.pods().inAnyNamespace().list().getItems().stream()
+            List<Pod> unhealthy = pods.stream()
                 .filter(p -> {
                     String phase = p.getStatus() != null ? p.getStatus().getPhase() : null;
                     return !"Running".equals(phase) && !"Succeeded".equals(phase);
                 })
                 .limit(MAX_UNHEALTHY_PODS)
-                .forEach(p -> {
-                    any[0] = true;
-                    shown[0]++;
+                .toList();
+            if (unhealthy.isEmpty()) {
+                sb.append("(none)\n");
+            } else {
+                unhealthy.forEach(p -> {
                     String phase = p.getStatus() != null ? p.getStatus().getPhase() : "Unknown";
                     sb.append("- ").append(p.getMetadata().getNamespace()).append('/')
                       .append(p.getMetadata().getName()).append(": ").append(phase).append('\n');
                 });
-            if (!any[0]) sb.append("(none)\n");
+            }
 
         } catch (Exception e) {
             sb.append("\n(cluster context unavailable: ").append(e.getMessage()).append(")\n");

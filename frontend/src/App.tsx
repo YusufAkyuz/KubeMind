@@ -10,6 +10,14 @@ import { EventsPage } from './pages/EventsPage'
 import { LogsPage } from './pages/LogsPage'
 import { AuditPage } from './pages/AuditPage'
 import { ClustersPage } from './pages/ClustersPage'
+import { ConfigMapsPage } from './pages/ConfigMapsPage'
+import { SecretsPage } from './pages/SecretsPage'
+import { StatefulSetsPage } from './pages/StatefulSetsPage'
+import { DaemonSetsPage } from './pages/DaemonSetsPage'
+import { ServicesPage } from './pages/ServicesPage'
+import { IngressesPage } from './pages/IngressesPage'
+import { PvcsPage } from './pages/PvcsPage'
+import { PvsPage } from './pages/PvsPage'
 import { ChatWidget } from './components/ChatWidget'
 
 // Code-split: xterm.js only loads when a terminal is actually opened.
@@ -32,6 +40,14 @@ export default function App() {
       <Route path="/clusters/:clusterId/namespaces/:ns/pods" element={<ProtectedRoute><PodsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/deployments" element={<ProtectedRoute><DeploymentsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/statefulsets" element={<ProtectedRoute><StatefulSetsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/daemonsets" element={<ProtectedRoute><DaemonSetsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/configmaps" element={<ProtectedRoute><ConfigMapsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/secrets" element={<ProtectedRoute><SecretsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/ingresses" element={<ProtectedRoute><IngressesPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/persistentvolumeclaims" element={<ProtectedRoute><PvcsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/persistentvolumes" element={<ProtectedRoute><PvsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/exec" element={
         <ProtectedRoute>

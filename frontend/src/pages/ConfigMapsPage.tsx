@@ -1,0 +1,72 @@
+import { useState } from 'react'
+import { Layout } from '../components/Layout'
+import { PageHeader } from '../components/PageHeader'
+import { Table, Tr, Td } from '../components/Table'
+import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
+import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
+import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
+import { formatAge } from '../utils/format'
+import type { ConfigMap } from '../types/k8s'
+
+const COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'keys', label: 'Keys' },
+  { key: 'age', label: 'Age' },
+]
+
+export function ConfigMapsPage() {
+  const { ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<ConfigMap>('configmaps')
+  const [selected, setSelected] = useState<ConfigMap | null>(null)
+
+  return (
+    <Layout>
+      <PageHeader title="ConfigMaps" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
+                  count={data?.length} noun="configmap" />
+
+      {noNamespace && <EmptyState message={noNamespaceMessage('configmaps')} />}
+      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isError && <ErrorBanner message={`Could not load configmaps: ${(error as Error).message}`} />}
+
+      {data && (
+        <Table columns={COLUMNS} minWidth="420px">
+          {data.map((cm) => (
+            <Tr key={cm.name} onClick={() => setSelected(cm)} highlighted={selected?.name === cm.name}>
+              <Td className="font-medium text-gray-900">{cm.name}</Td>
+              <Td className="text-gray-500 tabular-nums">
+                {Object.keys(cm.data).length}
+                {cm.binaryDataCount > 0 && <span className="text-gray-400"> (+{cm.binaryDataCount} binary)</span>}
+              </Td>
+              <Td className="text-gray-400 tabular-nums">{formatAge(cm.creationTimestamp)}</Td>
+            </Tr>
+          ))}
+        </Table>
+      )}
+
+      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`ConfigMap · ${ns}`}
+                    onClose={() => setSelected(null)}>
+        {selected && (
+          <>
+            <DrawerSection title="Overview" />
+            <DrawerRow label="Namespace" value={selected.namespace} />
+            <DrawerRow label="Age" value={formatAge(selected.creationTimestamp)} />
+
+            <DrawerSection title={`Data (${Object.keys(selected.data).length})`} />
+            {Object.keys(selected.data).length === 0 && (
+              <p className="text-sm text-gray-400">No text data.</p>
+            )}
+            {Object.entries(selected.data).map(([key, value]) => (
+              <div key={key} className="rounded-lg border border-gray-200 overflow-hidden">
+                <p className="px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-xs font-mono font-medium text-gray-700">
+                  {key}
+                </p>
+                <pre className="px-3 py-2 text-xs font-mono text-gray-600 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                  {value}
+                </pre>
+              </div>
+            ))}
+          </>
+        )}
+      </DetailDrawer>
+    </Layout>
+  )
+}
