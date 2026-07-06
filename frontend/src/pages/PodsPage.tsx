@@ -16,13 +16,15 @@ import { formatAge } from '../utils/format'
 import { IconTerminal } from '../components/Icons'
 import { ExplainPanel } from '../components/ExplainPanel'
 import { CreateResourceButton } from '../components/CreateResourceButton'
-import type { Pod } from '../types/k8s'
+import type { Pod, PodMetrics } from '../types/k8s'
 
 const COLUMNS = [
   { key: 'name', label: 'Name' },
   { key: 'status', label: 'Status' },
   { key: 'ready', label: 'Ready' },
   { key: 'restarts', label: 'Restarts' },
+  { key: 'cpu', label: 'CPU', className: 'hidden lg:table-cell' },
+  { key: 'memory', label: 'Memory', className: 'hidden lg:table-cell' },
   { key: 'node', label: 'Node', className: 'hidden lg:table-cell' },
   { key: 'ip', label: 'IP', className: 'hidden xl:table-cell' },
   { key: 'age', label: 'Age' },
@@ -58,6 +60,16 @@ export function PodsPage() {
   })
 
   useSSE<Pod[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/pods` : null, queryKey)
+
+  // metrics-server is optional — an empty array (not an error) means it isn't installed.
+  const { data: metrics } = useQuery<PodMetrics[]>({
+    queryKey: ['pod-metrics', clusterId, ns],
+    queryFn: async () => (await api.get<PodMetrics[]>(`/clusters/${clusterId}/namespaces/${ns}/metrics/pods`)).data,
+    enabled: !!clusterId && !!ns && !noNamespace,
+    refetchInterval: 15_000,
+    retry: false,
+  })
+  const metricsByName = new Map((metrics ?? []).map((m) => [m.name, m]))
 
   return (
     <Layout>
@@ -96,6 +108,8 @@ export function PodsPage() {
                     {pod.restartCount}
                   </span>
                 </Td>
+                <Td className="hidden lg:table-cell text-gray-500">{metricsByName.get(pod.name)?.cpuUsage ?? '—'}</Td>
+                <Td className="hidden lg:table-cell text-gray-500">{metricsByName.get(pod.name)?.memoryUsage ?? '—'}</Td>
                 <Td className="hidden lg:table-cell text-gray-400 text-xs">{pod.nodeName ?? '—'}</Td>
                 <Td className="hidden xl:table-cell font-mono text-xs text-gray-400">{pod.podIP ?? '—'}</Td>
                 <Td className="text-gray-400 tabular-nums">{formatAge(pod.creationTimestamp)}</Td>
@@ -129,6 +143,8 @@ export function PodsPage() {
             <DrawerRow label="Node" value={selected.nodeName} />
             <DrawerRow label="Pod IP" value={<span className="font-mono text-xs">{selected.podIP}</span>} />
             <DrawerRow label="Restarts" value={selected.restartCount} />
+            <DrawerRow label="CPU (usage)" value={metricsByName.get(selected.name)?.cpuUsage ?? '—'} />
+            <DrawerRow label="Memory (usage)" value={metricsByName.get(selected.name)?.memoryUsage ?? '—'} />
             <DrawerRow label="Age" value={formatAge(selected.creationTimestamp)} />
 
             {isAdmin && (

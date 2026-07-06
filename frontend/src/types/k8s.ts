@@ -27,6 +27,19 @@ export interface NodeResource {
   creationTimestamp: string | null
 }
 
+export interface NodeMetrics {
+  name: string
+  cpuUsage: string | null
+  memoryUsage: string | null
+}
+
+export interface PodMetrics {
+  name: string
+  namespace: string
+  cpuUsage: string | null
+  memoryUsage: string | null
+}
+
 export interface ContainerInfo {
   name: string
   image: string

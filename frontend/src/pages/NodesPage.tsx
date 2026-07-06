@@ -11,7 +11,7 @@ import { ErrorBanner } from '../components/ErrorBanner'
 import { useSSE } from '../hooks/useSSE'
 import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
-import type { NodeResource } from '../types/k8s'
+import type { NodeMetrics, NodeResource } from '../types/k8s'
 
 const COLUMNS = [
   { key: 'name', label: 'Name' },
@@ -38,6 +38,17 @@ export function NodesPage() {
 
   useSSE<NodeResource[]>(clusterId ? `/api/clusters/${clusterId}/watch/nodes` : null, queryKey)
 
+  // metrics-server is optional — an empty array (not an error) means it isn't installed.
+  const { data: metrics } = useQuery<NodeMetrics[]>({
+    queryKey: ['node-metrics', clusterId],
+    queryFn: async () => (await api.get<NodeMetrics[]>(`/clusters/${clusterId}/metrics/nodes`)).data,
+    enabled: !!clusterId,
+    refetchInterval: 15_000,
+    retry: false,
+  })
+  const metricsByName = new Map((metrics ?? []).map((m) => [m.name, m]))
+  const metricsAvailable = (metrics?.length ?? 0) > 0
+
   return (
     <Layout>
       <PageHeader title="Nodes" count={data?.length} noun="node" />
@@ -57,8 +68,16 @@ export function NodesPage() {
               <Td><StatusBadge status={node.status} /></Td>
               <Td className="text-gray-500">{node.roles}</Td>
               <Td className="hidden md:table-cell font-mono text-xs text-gray-400">{node.kubeletVersion ?? '—'}</Td>
-              <Td className="hidden lg:table-cell text-gray-500">{node.cpuCapacity ?? '—'}</Td>
-              <Td className="hidden lg:table-cell text-gray-500">{node.memoryCapacity ?? '—'}</Td>
+              <Td className="hidden lg:table-cell text-gray-500">
+                {metricsByName.get(node.name)?.cpuUsage
+                  ? `${metricsByName.get(node.name)!.cpuUsage} / ${node.cpuCapacity ?? '—'}`
+                  : node.cpuCapacity ?? '—'}
+              </Td>
+              <Td className="hidden lg:table-cell text-gray-500">
+                {metricsByName.get(node.name)?.memoryUsage
+                  ? `${metricsByName.get(node.name)!.memoryUsage} / ${node.memoryCapacity ?? '—'}`
+                  : node.memoryCapacity ?? '—'}
+              </Td>
               <Td className="text-gray-400 tabular-nums">{formatAge(node.creationTimestamp)}</Td>
             </Tr>
           ))}
@@ -99,6 +118,12 @@ export function NodesPage() {
             <DrawerRow label="CPU (allocatable)" value={selected.cpuAllocatable} />
             <DrawerRow label="Memory (capacity)" value={selected.memoryCapacity} />
             <DrawerRow label="Memory (allocatable)" value={selected.memoryAllocatable} />
+            <DrawerRow label="CPU (usage)"
+                       value={metricsByName.get(selected.name)?.cpuUsage
+                         ?? (metricsAvailable ? '—' : 'metrics-server not installed')} />
+            <DrawerRow label="Memory (usage)"
+                       value={metricsByName.get(selected.name)?.memoryUsage
+                         ?? (metricsAvailable ? '—' : 'metrics-server not installed')} />
           </>
         )}
       </DetailDrawer>

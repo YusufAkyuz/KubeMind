@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -11,5 +12,11 @@ export default defineConfig({
       // WebSocket upgrade for the interactive pod terminal.
       '/ws': { target: 'ws://localhost:8080', ws: true },
     },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    globals: true,
+    css: true,
   },
 })
