@@ -27,6 +27,8 @@ final class ManifestValidation {
         Map.entry("Deployment", "apps/v1"),
         Map.entry("StatefulSet", "apps/v1"),
         Map.entry("DaemonSet", "apps/v1"),
+        Map.entry("Job", "batch/v1"),
+        Map.entry("CronJob", "batch/v1"),
         Map.entry("Ingress", "networking.k8s.io/v1")
     );
 

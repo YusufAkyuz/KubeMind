@@ -14,6 +14,8 @@ import { ConfigMapsPage } from './pages/ConfigMapsPage'
 import { SecretsPage } from './pages/SecretsPage'
 import { StatefulSetsPage } from './pages/StatefulSetsPage'
 import { DaemonSetsPage } from './pages/DaemonSetsPage'
+import { JobsPage } from './pages/JobsPage'
+import { CronJobsPage } from './pages/CronJobsPage'
 import { ServicesPage } from './pages/ServicesPage'
 import { IngressesPage } from './pages/IngressesPage'
 import { PvcsPage } from './pages/PvcsPage'
@@ -47,6 +49,8 @@ export default function App() {
       <Route path="/clusters/:clusterId/namespaces/:ns/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/statefulsets" element={<ProtectedRoute><StatefulSetsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/daemonsets" element={<ProtectedRoute><DaemonSetsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
+      <Route path="/clusters/:clusterId/namespaces/:ns/cronjobs" element={<ProtectedRoute><CronJobsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/configmaps" element={<ProtectedRoute><ConfigMapsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/secrets" element={<ProtectedRoute><SecretsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />

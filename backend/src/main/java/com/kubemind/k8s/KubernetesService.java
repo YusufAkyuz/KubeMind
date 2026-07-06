@@ -7,6 +7,8 @@ import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.batch.v1.CronJob;
+import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -274,6 +276,79 @@ public class KubernetesService {
                     ? d.getSpec().getTemplate().getSpec().getContainers() : null),
                 d.getMetadata().getCreationTimestamp()))
             .toList();
+    }
+
+    public List<JobDto> listJobs(long clusterId, String namespace) {
+        return clientFactory.getClient(clusterId).batch().v1().jobs().inNamespace(namespace)
+            .list().getItems().stream()
+            .map(this::toJobDto)
+            .toList();
+    }
+
+    private JobDto toJobDto(Job job) {
+        var meta = job.getMetadata();
+        var spec = job.getSpec();
+        var status = job.getStatus();
+
+        int succeeded = status != null && status.getSucceeded() != null ? status.getSucceeded() : 0;
+        int failed = status != null && status.getFailed() != null ? status.getFailed() : 0;
+        int active = status != null && status.getActive() != null ? status.getActive() : 0;
+        Integer completions = spec != null ? spec.getCompletions() : null;
+
+        String jobStatus;
+        if (status != null && status.getCompletionTime() != null) {
+            jobStatus = "Succeeded";
+        } else if (failed > 0 && active == 0) {
+            jobStatus = "Failed";
+        } else if (active > 0) {
+            jobStatus = "Running";
+        } else {
+            jobStatus = "Pending";
+        }
+
+        return new JobDto(
+            meta.getName(),
+            meta.getNamespace(),
+            jobStatus,
+            succeeded,
+            failed,
+            active,
+            completions,
+            firstImage(spec != null && spec.getTemplate() != null && spec.getTemplate().getSpec() != null
+                ? spec.getTemplate().getSpec().getContainers() : null),
+            status != null ? status.getStartTime() : null,
+            status != null ? status.getCompletionTime() : null,
+            meta.getCreationTimestamp()
+        );
+    }
+
+    public List<CronJobDto> listCronJobs(long clusterId, String namespace) {
+        return clientFactory.getClient(clusterId).batch().v1().cronjobs().inNamespace(namespace)
+            .list().getItems().stream()
+            .map(this::toCronJobDto)
+            .toList();
+    }
+
+    private CronJobDto toCronJobDto(CronJob cronJob) {
+        var meta = cronJob.getMetadata();
+        var spec = cronJob.getSpec();
+        var status = cronJob.getStatus();
+
+        var jobTemplateSpec = spec != null && spec.getJobTemplate() != null
+            ? spec.getJobTemplate().getSpec() : null;
+        var podSpec = jobTemplateSpec != null && jobTemplateSpec.getTemplate() != null
+            ? jobTemplateSpec.getTemplate().getSpec() : null;
+
+        return new CronJobDto(
+            meta.getName(),
+            meta.getNamespace(),
+            spec != null ? spec.getSchedule() : null,
+            spec != null && Boolean.TRUE.equals(spec.getSuspend()),
+            status != null && status.getActive() != null ? status.getActive().size() : 0,
+            firstImage(podSpec != null ? podSpec.getContainers() : null),
+            status != null ? status.getLastScheduleTime() : null,
+            meta.getCreationTimestamp()
+        );
     }
 
     // ── Network ───────────────────────────────────────────────────────────────

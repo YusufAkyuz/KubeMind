@@ -92,6 +92,31 @@ export interface DaemonSet {
   creationTimestamp: string | null
 }
 
+export interface Job {
+  name: string
+  namespace: string
+  status: string
+  succeeded: number
+  failed: number
+  active: number
+  completions: number | null
+  image: string | null
+  startTime: string | null
+  completionTime: string | null
+  creationTimestamp: string | null
+}
+
+export interface CronJob {
+  name: string
+  namespace: string
+  schedule: string | null
+  suspended: boolean
+  activeJobs: number
+  image: string | null
+  lastScheduleTime: string | null
+  creationTimestamp: string | null
+}
+
 export interface ServiceResource {
   name: string
   namespace: string

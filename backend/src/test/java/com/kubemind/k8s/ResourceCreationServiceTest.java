@@ -54,6 +54,35 @@ class ResourceCreationServiceTest {
             eq("ConfigMap/default/app-config"), any(), eq(true), eq(null));
     }
 
+    private static final String CRONJOB_YAML = """
+        apiVersion: batch/v1
+        kind: CronJob
+        metadata:
+          name: nightly-cleanup
+          namespace: default
+        spec:
+          schedule: "0 2 * * *"
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  restartPolicy: OnFailure
+                  containers:
+                  - name: cleanup
+                    image: busybox:1.36
+        """;
+
+    @Test
+    void createsCronJobAndAudits() {
+        var created = service.create("admin", 0L, "default", CRONJOB_YAML);
+
+        assertThat(created.kind()).isEqualTo("CronJob");
+        assertThat(client.batch().v1().cronjobs().inNamespace("default").withName("nightly-cleanup").get())
+            .isNotNull();
+        verify(auditService).record(eq("admin"), eq(0L), eq("CREATE_RESOURCE"),
+            eq("CronJob/default/nightly-cleanup"), any(), eq(true), eq(null));
+    }
+
     @Test
     void rejectsDisallowedKind() {
         String roleBinding = """
@@ -116,7 +145,7 @@ class ResourceCreationServiceTest {
     @Test
     void allowedKindsAreSortedAndStable() {
         assertThat(service.allowedKinds()).containsExactly(
-            "ConfigMap", "DaemonSet", "Deployment", "Ingress",
+            "ConfigMap", "CronJob", "DaemonSet", "Deployment", "Ingress", "Job",
             "PersistentVolumeClaim", "Pod", "Secret", "Service", "StatefulSet"
         );
     }

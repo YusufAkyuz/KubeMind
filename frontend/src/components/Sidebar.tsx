@@ -36,6 +36,8 @@ const GROUPS: NavGroup[] = [
       { suffix: 'deployments', label: 'Deployments' },
       { suffix: 'statefulsets', label: 'StatefulSets' },
       { suffix: 'daemonsets', label: 'DaemonSets' },
+      { suffix: 'jobs', label: 'Jobs' },
+      { suffix: 'cronjobs', label: 'CronJobs' },
       { suffix: 'events', label: 'Events' },
     ],
   },

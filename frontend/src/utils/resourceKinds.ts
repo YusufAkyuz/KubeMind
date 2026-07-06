@@ -1,6 +1,6 @@
 /** Kinds the Create Resource feature supports — must mirror the backend allowlist. */
 export const ALLOWED_KINDS = [
-  'Pod', 'Deployment', 'StatefulSet', 'DaemonSet',
+  'Pod', 'Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob',
   'Service', 'Ingress', 'ConfigMap', 'Secret', 'PersistentVolumeClaim',
 ] as const
 
@@ -12,6 +12,8 @@ export const KIND_ROUTES: Record<string, string> = {
   Deployment: 'deployments',
   StatefulSet: 'statefulsets',
   DaemonSet: 'daemonsets',
+  Job: 'jobs',
+  CronJob: 'cronjobs',
   Service: 'services',
   Ingress: 'ingresses',
   ConfigMap: 'configmaps',
@@ -100,6 +102,38 @@ spec:
       containers:
         - name: app
           image: nginx:1.27
+`,
+  Job: (ns) => `apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-job
+  namespace: ${ns}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["echo", "hello"]
+`,
+  CronJob: (ns) => `apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-cronjob
+  namespace: ${ns}
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: app
+              image: busybox:1.36
+              command: ["echo", "hello"]
 `,
   Service: (ns) => `apiVersion: v1
 kind: Service

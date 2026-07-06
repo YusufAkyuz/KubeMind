@@ -27,4 +27,14 @@ public class WorkloadController {
     public List<DaemonSetDto> daemonSets(@PathVariable long clusterId, @PathVariable String ns) {
         return kubernetesService.listDaemonSets(clusterId, ns);
     }
+
+    @GetMapping("/namespaces/{ns}/jobs")
+    public List<JobDto> jobs(@PathVariable long clusterId, @PathVariable String ns) {
+        return kubernetesService.listJobs(clusterId, ns);
+    }
+
+    @GetMapping("/namespaces/{ns}/cronjobs")
+    public List<CronJobDto> cronJobs(@PathVariable long clusterId, @PathVariable String ns) {
+        return kubernetesService.listCronJobs(clusterId, ns);
+    }
 }
