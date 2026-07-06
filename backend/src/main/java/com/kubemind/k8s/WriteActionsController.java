@@ -73,4 +73,12 @@ public class WriteActionsController {
         writeService.deletePod(auth.getName(), clusterId, ns, name);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/namespaces/{name}")
+    public ResponseEntity<Void> deleteNamespace(@PathVariable long clusterId,
+                                                @PathVariable String name,
+                                                Authentication auth) {
+        writeService.deleteNamespace(auth.getName(), clusterId, name);
+        return ResponseEntity.noContent().build();
+    }
 }

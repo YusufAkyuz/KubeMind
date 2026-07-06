@@ -2,6 +2,7 @@ package com.kubemind.k8s;
 
 import com.kubemind.audit.AuditService;
 import com.kubemind.cluster.ClusterClientFactory;
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.apps.DaemonSetBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -214,5 +215,29 @@ class KubernetesWriteServiceTest {
         assertThat(client.pods().inNamespace("default").withName("p1").get()).isNull();
         verify(auditService).record(eq("admin"), eq(0L), eq("DELETE_POD"),
             eq("Pod/default/p1"), eq(null), eq(true), eq(null));
+    }
+
+    // ── Delete namespace ─────────────────────────────────────────────────────
+
+    @Test
+    void deleteUnknownNamespaceReturns404() {
+        assertThatThrownBy(() -> service.deleteNamespace("admin", 0L, "ghost"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("not found");
+        verify(auditService).record(eq("admin"), eq(0L), eq("DELETE_NAMESPACE"),
+            eq("Namespace/ghost"), eq(null), eq(false), anyString());
+    }
+
+    @Test
+    void deleteNamespaceRemovesItAndAuditsSuccess() {
+        client.namespaces().resource(new NamespaceBuilder()
+            .withNewMetadata().withName("scratch").endMetadata()
+            .build()).create();
+
+        service.deleteNamespace("admin", 0L, "scratch");
+
+        assertThat(client.namespaces().withName("scratch").get()).isNull();
+        verify(auditService).record(eq("admin"), eq(0L), eq("DELETE_NAMESPACE"),
+            eq("Namespace/scratch"), eq(null), eq(true), eq(null));
     }
 }

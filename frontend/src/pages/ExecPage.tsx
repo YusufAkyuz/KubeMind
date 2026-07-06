@@ -1,26 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Terminal } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import '@xterm/xterm/css/xterm.css'
 import { api } from '../api/client'
 import { Layout } from '../components/Layout'
 import { IconChevronRight } from '../components/Icons'
+import { useWsTerminal } from '../hooks/useWsTerminal'
 import type { Pod } from '../types/k8s'
-
-type ConnState = 'connecting' | 'connected' | 'closed'
 
 export function ExecPage() {
   const { clusterId, ns, pod } = useParams<{ clusterId: string; ns: string; pod: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const container = searchParams.get('container') ?? ''
-
-  const [connState, setConnState] = useState<ConnState>('connecting')
-  const termElRef = useRef<HTMLDivElement>(null)
-  const termRef = useRef<Terminal | null>(null)
-  const fitRef = useRef<FitAddon | null>(null)
-  const wsRef = useRef<WebSocket | null>(null)
 
   const { data: podData } = useQuery<Pod>({
     queryKey: ['pod', clusterId, ns, pod],
@@ -31,64 +20,12 @@ export function ExecPage() {
 
   const containerName = container || podData?.containers[0]?.name || ''
 
-  useEffect(() => {
-    if (!termElRef.current || !clusterId || !ns || !pod || !containerName) return
-
-    const term = new Terminal({
-      cursorBlink: true,
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-      fontSize: 13,
-      theme: { background: '#030712', foreground: '#e5e7eb' },
-    })
-    const fit = new FitAddon()
-    term.loadAddon(fit)
-    term.open(termElRef.current)
-    fit.fit()
-    termRef.current = term
-    fitRef.current = fit
-
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const url = `${proto}://${window.location.host}/ws/exec?clusterId=${clusterId}`
-      + `&ns=${encodeURIComponent(ns)}&pod=${encodeURIComponent(pod)}`
+  const wsUrl = clusterId && ns && pod && containerName
+    ? `/ws/exec?clusterId=${clusterId}&ns=${encodeURIComponent(ns)}&pod=${encodeURIComponent(pod)}`
       + `&container=${encodeURIComponent(containerName)}`
-    const ws = new WebSocket(url)
-    wsRef.current = ws
+    : null
 
-    ws.onopen = () => {
-      setConnState('connected')
-      term.focus()
-      sendResize()
-    }
-    ws.onmessage = (e) => term.write(e.data as string)
-    ws.onclose = () => {
-      setConnState('closed')
-      term.write('\r\n\x1b[90m[session closed]\x1b[0m\r\n')
-    }
-
-    const sendResize = () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
-      }
-    }
-
-    const dataDisposable = term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'stdin', data }))
-      }
-    })
-
-    const resizeDisposable = term.onResize(() => sendResize())
-    const onWindowResize = () => fit.fit()
-    window.addEventListener('resize', onWindowResize)
-
-    return () => {
-      window.removeEventListener('resize', onWindowResize)
-      dataDisposable.dispose()
-      resizeDisposable.dispose()
-      ws.close()
-      term.dispose()
-    }
-  }, [clusterId, ns, pod, containerName])
+  const { termElRef, connState } = useWsTerminal(wsUrl, !!wsUrl)
 
   const handleContainerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSearchParams({ container: e.target.value })

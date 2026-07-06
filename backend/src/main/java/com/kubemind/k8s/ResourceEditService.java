@@ -24,6 +24,9 @@ public class ResourceEditService {
         .filter(k -> !k.equals("Pod"))
         .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
+    /** Cluster-scoped kinds editable through the no-namespace route. */
+    public static final Set<String> CLUSTER_SCOPED_EDITABLE_KINDS = Set.of("Namespace");
+
     private final ClusterClientFactory clientFactory;
     private final AuditService auditService;
 
@@ -84,6 +87,52 @@ public class ResourceEditService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Kind '" + kind + "' is not supported here. Supported kinds: "
                 + String.join(", ", EDITABLE_KINDS.stream().sorted().toList()));
+        }
+    }
+
+    // ── Cluster-scoped (Namespace) ──────────────────────────────────────────────
+
+    public String getYamlClusterScoped(long clusterId, String kind, String name) {
+        requireClusterScopedKind(kind);
+        String lookup = ManifestValidation.buildClusterScopedLookupManifest(kind, name);
+        HasMetadata resource = clientFactory.getClient(clusterId).resource(lookup).get();
+        if (resource == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, kind + "/" + name + " not found");
+        }
+        resource.getMetadata().setManagedFields(null);
+        return Serialization.asYaml(resource);
+    }
+
+    public ResourceCreationService.CreatedResourceDto applyYamlClusterScoped(String username, long clusterId,
+                                                                             String kind, String name, String yaml) {
+        requireClusterScopedKind(kind);
+        String ref = kind + "/" + name;
+        Map<String, Object> payload = Map.of("kind", kind, "yamlBytes", yaml != null ? yaml.length() : 0);
+
+        try {
+            var parsed = ManifestValidation.parseAndValidateClusterScoped(yaml, CLUSTER_SCOPED_EDITABLE_KINDS);
+            if (!kind.equals(parsed.kind())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "kind must remain '" + kind + "'");
+            }
+            if (!name.equals(parsed.name())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "metadata.name must remain '" + name + "'");
+            }
+
+            clientFactory.getClient(clusterId).resource(yaml).update();
+            auditService.record(username, clusterId, "EDIT_RESOURCE_YAML", ref, payload, true, null);
+            return new ResourceCreationService.CreatedResourceDto(kind, name, null);
+        } catch (Exception e) {
+            auditService.record(username, clusterId, "EDIT_RESOURCE_YAML", ref, payload, false, e.getMessage());
+            throw e;
+        }
+    }
+
+    private void requireClusterScopedKind(String kind) {
+        if (!CLUSTER_SCOPED_EDITABLE_KINDS.contains(kind)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Kind '" + kind + "' is not supported here. Supported kinds: "
+                + String.join(", ", CLUSTER_SCOPED_EDITABLE_KINDS.stream().sorted().toList()));
         }
     }
 }

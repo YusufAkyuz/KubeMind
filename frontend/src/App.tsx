@@ -23,6 +23,10 @@ import { ChatWidget } from './components/ChatWidget'
 
 // Code-split: xterm.js only loads when a terminal is actually opened.
 const ExecPage = lazy(() => import('./pages/ExecPage').then((m) => ({ default: m.ExecPage })))
+const NodeExecPage = lazy(() => import('./pages/NodeExecPage').then((m) => ({ default: m.NodeExecPage })))
+const ClusterTerminalPage = lazy(() => import('./pages/ClusterTerminalPage').then((m) => ({ default: m.ClusterTerminalPage })))
+
+const terminalFallback = <div className="p-8 text-sm text-gray-400">Loading terminal…</div>
 
 export default function App() {
   return (
@@ -52,11 +56,13 @@ export default function App() {
       <Route path="/clusters/:clusterId/namespaces/:ns/create" element={<ProtectedRoute><CreateResourcePage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
       <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/exec" element={
-        <ProtectedRoute>
-          <Suspense fallback={<div className="p-8 text-sm text-gray-400">Loading terminal…</div>}>
-            <ExecPage />
-          </Suspense>
-        </ProtectedRoute>
+        <ProtectedRoute><Suspense fallback={terminalFallback}><ExecPage /></Suspense></ProtectedRoute>
+      } />
+      <Route path="/clusters/:clusterId/nodes/:nodeName/exec" element={
+        <ProtectedRoute><Suspense fallback={terminalFallback}><NodeExecPage /></Suspense></ProtectedRoute>
+      } />
+      <Route path="/clusters/:clusterId/terminal" element={
+        <ProtectedRoute><Suspense fallback={terminalFallback}><ClusterTerminalPage /></Suspense></ProtectedRoute>
       } />
 
       {/* Admin */}

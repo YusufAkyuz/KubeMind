@@ -3,6 +3,7 @@ package com.kubemind.k8s;
 import com.kubemind.audit.AuditService;
 import com.kubemind.cluster.ClusterClientFactory;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
@@ -119,6 +120,55 @@ class ResourceEditServiceTest {
         assertThatThrownBy(() -> service.applyYaml("admin", 0L, "ConfigMap", "default", "app-config", yaml))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("metadata.name");
+    }
+
+    // ── Cluster-scoped (Namespace) ──────────────────────────────────────────────
+
+    @Test
+    void clusterScopedGetYamlReturnsCurrentManifest() {
+        client.namespaces().resource(new NamespaceBuilder()
+            .withNewMetadata().withName("team-a").addToLabels("env", "dev").endMetadata()
+            .build()).create();
+
+        String yaml = service.getYamlClusterScoped(0L, "Namespace", "team-a");
+
+        assertThat(yaml).contains("team-a").contains("env");
+    }
+
+    @Test
+    void clusterScopedGetYamlReturns404ForMissing() {
+        assertThatThrownBy(() -> service.getYamlClusterScoped(0L, "Namespace", "ghost"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("not found");
+    }
+
+    @Test
+    void clusterScopedRejectsNonClusterScopedKind() {
+        assertThatThrownBy(() -> service.getYamlClusterScoped(0L, "ConfigMap", "app-config"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("not supported");
+    }
+
+    @Test
+    void clusterScopedApplyYamlUpdatesAndAudits() {
+        client.namespaces().resource(new NamespaceBuilder()
+            .withNewMetadata().withName("team-a").endMetadata()
+            .build()).create();
+        String yaml = """
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: team-a
+              labels:
+                env: prod
+            """;
+
+        service.applyYamlClusterScoped("admin", 0L, "Namespace", "team-a", yaml);
+
+        assertThat(client.namespaces().withName("team-a").get().getMetadata().getLabels())
+            .containsEntry("env", "prod");
+        verify(auditService).record(eq("admin"), eq(0L), eq("EDIT_RESOURCE_YAML"),
+            eq("Namespace/team-a"), any(), eq(true), eq(null));
     }
 
     @Test

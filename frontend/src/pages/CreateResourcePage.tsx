@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast'
 import { streamText } from '../utils/streamFetch'
 import { renderLiteMarkdown } from '../utils/markdownLite'
 import { ALLOWED_KINDS, KIND_ROUTES, KIND_TEMPLATES, type AllowedKind } from '../utils/resourceKinds'
+import { stripLeadingFence, stripTrailingFence } from '../utils/yamlFence'
 import { IconSparkles, IconChevronRight } from '../components/Icons'
 
 /** Loose client-side preview only — the server validates authoritatively. */
@@ -16,15 +17,6 @@ function extractPreview(yaml: string): { kind: string; name: string } {
   return { kind, name }
 }
 
-// Small models sometimes wrap "YAML only" output in a code fence despite
-// instructions not to — strip it so the editor always holds parseable YAML.
-function stripLeadingFence(text: string): string {
-  const m = text.match(/^```[a-zA-Z]*\n/)
-  return m ? text.slice(m[0].length) : text
-}
-function stripTrailingFence(text: string): string {
-  return text.replace(/\n?```\s*$/, '')
-}
 
 export function CreateResourcePage() {
   const { clusterId, ns } = useParams<{ clusterId: string; ns: string }>()

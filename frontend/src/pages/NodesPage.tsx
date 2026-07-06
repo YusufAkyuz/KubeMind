@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Layout } from '../components/Layout'
@@ -9,6 +9,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { useSSE } from '../hooks/useSSE'
+import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
 import type { NodeResource } from '../types/k8s'
 
@@ -24,6 +25,8 @@ const COLUMNS = [
 
 export function NodesPage() {
   const { clusterId } = useParams<{ clusterId: string }>()
+  const navigate = useNavigate()
+  const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<NodeResource | null>(null)
   const queryKey = ['nodes', clusterId]
 
@@ -70,6 +73,18 @@ export function NodesPage() {
       >
         {selected && (
           <>
+            {isAdmin && (
+              <div className="pb-3">
+                <button
+                  onClick={() => navigate(`/clusters/${clusterId}/nodes/${selected.name}/exec`)}
+                  className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium
+                             text-amber-800 hover:bg-amber-100 transition-colors"
+                >
+                  Node shell
+                </button>
+              </div>
+            )}
+
             <DrawerSection title="Overview" />
             <DrawerRow label="Status" value={<StatusBadge status={selected.status} />} />
             <DrawerRow label="Roles" value={selected.roles} />

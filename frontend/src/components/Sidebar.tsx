@@ -14,6 +14,7 @@ import {
   IconDatabase,
   IconChevronDown,
   IconPlus,
+  IconTerminal,
   Logo,
 } from './Icons'
 import type { Cluster, Namespace } from '../types/k8s'
@@ -238,6 +239,9 @@ export function Sidebar({ onClose }: Props) {
             </NavLink>
             <NavLink to="/audit" className={linkClass} onClick={onClose}>
               <IconClipboard className="w-4 h-4 shrink-0" /> Audit log
+            </NavLink>
+            <NavLink to={`/clusters/${clusterId}/terminal`} className={linkClass} onClick={onClose}>
+              <IconTerminal className="w-4 h-4 shrink-0" /> Cluster Terminal
             </NavLink>
           </>
         )}

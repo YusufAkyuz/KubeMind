@@ -165,6 +165,30 @@ public class KubernetesWriteService {
         }
     }
 
+    // ── Delete namespace ──────────────────────────────────────────────────────
+
+    /**
+     * Deletes a namespace and, cascading, every resource inside it — the single
+     * most destructive action this app exposes. The frontend requires typing
+     * the exact namespace name to confirm; this method has no extra safety net
+     * beyond that, matching kubectl's own behavior.
+     */
+    public void deleteNamespace(String username, long clusterId, String name) {
+        String ref = "Namespace/" + name;
+        try {
+            var client = clientFactory.getClient(clusterId);
+            var existing = client.namespaces().withName(name).get();
+            if (existing == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
+            }
+            client.namespaces().withName(name).delete();
+            auditService.record(username, clusterId, "DELETE_NAMESPACE", ref, null, true, null);
+        } catch (Exception e) {
+            auditService.record(username, clusterId, "DELETE_NAMESPACE", ref, null, false, e.getMessage());
+            throw e;
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void validateReplicas(int replicas) {

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { IconX } from './Icons'
 
 interface Props {
@@ -10,13 +10,58 @@ interface Props {
   children: ReactNode
 }
 
+const MIN_WIDTH = 380
+const MAX_WIDTH = 1000
+const DEFAULT_WIDTH = 520
+const STORAGE_KEY = 'kubemind.drawerWidth'
+
 export function DetailDrawer({ open, title, subtitle, onClose, children }: Props) {
+  const [width, setWidth] = useState(() => {
+    const stored = Number(localStorage.getItem(STORAGE_KEY))
+    return stored >= MIN_WIDTH && stored <= MAX_WIDTH ? stored : DEFAULT_WIDTH
+  })
+  const [resizing, setResizing] = useState(false)
+  const startRef = useRef<{ x: number; width: number } | null>(null)
+
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [open, onClose])
+
+  useEffect(() => {
+    if (!resizing) return
+
+    const onMove = (e: MouseEvent) => {
+      if (!startRef.current) return
+      // Dragging left (negative deltaX) grows the drawer, since it's anchored right.
+      const delta = startRef.current.x - e.clientX
+      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startRef.current.width + delta))
+      setWidth(next)
+    }
+    const onUp = () => {
+      setResizing(false)
+      setWidth((w) => { localStorage.setItem(STORAGE_KEY, String(w)); return w })
+    }
+
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [resizing])
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault()
+    startRef.current = { x: e.clientX, width }
+    setResizing(true)
+  }
 
   return (
     <>
@@ -33,10 +78,22 @@ export function DetailDrawer({ open, title, subtitle, onClose, children }: Props
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`fixed top-0 right-0 h-full w-full sm:w-[520px] bg-white z-30 shadow-xl
-                    flex flex-col transform transition-transform duration-200 ease-in-out
+        style={{ '--drawer-width': `${width}px` } as React.CSSProperties}
+        className={`fixed top-0 right-0 h-full w-full sm:w-[var(--drawer-width)] bg-white z-30 shadow-xl
+                    flex flex-col transform ease-in-out
+                    ${resizing ? '' : 'transition-transform duration-200'}
                     ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
+        {/* Resize handle — drag left/right to resize (desktop only) */}
+        <div
+          onMouseDown={startResize}
+          className="hidden sm:block absolute left-0 top-0 h-full w-1.5 -translate-x-1/2 cursor-col-resize
+                     group z-10"
+          title="Drag to resize"
+        >
+          <div className="h-full w-full group-hover:bg-blue-400/60 transition-colors" />
+        </div>
+
         {/* Header */}
         <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-200 shrink-0">
           <div className="min-w-0">

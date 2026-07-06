@@ -19,6 +19,7 @@ final class ManifestValidation {
     /** Well-known apiVersion per kind, used to build minimal "lookup" manifests. */
     static final Map<String, String> KIND_API_VERSIONS = Map.ofEntries(
         Map.entry("Pod", "v1"),
+        Map.entry("Namespace", "v1"),
         Map.entry("Service", "v1"),
         Map.entry("ConfigMap", "v1"),
         Map.entry("Secret", "v1"),
@@ -35,6 +36,25 @@ final class ManifestValidation {
 
     /** Full validation: enforces the kind allowlist, a required name, and a matching namespace. */
     static Identity parseAndValidate(String yaml, String ns, Set<String> allowedKinds) {
+        var parsed = parseAndValidateShape(yaml, allowedKinds);
+
+        String parsedNs = parsed.getMetadata().getNamespace();
+        if (parsedNs != null && !parsedNs.isBlank() && !parsedNs.equals(ns)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "metadata.namespace ('" + parsedNs + "') must match the target namespace '" + ns
+                + "', or be omitted");
+        }
+
+        return new Identity(parsed.getKind(), parsed.getMetadata().getName());
+    }
+
+    /** Same as {@link #parseAndValidate} but for cluster-scoped kinds (e.g. Namespace) — no ns to match. */
+    static Identity parseAndValidateClusterScoped(String yaml, Set<String> allowedKinds) {
+        var parsed = parseAndValidateShape(yaml, allowedKinds);
+        return new Identity(parsed.getKind(), parsed.getMetadata().getName());
+    }
+
+    private static GenericKubernetesResource parseAndValidateShape(String yaml, Set<String> allowedKinds) {
         if (yaml == null || yaml.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Manifest is empty");
         }
@@ -58,14 +78,7 @@ final class ManifestValidation {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "metadata.name is required");
         }
 
-        String parsedNs = parsed.getMetadata().getNamespace();
-        if (parsedNs != null && !parsedNs.isBlank() && !parsedNs.equals(ns)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "metadata.namespace ('" + parsedNs + "') must match the target namespace '" + ns
-                + "', or be omitted");
-        }
-
-        return new Identity(kind, parsed.getMetadata().getName());
+        return parsed;
     }
 
     /** Loose extraction for audit labeling only — never throws, never enforces rules. */
@@ -83,15 +96,27 @@ final class ManifestValidation {
 
     /** Builds a minimal manifest (apiVersion+kind+metadata only) used to look up a live object generically. */
     static String buildLookupManifest(String kind, String ns, String name) {
-        String apiVersion = KIND_API_VERSIONS.get(kind);
-        if (apiVersion == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kind '" + kind + "' is not supported here");
-        }
-        return "apiVersion: " + apiVersion + "\n"
+        return "apiVersion: " + apiVersionFor(kind) + "\n"
             + "kind: " + kind + "\n"
             + "metadata:\n"
             + "  name: " + name + "\n"
             + "  namespace: " + ns + "\n";
+    }
+
+    /** Same as {@link #buildLookupManifest} but for cluster-scoped kinds (e.g. Namespace) — no namespace field. */
+    static String buildClusterScopedLookupManifest(String kind, String name) {
+        return "apiVersion: " + apiVersionFor(kind) + "\n"
+            + "kind: " + kind + "\n"
+            + "metadata:\n"
+            + "  name: " + name + "\n";
+    }
+
+    private static String apiVersionFor(String kind) {
+        String apiVersion = KIND_API_VERSIONS.get(kind);
+        if (apiVersion == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kind '" + kind + "' is not supported here");
+        }
+        return apiVersion;
     }
 
     static String rootMessage(Throwable t) {
