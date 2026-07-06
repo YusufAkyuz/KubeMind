@@ -25,7 +25,7 @@ interface NavGroup {
   key: string
   label: string
   Icon: IconType
-  items: { suffix: string; label: string }[]
+  items: { suffix: string; label: string; clusterScoped?: boolean }[]
 }
 
 // Namespaced resource groups (Lens-style). Cluster-wide items handled separately.
@@ -54,6 +54,8 @@ const GROUPS: NavGroup[] = [
   {
     key: 'storage', label: 'Storage', Icon: IconDatabase, items: [
       { suffix: 'persistentvolumeclaims', label: 'Persistent Volume Claims' },
+      // Cluster-scoped (no namespace segment) — sits in the same group as PVCs.
+      { suffix: 'persistentvolumes', label: 'Persistent Volumes', clusterScoped: true },
     ],
   },
 ]
@@ -213,9 +215,12 @@ export function Sidebar({ onClose }: Props) {
                   {items.map((item) => (
                     <NavLink
                       key={item.suffix}
-                      to={`/clusters/${clusterId}/namespaces/${currentNs ?? '_'}/${item.suffix}`}
+                      to={item.clusterScoped
+                        ? `/clusters/${clusterId}/${item.suffix}`
+                        : `/clusters/${clusterId}/namespaces/${currentNs ?? '_'}/${item.suffix}`}
                       className={subLinkClass}
                       onClick={onClose}
+                      end={item.clusterScoped}
                     >
                       {item.label}
                     </NavLink>
@@ -225,11 +230,6 @@ export function Sidebar({ onClose }: Props) {
             </div>
           )
         })}
-
-        {/* Storage — cluster-scoped PV sits alongside the namespaced PVC group above */}
-        <NavLink to={`/clusters/${clusterId}/persistentvolumes`} className={linkClass} onClick={onClose} end>
-          <IconDatabase className="w-4 h-4 shrink-0" /> Persistent Volumes
-        </NavLink>
 
         {isAdmin && (
           <>

@@ -5,9 +5,11 @@ import { IconMenu, Logo } from './Icons'
 
 interface Props {
   children: ReactNode
+  /** Skips the padded/max-width wrapper so content (e.g. a terminal) fills the whole viewport. */
+  fullBleed?: boolean
 }
 
-export function Layout({ children }: Props) {
+export function Layout({ children, fullBleed }: Props) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -50,12 +52,16 @@ export function Layout({ children }: Props) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
-          {/* pb-24 keeps pagination/footers clear of the floating chat launcher */}
-          <div className="px-4 py-6 pb-24 sm:px-6 lg:px-8 max-w-screen-2xl mx-auto">
-            {children}
-          </div>
-        </main>
+        {fullBleed ? (
+          <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
+        ) : (
+          <main className="flex-1 overflow-y-auto">
+            {/* pb-24 keeps pagination/footers clear of the floating chat launcher */}
+            <div className="px-4 py-6 pb-24 sm:px-6 lg:px-8 max-w-screen-2xl mx-auto">
+              {children}
+            </div>
+          </main>
+        )}
       </div>
     </div>
   )

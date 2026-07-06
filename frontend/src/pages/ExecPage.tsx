@@ -32,27 +32,23 @@ export function ExecPage() {
   }
 
   return (
-    <Layout>
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-gray-400 mb-4 flex-wrap">
-        <Link to={`/clusters/${clusterId}/namespaces/${ns}/pods`} className="hover:text-gray-700 transition-colors">
-          {ns}
-        </Link>
-        <IconChevronRight className="w-3.5 h-3.5 shrink-0" />
-        <span className="text-gray-600">{pod}</span>
-        <IconChevronRight className="w-3.5 h-3.5 shrink-0" />
-        <span className="text-gray-600 font-medium">Terminal</span>
-      </nav>
-
-      <div className="rounded-xl border border-gray-200 bg-gray-950 overflow-hidden shadow-lg flex flex-col"
-           style={{ height: 'calc(100vh - 11rem)' }}>
-        {/* Toolbar */}
+    <Layout fullBleed>
+      <div className="h-full w-full flex flex-col bg-gray-950">
+        {/* Toolbar (breadcrumb + container selector + status, all in one bar) */}
         <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-800 bg-gray-900 shrink-0">
+          <nav className="flex items-center gap-1.5 text-xs text-gray-500 min-w-0">
+            <Link to={`/clusters/${clusterId}/namespaces/${ns}/pods`} className="hover:text-gray-300 transition-colors truncate">
+              {ns}
+            </Link>
+            <IconChevronRight className="w-3 h-3 shrink-0" />
+            <span className="text-gray-300 truncate">{pod}</span>
+          </nav>
+
           {podData && podData.containers.length > 1 ? (
             <select
               value={containerName}
               onChange={handleContainerChange}
-              className="h-7 rounded-md border border-gray-700 bg-gray-800 px-2 text-xs text-gray-200
+              className="shrink-0 h-7 rounded-md border border-gray-700 bg-gray-800 px-2 text-xs text-gray-200
                          focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {podData.containers.map((c) => (
@@ -60,9 +56,10 @@ export function ExecPage() {
               ))}
             </select>
           ) : (
-            <span className="text-xs text-gray-400 font-mono">{containerName}</span>
+            <span className="shrink-0 text-xs text-gray-500 font-mono">{containerName}</span>
           )}
-          <div className="ml-auto flex items-center gap-2">
+
+          <div className="ml-auto flex items-center gap-2 shrink-0">
             <span className={`w-1.5 h-1.5 rounded-full ${
               connState === 'connected' ? 'bg-emerald-400'
               : connState === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-gray-500'
@@ -74,13 +71,9 @@ export function ExecPage() {
           </div>
         </div>
 
-        {/* Terminal surface */}
-        <div ref={termElRef} className="flex-1 overflow-hidden p-2" />
+        {/* Terminal surface fills all remaining space */}
+        <div ref={termElRef} className="flex-1 min-h-0 overflow-hidden p-2" />
       </div>
-
-      <p className="mt-2 text-xs text-gray-400">
-        Interactive shell (/bin/sh). This session is ADMIN-only and recorded in the audit log.
-      </p>
     </Layout>
   )
 }
