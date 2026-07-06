@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
 import { Table, Tr, Td } from '../components/Table'
@@ -7,6 +8,7 @@ import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import { EditYamlButton } from '../components/EditYamlButton'
+import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
 import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
@@ -23,6 +25,7 @@ export function IngressesPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<Ingress>('ingresses')
   const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<Ingress | null>(null)
+  const queryClient = useQueryClient()
 
   return (
     <Layout>
@@ -65,8 +68,12 @@ export function IngressesPage() {
             </div>
 
             {isAdmin && (
-              <div className="pb-3">
+              <div className="pb-3 flex flex-wrap gap-2">
                 <EditYamlButton clusterId={clusterId!} ns={ns} kind="Ingress" name={selected.name} />
+                <DeleteResourceButton
+                  clusterId={clusterId!} ns={ns} kind="Ingress" name={selected.name}
+                  onDeleted={() => { setSelected(null); queryClient.invalidateQueries({ queryKey: ['ingresses', clusterId, ns] }) }}
+                />
               </div>
             )}
 

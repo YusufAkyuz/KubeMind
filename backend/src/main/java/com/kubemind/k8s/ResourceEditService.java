@@ -82,6 +82,23 @@ public class ResourceEditService {
         }
     }
 
+    public void delete(String username, long clusterId, String kind, String ns, String name) {
+        requireEditableKind(kind);
+        String ref = kind + "/" + ns + "/" + name;
+        try {
+            String lookup = ManifestValidation.buildLookupManifest(kind, ns, name);
+            var client = clientFactory.getClient(clusterId);
+            if (client.resource(lookup).inNamespace(ns).get() == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
+            }
+            client.resource(lookup).inNamespace(ns).delete();
+            auditService.record(username, clusterId, "DELETE_RESOURCE", ref, Map.of("kind", kind), true, null);
+        } catch (Exception e) {
+            auditService.record(username, clusterId, "DELETE_RESOURCE", ref, Map.of("kind", kind), false, e.getMessage());
+            throw e;
+        }
+    }
+
     private void requireEditableKind(String kind) {
         if (!EDITABLE_KINDS.contains(kind)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,

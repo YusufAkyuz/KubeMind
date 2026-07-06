@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../api/client'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
@@ -9,6 +9,7 @@ import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import { EditYamlButton } from '../components/EditYamlButton'
+import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
 import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
@@ -25,6 +26,7 @@ export function SecretsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<Secret>('secrets')
   const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<Secret | null>(null)
+  const queryClient = useQueryClient()
 
   const reveal = useMutation<Record<string, string>, unknown>({
     mutationFn: async () =>
@@ -75,8 +77,12 @@ export function SecretsPage() {
             </div>
 
             {isAdmin && (
-              <div className="pb-3">
+              <div className="pb-3 flex flex-wrap gap-2">
                 <EditYamlButton clusterId={clusterId!} ns={ns} kind="Secret" name={selected.name} />
+                <DeleteResourceButton
+                  clusterId={clusterId!} ns={ns} kind="Secret" name={selected.name}
+                  onDeleted={() => { setSelected(null); queryClient.invalidateQueries({ queryKey: ['secrets', clusterId, ns] }) }}
+                />
               </div>
             )}
 

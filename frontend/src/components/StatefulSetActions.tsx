@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ScaleButton } from './ScaleButton'
 import { RestartButton } from './RestartButton'
 import { EditYamlButton } from './EditYamlButton'
+import { DeleteResourceButton } from './DeleteResourceButton'
 import type { StatefulSet } from '../types/k8s'
 
 interface Props {
@@ -31,6 +32,7 @@ export function StatefulSetActions({ clusterId, namespace, statefulSet, onAction
       />
       <RestartButton endpoint={`${base}/restart`} resourceName={statefulSet.name} onRestarted={refresh} />
       <EditYamlButton clusterId={clusterId} ns={namespace} kind="StatefulSet" name={statefulSet.name} onApplied={refresh} />
+      <DeleteResourceButton clusterId={clusterId} ns={namespace} kind="StatefulSet" name={statefulSet.name} onDeleted={refresh} />
     </div>
   )
 }

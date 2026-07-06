@@ -122,6 +122,33 @@ class ResourceEditServiceTest {
             .hasMessageContaining("metadata.name");
     }
 
+    @Test
+    void deleteRemovesResourceAndAudits() {
+        createConfigMap("default", "app-config", "v1");
+
+        service.delete("admin", 0L, "ConfigMap", "default", "app-config");
+
+        assertThat(client.configMaps().inNamespace("default").withName("app-config").get()).isNull();
+        verify(auditService).record(eq("admin"), eq(0L), eq("DELETE_RESOURCE"),
+            eq("ConfigMap/default/app-config"), any(), eq(true), eq(null));
+    }
+
+    @Test
+    void deleteReturns404ForMissingResource() {
+        assertThatThrownBy(() -> service.delete("admin", 0L, "ConfigMap", "default", "ghost"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("not found");
+        verify(auditService).record(eq("admin"), eq(0L), eq("DELETE_RESOURCE"),
+            eq("ConfigMap/default/ghost"), any(), eq(false), anyString());
+    }
+
+    @Test
+    void deleteRejectsNonEditableKind() {
+        assertThatThrownBy(() -> service.delete("admin", 0L, "Pod", "default", "p1"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("not supported");
+    }
+
     // ── Cluster-scoped (Namespace) ──────────────────────────────────────────────
 
     @Test

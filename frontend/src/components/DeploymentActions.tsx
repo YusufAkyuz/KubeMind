@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ScaleButton } from './ScaleButton'
 import { RestartButton } from './RestartButton'
 import { EditYamlButton } from './EditYamlButton'
+import { DeleteResourceButton } from './DeleteResourceButton'
 import type { Deployment } from '../types/k8s'
 
 interface Props {
@@ -31,6 +32,7 @@ export function DeploymentActions({ clusterId, namespace, deployment, onActionDo
       />
       <RestartButton endpoint={`${base}/restart`} resourceName={deployment.name} onRestarted={refresh} />
       <EditYamlButton clusterId={clusterId} ns={namespace} kind="Deployment" name={deployment.name} onApplied={refresh} />
+      <DeleteResourceButton clusterId={clusterId} ns={namespace} kind="Deployment" name={deployment.name} onDeleted={refresh} />
     </div>
   )
 }

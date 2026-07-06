@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { RestartButton } from './RestartButton'
 import { EditYamlButton } from './EditYamlButton'
+import { DeleteResourceButton } from './DeleteResourceButton'
 import type { DaemonSet } from '../types/k8s'
 
 interface Props {
@@ -25,6 +26,7 @@ export function DaemonSetActions({ clusterId, namespace, daemonSet, onActionDone
     <div className="flex flex-wrap gap-2">
       <RestartButton endpoint={`${base}/restart`} resourceName={daemonSet.name} onRestarted={refresh} />
       <EditYamlButton clusterId={clusterId} ns={namespace} kind="DaemonSet" name={daemonSet.name} onApplied={refresh} />
+      <DeleteResourceButton clusterId={clusterId} ns={namespace} kind="DaemonSet" name={daemonSet.name} onDeleted={refresh} />
     </div>
   )
 }
