@@ -43,7 +43,9 @@ public class ExplainService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                 "Pod '" + podName + "' not found in namespace '" + namespace + "'");
         }
-        return explain(clusterId, "Pod", namespace, podName, context);
+        // Node usage fluctuates constantly — never let it into the cache key (see liveNodeUsage javadoc).
+        String liveUsage = podContextCollector.liveNodeUsage(clusterId, namespace, podName);
+        return explain(clusterId, "Pod", namespace, podName, context, liveUsage);
     }
 
     public ExplainResult explainResource(long clusterId, String kind, String namespace, String name) {
@@ -56,10 +58,11 @@ public class ExplainService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                 kind + " '" + name + "' not found in namespace '" + namespace + "'");
         }
-        return explain(clusterId, kind, namespace, name, context);
+        return explain(clusterId, kind, namespace, name, context, null);
     }
 
-    private ExplainResult explain(long clusterId, String kind, String namespace, String name, String context) {
+    private ExplainResult explain(long clusterId, String kind, String namespace, String name,
+                                  String context, String liveEnrichment) {
         String stateHash = sha256(context);
 
         var cachedDiagnosis = repository.findFirstByStateHash(stateHash);
@@ -68,9 +71,14 @@ public class ExplainService {
             return new ExplainResult(d.getResponse(), true, d.getModel(), d.getCreatedAt());
         }
 
+        String promptContext = withPreviousDiagnosis(clusterId, kind, namespace, name, context);
+        if (liveEnrichment != null && !liveEnrichment.isBlank()) {
+            promptContext = promptContext + "\n=== LIVE SIGNALS (not part of the cached state) ===\n" + liveEnrichment + "\n";
+        }
+
         String explanation;
         try {
-            explanation = chatClient.prompt().user(context).call().content();
+            explanation = chatClient.prompt().user(promptContext).call().content();
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                 "AI model is unavailable. Is Ollama running? (" + e.getMessage() + ")");
@@ -79,7 +87,7 @@ public class ExplainService {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI model returned an empty response");
         }
 
-        var diagnosis = new AiDiagnosis(clusterId, kind, namespace, name, stateHash, context, explanation, model);
+        var diagnosis = new AiDiagnosis(clusterId, kind, namespace, name, stateHash, promptContext, explanation, model);
         try {
             diagnosis = repository.save(diagnosis);
         } catch (DataIntegrityViolationException e) {
@@ -87,6 +95,20 @@ public class ExplainService {
         }
         return new ExplainResult(explanation, false, model,
             diagnosis.getCreatedAt() != null ? diagnosis.getCreatedAt() : Instant.now());
+    }
+
+    /**
+     * If this resource was diagnosed before under a different state, append that prior
+     * diagnosis to the prompt — the model can note whether the issue is the same, worse,
+     * resolved, or new. The cache key (stateHash) is computed on the raw context only, so
+     * this enrichment never affects cache hits/misses.
+     */
+    private String withPreviousDiagnosis(long clusterId, String kind, String namespace, String name, String context) {
+        return repository.findFirstByClusterIdAndResourceKindAndResourceNsAndResourceNameOrderByCreatedAtDesc(
+                clusterId, kind, namespace, name)
+            .map(prev -> context + "\n=== PREVIOUS DIAGNOSIS (resource state has changed since) ===\n"
+                + prev.getResponse() + "\n")
+            .orElse(context);
     }
 
     private String sha256(String input) {

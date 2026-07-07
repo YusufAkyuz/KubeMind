@@ -4,11 +4,15 @@ import com.kubemind.cluster.ClusterClientFactory;
 import com.kubemind.k8s.ResourceEditService;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Builds a compact, redacted snapshot of any non-Pod resource kind for the AI
@@ -50,6 +54,13 @@ public class ResourceContextCollector {
             sb.append(Redactor.redactText(Serialization.asYaml(resource))).append('\n');
         }
 
+        if ("Service".equals(kind) && resource instanceof Service service) {
+            appendServiceEndpoints(sb, clusterId, namespace, service);
+        }
+        if ("PersistentVolumeClaim".equals(kind) && resource instanceof PersistentVolumeClaim pvc) {
+            appendVolumeInfo(sb, clusterId, pvc);
+        }
+
         List<Event> events = clientFactory.getClient(clusterId).resources(Event.class)
             .inNamespace(namespace).list().getItems().stream()
             .filter(e -> e.getInvolvedObject() != null
@@ -68,6 +79,54 @@ public class ResourceContextCollector {
         }
 
         return sb.toString();
+    }
+
+    /** Is this Service actually routing anywhere? A "healthy-looking" Service with zero ready endpoints is a common trap. */
+    private void appendServiceEndpoints(StringBuilder sb, long clusterId, String namespace, Service service) {
+        Map<String, String> selector = service.getSpec() != null ? service.getSpec().getSelector() : null;
+        if (selector == null || selector.isEmpty()) {
+            sb.append("\n=== ENDPOINTS ===\nno selector (likely a manually-managed Endpoints object)\n");
+            return;
+        }
+        List<Pod> matching = clientFactory.getClient(clusterId).pods()
+            .inNamespace(namespace).withLabels(selector).list().getItems();
+        long ready = matching.stream().filter(this::isPodReady).count();
+
+        sb.append("\n=== ENDPOINTS ===\n");
+        sb.append("matching pods: ").append(matching.size())
+          .append(", ready: ").append(ready).append('\n');
+        if (matching.isEmpty()) {
+            sb.append("no pods match this Service's selector — traffic has nowhere to go\n");
+        }
+    }
+
+    private boolean isPodReady(Pod p) {
+        return p.getStatus() != null && p.getStatus().getConditions() != null
+            && p.getStatus().getConditions().stream()
+                .anyMatch(c -> "Ready".equals(c.getType()) && "True".equals(c.getStatus()));
+    }
+
+    /** Is the claim actually bound to storage, and what class/policy governs it? */
+    private void appendVolumeInfo(StringBuilder sb, long clusterId, PersistentVolumeClaim pvc) {
+        sb.append("\n=== VOLUME ===\n");
+        String volumeName = pvc.getSpec() != null ? pvc.getSpec().getVolumeName() : null;
+        if (volumeName == null || volumeName.isBlank()) {
+            sb.append("not yet bound to a PersistentVolume\n");
+            String scName = pvc.getSpec() != null ? pvc.getSpec().getStorageClassName() : null;
+            sb.append("storageClassName: ").append(scName != null ? scName : "(default)").append('\n');
+            return;
+        }
+        var pv = clientFactory.getClient(clusterId).persistentVolumes().withName(volumeName).get();
+        if (pv == null) {
+            sb.append("bound volumeName=").append(volumeName).append(" but the PV no longer exists\n");
+            return;
+        }
+        sb.append("PersistentVolume: ").append(volumeName).append('\n');
+        sb.append("phase: ").append(pv.getStatus() != null ? pv.getStatus().getPhase() : "Unknown").append('\n');
+        if (pv.getSpec() != null) {
+            sb.append("storageClassName: ").append(pv.getSpec().getStorageClassName()).append('\n');
+            sb.append("persistentVolumeReclaimPolicy: ").append(pv.getSpec().getPersistentVolumeReclaimPolicy()).append('\n');
+        }
     }
 
     private String nullSafe(String s) {

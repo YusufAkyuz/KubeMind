@@ -18,4 +18,5 @@ frontend/node_modules/.tmp/
 # Claude / planning docs (local only — removed from git history)
 CLAUDE.md
 KubeMind-MVP-Plan.md
+KubeMind-AI-Plan.md
 .claude/
