@@ -2,6 +2,8 @@ package com.kubemind.ai;
 
 import com.kubemind.cluster.ClusterClientFactory;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.springframework.stereotype.Component;
 
@@ -12,14 +14,17 @@ import java.util.stream.Collectors;
 
 /**
  * Builds a compact, redacted snapshot of a cluster for the chat assistant so it
- * can answer questions like "what's broken?" grounded in real state. Bounded in
- * size on purpose — this goes into every chat prompt.
+ * can answer questions like "what's broken?" or "how many services do I have?"
+ * grounded in real state. Bounded in size on purpose — this goes into every
+ * chat prompt. Extend the sections here as more "how many X" questions surface.
  */
 @Component
 public class ClusterContextProvider {
 
     private static final int MAX_NAMESPACES = 60;
     private static final int MAX_UNHEALTHY_PODS = 40;
+    private static final int MAX_SERVICES = 60;
+    private static final int MAX_DEPLOYMENTS = 60;
 
     private final ClusterClientFactory clientFactory;
 
@@ -74,6 +79,30 @@ public class ClusterContextProvider {
                     sb.append("- ").append(p.getMetadata().getNamespace()).append('/')
                       .append(p.getMetadata().getName()).append(": ").append(phase).append('\n');
                 });
+            }
+
+            List<Service> services = client.services().inAnyNamespace().list().getItems();
+            sb.append("\n=== SERVICES (total: ").append(services.size()).append(") ===\n");
+            services.stream().limit(MAX_SERVICES).forEach(s ->
+                sb.append("- ").append(s.getMetadata().getNamespace()).append('/')
+                  .append(s.getMetadata().getName()).append(": ")
+                  .append(s.getSpec() != null ? s.getSpec().getType() : "Unknown").append('\n'));
+            if (services.size() > MAX_SERVICES) {
+                sb.append("… and ").append(services.size() - MAX_SERVICES).append(" more\n");
+            }
+
+            List<Deployment> deployments = client.apps().deployments().inAnyNamespace().list().getItems();
+            sb.append("\n=== DEPLOYMENTS (total: ").append(deployments.size()).append(") ===\n");
+            deployments.stream().limit(MAX_DEPLOYMENTS).forEach(d -> {
+                var status = d.getStatus();
+                int ready = status != null && status.getReadyReplicas() != null ? status.getReadyReplicas() : 0;
+                int desired = d.getSpec() != null && d.getSpec().getReplicas() != null ? d.getSpec().getReplicas() : 0;
+                sb.append("- ").append(d.getMetadata().getNamespace()).append('/')
+                  .append(d.getMetadata().getName()).append(": ").append(ready).append('/').append(desired)
+                  .append(" ready\n");
+            });
+            if (deployments.size() > MAX_DEPLOYMENTS) {
+                sb.append("… and ").append(deployments.size() - MAX_DEPLOYMENTS).append(" more\n");
             }
 
         } catch (Exception e) {
