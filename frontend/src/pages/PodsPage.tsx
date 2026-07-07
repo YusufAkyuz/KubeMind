@@ -12,6 +12,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { useSSE } from '../hooks/useSSE'
+import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { formatAge } from '../utils/format'
 import { IconTerminal } from '../components/Icons'
 import { ExplainPanel } from '../components/ExplainPanel'
@@ -33,6 +34,7 @@ const COLUMNS = [
 export function PodsPage() {
   const { clusterId, ns } = useParams<{ clusterId: string; ns: string }>()
   const navigate = useNavigate()
+  const terminalPanel = useTerminalPanel()
   const { isAdmin } = useAuth()
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -186,7 +188,10 @@ export function PodsPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              navigate(`/clusters/${clusterId}/namespaces/${selected.namespace}/pods/${selected.name}/exec?container=${c.name}`)
+                              terminalPanel.openPodExec(
+                                clusterId!, selected.namespace, selected.name,
+                                selected.containers.map((sc) => sc.name), c.name,
+                              )
                             }}
                             className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
                             title="Open terminal"

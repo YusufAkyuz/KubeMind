@@ -33,6 +33,34 @@ export interface NodeMetrics {
   memoryUsage: string | null
 }
 
+export interface IncidentPattern {
+  signature: string
+  count: number
+  firstSeen: string
+  lastSeen: string
+}
+
+export interface ChangeEntry {
+  action: string
+  resourceRef: string
+  result: string
+  createdAt: string | null
+}
+
+export interface ClusterInsights {
+  available: boolean
+  nodeCount: number
+  nodeVersions: string[]
+  namespaceCount: number
+  podCount: number
+  unhealthyPodCount: number
+  unhealthyHighlights: string[]
+  incidentNarrative: string | null
+  topIncidents: IncidentPattern[]
+  recentChanges: ChangeEntry[]
+  lastUpdated: string | null
+}
+
 export interface PodMetrics {
   name: string
   namespace: string

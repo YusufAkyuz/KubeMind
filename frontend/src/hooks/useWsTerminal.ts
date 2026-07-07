@@ -53,11 +53,17 @@ export function useWsTerminal(wsUrl: string | null, enabled: boolean) {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'stdin', data }))
     })
     const resizeDisposable = term.onResize(() => sendResize())
-    const onWindowResize = () => fit.fit()
-    window.addEventListener('resize', onWindowResize)
+
+    // Window resizes are one trigger, but the terminal's own container can also
+    // change size without the window changing at all — dragging the docked panel's
+    // resize handle, minimizing/restoring it, or switching tabs (display:none -> block).
+    // A ResizeObserver on the container itself catches all of these; a plain window
+    // 'resize' listener alone was missing them, which left stale/cut-off content.
+    const resizeObserver = new ResizeObserver(() => fit.fit())
+    resizeObserver.observe(termElRef.current)
 
     return () => {
-      window.removeEventListener('resize', onWindowResize)
+      resizeObserver.disconnect()
       dataDisposable.dispose()
       resizeDisposable.dispose()
       ws.close()

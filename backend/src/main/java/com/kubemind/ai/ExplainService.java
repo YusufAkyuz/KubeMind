@@ -20,17 +20,20 @@ public class ExplainService {
     private final PodContextCollector podContextCollector;
     private final ResourceContextCollector resourceContextCollector;
     private final AiDiagnosisRepository repository;
+    private final ClusterProfileService clusterProfileService;
     private final ChatClient chatClient;
     private final String model;
 
     public ExplainService(PodContextCollector podContextCollector,
                           ResourceContextCollector resourceContextCollector,
                           AiDiagnosisRepository repository,
+                          ClusterProfileService clusterProfileService,
                           ChatClient chatClient,
                           @Value("${spring.ai.ollama.chat.options.model}") String model) {
         this.podContextCollector = podContextCollector;
         this.resourceContextCollector = resourceContextCollector;
         this.repository = repository;
+        this.clusterProfileService = clusterProfileService;
         this.chatClient = chatClient;
         this.model = model;
     }
@@ -74,6 +77,10 @@ public class ExplainService {
         String promptContext = withPreviousDiagnosis(clusterId, kind, namespace, name, context);
         if (liveEnrichment != null && !liveEnrichment.isBlank()) {
             promptContext = promptContext + "\n=== LIVE SIGNALS (not part of the cached state) ===\n" + liveEnrichment + "\n";
+        }
+        String briefing = clusterProfileService.buildBriefing(clusterId);
+        if (!briefing.isBlank()) {
+            promptContext = promptContext + "\n" + briefing;
         }
 
         String explanation;

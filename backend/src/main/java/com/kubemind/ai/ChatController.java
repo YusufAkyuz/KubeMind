@@ -57,10 +57,13 @@ public class ChatController {
 
     private final ChatClient chatClient;
     private final ClusterContextProvider contextProvider;
+    private final ClusterProfileService clusterProfileService;
 
-    public ChatController(ChatClient chatClient, ClusterContextProvider contextProvider) {
+    public ChatController(ChatClient chatClient, ClusterContextProvider contextProvider,
+                          ClusterProfileService clusterProfileService) {
         this.chatClient = chatClient;
         this.contextProvider = contextProvider;
+        this.clusterProfileService = clusterProfileService;
     }
 
     public record ChatMessage(String role, String content) {}
@@ -74,7 +77,8 @@ public class ChatController {
     @PostMapping(value = "/chat", produces = MediaType.TEXT_PLAIN_VALUE + ";charset=UTF-8")
     public StreamingResponseBody chat(@PathVariable long clusterId,
                                       @Valid @RequestBody ChatRequest request) {
-        String context = contextProvider.summarize(clusterId);
+        String briefing = clusterProfileService.buildBriefing(clusterId);
+        String context = contextProvider.summarize(clusterId) + (briefing.isBlank() ? "" : "\n" + briefing);
         String systemPrompt = SYSTEM_PROMPT.formatted(context);
         List<Message> history = buildHistory(request.messages());
 

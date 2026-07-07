@@ -17,6 +17,7 @@ import {
   IconTerminal,
   Logo,
 } from './Icons'
+import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import type { Cluster, Namespace } from '../types/k8s'
 
 type IconType = ComponentType<{ className?: string }>
@@ -70,6 +71,7 @@ export function Sidebar({ onClose }: Props) {
   const { username, isAdmin, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const terminalPanel = useTerminalPanel()
 
   const clusterMatch = location.pathname.match(/^\/clusters\/(\d+)/)
   const clusterId = clusterMatch ? clusterMatch[1] : '0'
@@ -244,9 +246,13 @@ export function Sidebar({ onClose }: Props) {
             <NavLink to="/audit" className={linkClass} onClick={onClose}>
               <IconClipboard className="w-4 h-4 shrink-0" /> Audit log
             </NavLink>
-            <NavLink to={`/clusters/${clusterId}/terminal`} className={linkClass} onClick={onClose}>
+            <button
+              onClick={() => { terminalPanel.openClusterTerminal(clusterId); onClose?.() }}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm w-full text-left
+                         text-slate-400 hover:bg-slate-800/70 hover:text-slate-100 transition-colors"
+            >
               <IconTerminal className="w-4 h-4 shrink-0" /> Cluster Terminal
-            </NavLink>
+            </button>
           </>
         )}
       </nav>

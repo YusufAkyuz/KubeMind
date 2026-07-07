@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -22,58 +22,57 @@ import { PvcsPage } from './pages/PvcsPage'
 import { PvsPage } from './pages/PvsPage'
 import { CreateResourcePage } from './pages/CreateResourcePage'
 import { ChatWidget } from './components/ChatWidget'
+import { TerminalPanelProvider, useTerminalPanel } from './terminal/TerminalPanelContext'
 
-// Code-split: xterm.js only loads when a terminal is actually opened.
-const ExecPage = lazy(() => import('./pages/ExecPage').then((m) => ({ default: m.ExecPage })))
-const NodeExecPage = lazy(() => import('./pages/NodeExecPage').then((m) => ({ default: m.NodeExecPage })))
-const ClusterTerminalPage = lazy(() => import('./pages/ClusterTerminalPage').then((m) => ({ default: m.ClusterTerminalPage })))
+// Code-split: xterm.js only loads once a terminal session is actually opened.
+const TerminalPanel = lazy(() => import('./terminal/TerminalPanel').then((m) => ({ default: m.TerminalPanel })))
 
-const terminalFallback = <div className="p-8 text-sm text-gray-400">Loading terminal…</div>
+/** Mounts the (lazy) terminal panel only after the first session is opened, and keeps
+ *  it mounted afterwards so closing/reopening never re-triggers the xterm.js chunk load. */
+function TerminalPanelHost() {
+  const { sessions } = useTerminalPanel()
+  const [everOpened, setEverOpened] = useState(false)
+  useEffect(() => { if (sessions.length > 0) setEverOpened(true) }, [sessions.length])
+  if (!everOpened) return null
+  return <Suspense fallback={null}><TerminalPanel /></Suspense>
+}
 
 export default function App() {
   return (
-    <>
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <TerminalPanelProvider>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
 
-      {/* Default: the built-in local cluster */}
-      <Route path="/" element={<ProtectedRoute><Navigate to="/clusters/0/nodes" replace /></ProtectedRoute>} />
+        {/* Default: the built-in local cluster */}
+        <Route path="/" element={<ProtectedRoute><Navigate to="/clusters/0/nodes" replace /></ProtectedRoute>} />
 
-      {/* Cluster-scoped */}
-      <Route path="/clusters/:clusterId/nodes" element={<ProtectedRoute><NodesPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces" element={<ProtectedRoute><NamespacesPage /></ProtectedRoute>} />
+        {/* Cluster-scoped */}
+        <Route path="/clusters/:clusterId/nodes" element={<ProtectedRoute><NodesPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces" element={<ProtectedRoute><NamespacesPage /></ProtectedRoute>} />
 
-      {/* Namespace-scoped */}
-      <Route path="/clusters/:clusterId/namespaces/:ns/pods" element={<ProtectedRoute><PodsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/deployments" element={<ProtectedRoute><DeploymentsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/statefulsets" element={<ProtectedRoute><StatefulSetsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/daemonsets" element={<ProtectedRoute><DaemonSetsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/cronjobs" element={<ProtectedRoute><CronJobsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/configmaps" element={<ProtectedRoute><ConfigMapsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/secrets" element={<ProtectedRoute><SecretsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/ingresses" element={<ProtectedRoute><IngressesPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/persistentvolumeclaims" element={<ProtectedRoute><PvcsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/persistentvolumes" element={<ProtectedRoute><PvsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/create" element={<ProtectedRoute><CreateResourcePage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
-      <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/exec" element={
-        <ProtectedRoute><Suspense fallback={terminalFallback}><ExecPage /></Suspense></ProtectedRoute>
-      } />
-      <Route path="/clusters/:clusterId/nodes/:nodeName/exec" element={
-        <ProtectedRoute><Suspense fallback={terminalFallback}><NodeExecPage /></Suspense></ProtectedRoute>
-      } />
-      <Route path="/clusters/:clusterId/terminal" element={
-        <ProtectedRoute><Suspense fallback={terminalFallback}><ClusterTerminalPage /></Suspense></ProtectedRoute>
-      } />
+        {/* Namespace-scoped */}
+        <Route path="/clusters/:clusterId/namespaces/:ns/pods" element={<ProtectedRoute><PodsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/deployments" element={<ProtectedRoute><DeploymentsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/statefulsets" element={<ProtectedRoute><StatefulSetsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/daemonsets" element={<ProtectedRoute><DaemonSetsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/cronjobs" element={<ProtectedRoute><CronJobsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/configmaps" element={<ProtectedRoute><ConfigMapsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/secrets" element={<ProtectedRoute><SecretsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/ingresses" element={<ProtectedRoute><IngressesPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/persistentvolumeclaims" element={<ProtectedRoute><PvcsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/persistentvolumes" element={<ProtectedRoute><PvsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/create" element={<ProtectedRoute><CreateResourcePage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
 
-      {/* Admin */}
-      <Route path="/settings/clusters" element={<ProtectedRoute><ClustersPage /></ProtectedRoute>} />
-      <Route path="/audit" element={<ProtectedRoute><AuditPage /></ProtectedRoute>} />
-    </Routes>
-    <ChatWidget />
-    </>
+        {/* Admin */}
+        <Route path="/settings/clusters" element={<ProtectedRoute><ClustersPage /></ProtectedRoute>} />
+        <Route path="/audit" element={<ProtectedRoute><AuditPage /></ProtectedRoute>} />
+      </Routes>
+      <ChatWidget />
+      <TerminalPanelHost />
+    </TerminalPanelProvider>
   )
 }

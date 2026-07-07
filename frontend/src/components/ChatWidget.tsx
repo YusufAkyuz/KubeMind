@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { streamText } from '../utils/streamFetch'
+import { renderLiteMarkdown } from '../utils/markdownLite'
 import { IconHelm, IconX, Logo } from './Icons'
 
 interface Message {
@@ -120,13 +121,15 @@ export function ChatWidget() {
             {messages.map((m, i) => (
               <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
                 <div
-                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
+                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
                     m.role === 'user'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-blue-600 text-white whitespace-pre-wrap'
                       : 'bg-gray-100 text-gray-800'
                   }`}
                 >
-                  {m.content || (streaming ? '…' : '')}
+                  {m.role === 'assistant'
+                    ? (m.content ? renderLiteMarkdown(m.content) : (streaming ? '…' : ''))
+                    : m.content}
                 </div>
               </div>
             ))}
