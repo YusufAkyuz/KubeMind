@@ -1,9 +1,15 @@
 import type { ReactNode } from 'react'
 
-interface Column {
+export interface Column {
   key: string
   label: string
   className?: string
+}
+
+/** Inserts a "Namespace" column right after the first (Name) column when viewing all namespaces. */
+export function withNamespaceColumn(columns: Column[], show: boolean): Column[] {
+  if (!show) return columns
+  return [columns[0], { key: 'namespace', label: 'Namespace' }, ...columns.slice(1)]
 }
 
 interface Props {

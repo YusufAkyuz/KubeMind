@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
-import { Table, Tr, Td } from '../components/Table'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
@@ -25,10 +25,12 @@ export function ConfigMapsPage() {
   const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<ConfigMap | null>(null)
   const queryClient = useQueryClient()
+  const showNsColumn = ns === 'all'
 
   return (
     <Layout>
-      <PageHeader title="ConfigMaps" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
+      <PageHeader title="ConfigMaps"
+                  subtitle={ns === 'all' ? 'All namespaces' : ns && ns !== '_' ? `namespace: ${ns}` : undefined}
                   count={data?.length} noun="configmap"
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="ConfigMap" />} />
 
@@ -37,10 +39,12 @@ export function ConfigMapsPage() {
       {isError && <ErrorBanner message={`Could not load configmaps: ${(error as Error).message}`} />}
 
       {data && (
-        <Table columns={COLUMNS} minWidth="420px">
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)} minWidth="420px">
           {data.map((cm) => (
-            <Tr key={cm.name} onClick={() => setSelected(cm)} highlighted={selected?.name === cm.name}>
+            <Tr key={`${cm.namespace}/${cm.name}`} onClick={() => setSelected(cm)}
+                highlighted={selected?.name === cm.name && selected?.namespace === cm.namespace}>
               <Td className="font-medium text-gray-900">{cm.name}</Td>
+              {showNsColumn && <Td className="text-gray-500">{cm.namespace}</Td>}
               <Td className="text-gray-500 tabular-nums">
                 {Object.keys(cm.data).length}
                 {cm.binaryDataCount > 0 && <span className="text-gray-400"> (+{cm.binaryDataCount} binary)</span>}
@@ -51,15 +55,15 @@ export function ConfigMapsPage() {
         </Table>
       )}
 
-      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`ConfigMap · ${ns}`}
+      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`ConfigMap · ${selected?.namespace ?? ns}`}
                     onClose={() => setSelected(null)}>
         {selected && ns && (
           <>
             <div className="pb-3">
               <ExplainPanel
-                key={`${clusterId}/${ns}/${selected.name}`}
+                key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}
-                namespace={ns}
+                namespace={selected.namespace}
                 kind="ConfigMap"
                 name={selected.name}
               />
@@ -67,9 +71,9 @@ export function ConfigMapsPage() {
 
             {isAdmin && (
               <div className="pb-3 flex flex-wrap gap-2">
-                <EditYamlButton clusterId={clusterId!} ns={ns} kind="ConfigMap" name={selected.name} />
+                <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="ConfigMap" name={selected.name} />
                 <DeleteResourceButton
-                  clusterId={clusterId!} ns={ns} kind="ConfigMap" name={selected.name}
+                  clusterId={clusterId!} ns={selected.namespace} kind="ConfigMap" name={selected.name}
                   onDeleted={() => { setSelected(null); queryClient.invalidateQueries({ queryKey: ['configmaps', clusterId, ns] }) }}
                 />
               </div>

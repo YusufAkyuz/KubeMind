@@ -104,7 +104,8 @@ export function Sidebar({ onClose }: Props) {
     staleTime: 30_000,
   })
 
-  const remembered = storedNs && namespaces && !namespaces.some((n) => n.name === storedNs) ? null : storedNs
+  const remembered = storedNs && storedNs !== 'all' && namespaces && !namespaces.some((n) => n.name === storedNs)
+    ? null : storedNs
   const currentNs = (urlNs && urlNs !== '_' ? urlNs : null) ?? remembered
   const currentCluster = clusters?.find((c) => String(c.id) === clusterId)
 
@@ -171,10 +172,11 @@ export function Sidebar({ onClose }: Props) {
           <label className={label}>Namespace</label>
           <select value={currentNs ?? ''} onChange={handleNsChange} className={selectClass}>
             <option value="">Select namespace…</option>
+            <option value="all">All namespaces</option>
             {namespaces?.map((ns) => <option key={ns.name} value={ns.name}>{ns.name}</option>)}
           </select>
         </div>
-        {isAdmin && currentNs && (
+        {isAdmin && currentNs && currentNs !== 'all' && (
           <Link
             to={`/clusters/${clusterId}/namespaces/${currentNs}/create`}
             onClick={onClose}

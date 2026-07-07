@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../api/client'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
-import { Table, Tr, Td } from '../components/Table'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
@@ -28,10 +28,12 @@ export function SecretsPage() {
   const [selected, setSelected] = useState<Secret | null>(null)
   const queryClient = useQueryClient()
 
+  const showNsColumn = ns === 'all'
+
   const reveal = useMutation<Record<string, string>, unknown>({
     mutationFn: async () =>
       (await api.get<Record<string, string>>(
-        `/clusters/${clusterId}/namespaces/${ns}/secrets/${selected?.name}/reveal`)).data,
+        `/clusters/${clusterId}/namespaces/${selected?.namespace}/secrets/${selected?.name}/reveal`)).data,
   })
 
   const select = (s: Secret) => {
@@ -41,7 +43,8 @@ export function SecretsPage() {
 
   return (
     <Layout>
-      <PageHeader title="Secrets" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
+      <PageHeader title="Secrets"
+                  subtitle={ns === 'all' ? 'All namespaces' : ns && ns !== '_' ? `namespace: ${ns}` : undefined}
                   count={data?.length} noun="secret"
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Secret" />} />
 
@@ -50,10 +53,12 @@ export function SecretsPage() {
       {isError && <ErrorBanner message={`Could not load secrets: ${(error as Error).message}`} />}
 
       {data && (
-        <Table columns={COLUMNS} minWidth="480px">
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)} minWidth="480px">
           {data.map((s) => (
-            <Tr key={s.name} onClick={() => select(s)} highlighted={selected?.name === s.name}>
+            <Tr key={`${s.namespace}/${s.name}`} onClick={() => select(s)}
+                highlighted={selected?.name === s.name && selected?.namespace === s.namespace}>
               <Td className="font-medium text-gray-900">{s.name}</Td>
+              {showNsColumn && <Td className="text-gray-500">{s.namespace}</Td>}
               <Td className="font-mono text-xs text-gray-500">{s.type}</Td>
               <Td className="text-gray-500 tabular-nums">{s.keys.length}</Td>
               <Td className="text-gray-400 tabular-nums">{formatAge(s.creationTimestamp)}</Td>
@@ -62,15 +67,15 @@ export function SecretsPage() {
         </Table>
       )}
 
-      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Secret · ${ns}`}
+      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Secret · ${selected?.namespace ?? ns}`}
                     onClose={() => { setSelected(null); reveal.reset() }}>
         {selected && ns && (
           <>
             <div className="pb-3">
               <ExplainPanel
-                key={`${clusterId}/${ns}/${selected.name}`}
+                key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}
-                namespace={ns}
+                namespace={selected.namespace}
                 kind="Secret"
                 name={selected.name}
               />
@@ -78,9 +83,9 @@ export function SecretsPage() {
 
             {isAdmin && (
               <div className="pb-3 flex flex-wrap gap-2">
-                <EditYamlButton clusterId={clusterId!} ns={ns} kind="Secret" name={selected.name} />
+                <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="Secret" name={selected.name} />
                 <DeleteResourceButton
-                  clusterId={clusterId!} ns={ns} kind="Secret" name={selected.name}
+                  clusterId={clusterId!} ns={selected.namespace} kind="Secret" name={selected.name}
                   onDeleted={() => { setSelected(null); queryClient.invalidateQueries({ queryKey: ['secrets', clusterId, ns] }) }}
                 />
               </div>

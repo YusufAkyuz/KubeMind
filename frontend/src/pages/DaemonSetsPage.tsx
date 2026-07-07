@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
-import { Table, Tr, Td } from '../components/Table'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
 import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
@@ -32,10 +32,12 @@ export function DaemonSetsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<DaemonSet>('daemonsets')
   const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<DaemonSet | null>(null)
+  const showNsColumn = ns === 'all'
 
   return (
     <Layout>
-      <PageHeader title="DaemonSets" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
+      <PageHeader title="DaemonSets"
+                  subtitle={ns === 'all' ? 'All namespaces' : ns && ns !== '_' ? `namespace: ${ns}` : undefined}
                   count={data?.length} noun="daemonset"
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="DaemonSet" />} />
 
@@ -44,10 +46,12 @@ export function DaemonSetsPage() {
       {isError && <ErrorBanner message={`Could not load daemonsets: ${(error as Error).message}`} />}
 
       {data && (
-        <Table columns={COLUMNS}>
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
           {data.map((d) => (
-            <Tr key={d.name} onClick={() => setSelected(d)} highlighted={selected?.name === d.name}>
+            <Tr key={`${d.namespace}/${d.name}`} onClick={() => setSelected(d)}
+                highlighted={selected?.name === d.name && selected?.namespace === d.namespace}>
               <Td className="font-medium text-gray-900">{d.name}</Td>
+              {showNsColumn && <Td className="text-gray-500">{d.namespace}</Td>}
               <Td><StatusBadge status={status(d)} /></Td>
               <Td className="tabular-nums text-gray-500">{d.ready}/{d.desired}</Td>
               <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 max-w-[240px] truncate">
@@ -59,15 +63,15 @@ export function DaemonSetsPage() {
         </Table>
       )}
 
-      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`DaemonSet · ${ns}`}
+      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`DaemonSet · ${selected?.namespace ?? ns}`}
                     onClose={() => setSelected(null)}>
         {selected && ns && (
           <>
             <div className="pb-3">
               <ExplainPanel
-                key={`${clusterId}/${ns}/${selected.name}`}
+                key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}
-                namespace={ns}
+                namespace={selected.namespace}
                 kind="DaemonSet"
                 name={selected.name}
               />
@@ -76,9 +80,9 @@ export function DaemonSetsPage() {
             {isAdmin && (
               <div className="pb-3">
                 <DaemonSetActions
-                  key={`actions-${clusterId}/${ns}/${selected.name}`}
+                  key={`actions-${clusterId}/${selected.namespace}/${selected.name}`}
                   clusterId={clusterId!}
-                  namespace={ns}
+                  namespace={selected.namespace}
                   daemonSet={selected}
                   onActionDone={() => setSelected(null)}
                 />

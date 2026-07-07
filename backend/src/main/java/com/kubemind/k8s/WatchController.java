@@ -41,7 +41,8 @@ public class WatchController {
     public SseEmitter watchPods(@PathVariable long clusterId, @PathVariable String ns) {
         SseEmitter emitter = new SseEmitter(0L);
         sendEvent(emitter, "init", kubernetesService.listPods(clusterId, ns));
-        Watch watch = clientFactory.getClient(clusterId).pods().inNamespace(ns)
+        var client = clientFactory.getClient(clusterId);
+        Watch watch = ("all".equals(ns) ? client.pods().inAnyNamespace() : client.pods().inNamespace(ns))
             .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listPods(clusterId, ns)));
         bindCleanup(emitter, watch);
         return emitter;
@@ -51,7 +52,8 @@ public class WatchController {
     public SseEmitter watchDeployments(@PathVariable long clusterId, @PathVariable String ns) {
         SseEmitter emitter = new SseEmitter(0L);
         sendEvent(emitter, "init", kubernetesService.listDeployments(clusterId, ns));
-        Watch watch = clientFactory.getClient(clusterId).apps().deployments().inNamespace(ns)
+        var client = clientFactory.getClient(clusterId);
+        Watch watch = ("all".equals(ns) ? client.apps().deployments().inAnyNamespace() : client.apps().deployments().inNamespace(ns))
             .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listDeployments(clusterId, ns)));
         bindCleanup(emitter, watch);
         return emitter;

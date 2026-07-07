@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
-import { Table, Tr, Td } from '../components/Table'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
 import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner } from '../components/ErrorBanner'
@@ -47,11 +47,13 @@ export function DeploymentsPage() {
 
   useSSE<Deployment[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/deployments` : null, queryKey)
 
+  const showNsColumn = ns === 'all'
+
   return (
     <Layout>
       <PageHeader
         title="Deployments"
-        subtitle={ns ? `namespace: ${ns}` : undefined}
+        subtitle={ns === 'all' ? 'All namespaces' : ns ? `namespace: ${ns}` : undefined}
         count={data?.length}
         noun="deployment"
         actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Deployment" />}
@@ -66,14 +68,15 @@ export function DeploymentsPage() {
       {isError && <ErrorBanner message={`Could not load deployments: ${(error as Error).message}`} />}
 
       {data && (
-        <Table columns={COLUMNS}>
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
           {data.map((d) => (
             <Tr
               key={`${d.namespace}/${d.name}`}
               onClick={() => setSelected(d)}
-              highlighted={selected?.name === d.name}
+              highlighted={selected?.name === d.name && selected?.namespace === d.namespace}
             >
               <Td className="font-medium text-gray-900">{d.name}</Td>
+              {showNsColumn && <Td className="text-gray-500">{d.namespace}</Td>}
               <Td><StatusBadge status={replicaStatus(d)} /></Td>
               <Td className="tabular-nums text-gray-500">{d.readyReplicas}/{d.desiredReplicas}</Td>
               <Td className="hidden md:table-cell text-xs text-gray-400">{d.strategy}</Td>
@@ -89,16 +92,16 @@ export function DeploymentsPage() {
       <DetailDrawer
         open={!!selected}
         title={selected?.name ?? ''}
-        subtitle={`Deployment · ${ns}`}
+        subtitle={`Deployment · ${selected?.namespace ?? ns}`}
         onClose={() => setSelected(null)}
       >
         {selected && ns && (
           <>
             <div className="pb-3">
               <ExplainPanel
-                key={`${clusterId}/${ns}/${selected.name}`}
+                key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}
-                namespace={ns}
+                namespace={selected.namespace}
                 kind="Deployment"
                 name={selected.name}
               />
@@ -107,9 +110,9 @@ export function DeploymentsPage() {
             {isAdmin && (
               <div className="pb-3">
                 <DeploymentActions
-                  key={`${clusterId}/${ns}/${selected.name}`}
+                  key={`${clusterId}/${selected.namespace}/${selected.name}`}
                   clusterId={clusterId!}
-                  namespace={ns}
+                  namespace={selected.namespace}
                   deployment={selected}
                   onActionDone={() => setSelected(null)}
                 />

@@ -7,7 +7,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
-import { Table, Tr, Td } from '../components/Table'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
 import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner } from '../components/ErrorBanner'
@@ -43,7 +43,7 @@ export function PodsPage() {
   const deletePod = async () => {
     if (!selected) return
     try {
-      await api.delete(`/clusters/${clusterId}/namespaces/${ns}/pods/${selected.name}`)
+      await api.delete(`/clusters/${clusterId}/namespaces/${selected.namespace}/pods/${selected.name}`)
       toast.success(`Pod ${selected.name} deleted`)
       setSelected(null)
       queryClient.invalidateQueries({ queryKey })
@@ -70,12 +70,13 @@ export function PodsPage() {
     retry: false,
   })
   const metricsByName = new Map((metrics ?? []).map((m) => [m.name, m]))
+  const showNsColumn = ns === 'all'
 
   return (
     <Layout>
       <PageHeader
         title="Pods"
-        subtitle={ns ? `namespace: ${ns}` : undefined}
+        subtitle={ns === 'all' ? 'All namespaces' : ns ? `namespace: ${ns}` : undefined}
         count={data?.length}
         noun="pod"
         actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Pod" />}
@@ -90,7 +91,7 @@ export function PodsPage() {
       {isError && <ErrorBanner message={`Could not load pods: ${(error as Error).message}`} />}
 
       {data && (
-        <Table columns={COLUMNS}>
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
           {data.map((pod) => {
             const readyCount = pod.containers.filter((c) => c.ready).length
             const highRestarts = pod.restartCount > 5
@@ -98,9 +99,10 @@ export function PodsPage() {
               <Tr
                 key={`${pod.namespace}/${pod.name}`}
                 onClick={() => setSelected(pod)}
-                highlighted={selected?.name === pod.name}
+                highlighted={selected?.name === pod.name && selected?.namespace === pod.namespace}
               >
                 <Td className="font-medium text-gray-900">{pod.name}</Td>
+                {showNsColumn && <Td className="text-gray-500">{pod.namespace}</Td>}
                 <Td><StatusBadge status={pod.phase} /></Td>
                 <Td className="tabular-nums text-gray-500">{readyCount}/{pod.containers.length}</Td>
                 <Td>
@@ -122,16 +124,16 @@ export function PodsPage() {
       <DetailDrawer
         open={!!selected}
         title={selected?.name ?? ''}
-        subtitle={`Pod · ${ns}`}
+        subtitle={`Pod · ${selected?.namespace ?? ns}`}
         onClose={() => setSelected(null)}
       >
         {selected && ns && (
           <>
             <div className="pb-3">
               <ExplainPanel
-                key={`${clusterId}/${ns}/${selected.name}`}
+                key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}
-                namespace={ns}
+                namespace={selected.namespace}
                 kind="Pod"
                 name={selected.name}
               />
@@ -172,7 +174,7 @@ export function PodsPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigate(`/clusters/${clusterId}/namespaces/${ns}/pods/${selected.name}/logs?container=${c.name}`)
+                            navigate(`/clusters/${clusterId}/namespaces/${selected.namespace}/pods/${selected.name}/logs?container=${c.name}`)
                           }}
                           className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
                           title="View logs"
@@ -184,7 +186,7 @@ export function PodsPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              navigate(`/clusters/${clusterId}/namespaces/${ns}/pods/${selected.name}/exec?container=${c.name}`)
+                              navigate(`/clusters/${clusterId}/namespaces/${selected.namespace}/pods/${selected.name}/exec?container=${c.name}`)
                             }}
                             className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
                             title="Open terminal"

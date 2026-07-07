@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
-import { Table, Tr, Td } from '../components/Table'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
@@ -27,10 +27,12 @@ export function ServicesPage() {
   const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<ServiceResource | null>(null)
   const queryClient = useQueryClient()
+  const showNsColumn = ns === 'all'
 
   return (
     <Layout>
-      <PageHeader title="Services" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
+      <PageHeader title="Services"
+                  subtitle={ns === 'all' ? 'All namespaces' : ns && ns !== '_' ? `namespace: ${ns}` : undefined}
                   count={data?.length} noun="service"
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Service" />} />
 
@@ -39,10 +41,12 @@ export function ServicesPage() {
       {isError && <ErrorBanner message={`Could not load services: ${(error as Error).message}`} />}
 
       {data && (
-        <Table columns={COLUMNS}>
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
           {data.map((s) => (
-            <Tr key={s.name} onClick={() => setSelected(s)} highlighted={selected?.name === s.name}>
+            <Tr key={`${s.namespace}/${s.name}`} onClick={() => setSelected(s)}
+                highlighted={selected?.name === s.name && selected?.namespace === s.namespace}>
               <Td className="font-medium text-gray-900">{s.name}</Td>
+              {showNsColumn && <Td className="text-gray-500">{s.namespace}</Td>}
               <Td className="text-gray-500">{s.type}</Td>
               <Td className="hidden md:table-cell font-mono text-xs text-gray-400">{s.clusterIP ?? '—'}</Td>
               <Td className="font-mono text-xs text-gray-500">{s.ports.join(', ') || '—'}</Td>
@@ -52,15 +56,15 @@ export function ServicesPage() {
         </Table>
       )}
 
-      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Service · ${ns}`}
+      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Service · ${selected?.namespace ?? ns}`}
                     onClose={() => setSelected(null)}>
         {selected && ns && (
           <>
             <div className="pb-3">
               <ExplainPanel
-                key={`${clusterId}/${ns}/${selected.name}`}
+                key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}
-                namespace={ns}
+                namespace={selected.namespace}
                 kind="Service"
                 name={selected.name}
               />
@@ -68,9 +72,9 @@ export function ServicesPage() {
 
             {isAdmin && (
               <div className="pb-3 flex flex-wrap gap-2">
-                <EditYamlButton clusterId={clusterId!} ns={ns} kind="Service" name={selected.name} />
+                <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="Service" name={selected.name} />
                 <DeleteResourceButton
-                  clusterId={clusterId!} ns={ns} kind="Service" name={selected.name}
+                  clusterId={clusterId!} ns={selected.namespace} kind="Service" name={selected.name}
                   onDeleted={() => { setSelected(null); queryClient.invalidateQueries({ queryKey: ['services', clusterId, ns] }) }}
                 />
               </div>

@@ -218,8 +218,11 @@ public class KubernetesService {
     // ── Config ────────────────────────────────────────────────────────────────
 
     public List<ConfigMapDto> listConfigMaps(long clusterId, String namespace) {
-        return clientFactory.getClient(clusterId).configMaps().inNamespace(namespace)
-            .list().getItems().stream()
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.configMaps().inAnyNamespace().list().getItems()
+            : client.configMaps().inNamespace(namespace).list().getItems();
+        return items.stream()
             .map(cm -> new ConfigMapDto(
                 cm.getMetadata().getName(),
                 cm.getMetadata().getNamespace(),
@@ -230,8 +233,11 @@ public class KubernetesService {
     }
 
     public List<SecretDto> listSecrets(long clusterId, String namespace) {
-        return clientFactory.getClient(clusterId).secrets().inNamespace(namespace)
-            .list().getItems().stream()
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.secrets().inAnyNamespace().list().getItems()
+            : client.secrets().inNamespace(namespace).list().getItems();
+        return items.stream()
             .map(s -> new SecretDto(
                 s.getMetadata().getName(),
                 s.getMetadata().getNamespace(),
@@ -244,8 +250,11 @@ public class KubernetesService {
     // ── Workloads (beyond deployments) ────────────────────────────────────────
 
     public List<StatefulSetDto> listStatefulSets(long clusterId, String namespace) {
-        return clientFactory.getClient(clusterId).apps().statefulSets().inNamespace(namespace)
-            .list().getItems().stream()
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.apps().statefulSets().inAnyNamespace().list().getItems()
+            : client.apps().statefulSets().inNamespace(namespace).list().getItems();
+        return items.stream()
             .map(s -> new StatefulSetDto(
                 s.getMetadata().getName(),
                 s.getMetadata().getNamespace(),
@@ -260,8 +269,11 @@ public class KubernetesService {
     }
 
     public List<DaemonSetDto> listDaemonSets(long clusterId, String namespace) {
-        return clientFactory.getClient(clusterId).apps().daemonSets().inNamespace(namespace)
-            .list().getItems().stream()
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.apps().daemonSets().inAnyNamespace().list().getItems()
+            : client.apps().daemonSets().inNamespace(namespace).list().getItems();
+        return items.stream()
             .map(d -> new DaemonSetDto(
                 d.getMetadata().getName(),
                 d.getMetadata().getNamespace(),
@@ -279,8 +291,11 @@ public class KubernetesService {
     }
 
     public List<JobDto> listJobs(long clusterId, String namespace) {
-        return clientFactory.getClient(clusterId).batch().v1().jobs().inNamespace(namespace)
-            .list().getItems().stream()
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.batch().v1().jobs().inAnyNamespace().list().getItems()
+            : client.batch().v1().jobs().inNamespace(namespace).list().getItems();
+        return items.stream()
             .map(this::toJobDto)
             .toList();
     }
@@ -323,8 +338,11 @@ public class KubernetesService {
     }
 
     public List<CronJobDto> listCronJobs(long clusterId, String namespace) {
-        return clientFactory.getClient(clusterId).batch().v1().cronjobs().inNamespace(namespace)
-            .list().getItems().stream()
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.batch().v1().cronjobs().inAnyNamespace().list().getItems()
+            : client.batch().v1().cronjobs().inNamespace(namespace).list().getItems();
+        return items.stream()
             .map(this::toCronJobDto)
             .toList();
     }
@@ -354,8 +372,11 @@ public class KubernetesService {
     // ── Network ───────────────────────────────────────────────────────────────
 
     public List<ServiceDto> listServices(long clusterId, String namespace) {
-        return clientFactory.getClient(clusterId).services().inNamespace(namespace)
-            .list().getItems().stream()
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.services().inAnyNamespace().list().getItems()
+            : client.services().inNamespace(namespace).list().getItems();
+        return items.stream()
             .map(s -> {
                 var spec = s.getSpec();
                 List<String> ports = spec != null && spec.getPorts() != null
@@ -382,8 +403,11 @@ public class KubernetesService {
     }
 
     public List<IngressDto> listIngresses(long clusterId, String namespace) {
-        return clientFactory.getClient(clusterId).network().v1().ingresses().inNamespace(namespace)
-            .list().getItems().stream()
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.network().v1().ingresses().inAnyNamespace().list().getItems()
+            : client.network().v1().ingresses().inNamespace(namespace).list().getItems();
+        return items.stream()
             .map(ing -> {
                 List<IngressDto.Rule> rules = ing.getSpec() != null && ing.getSpec().getRules() != null
                     ? ing.getSpec().getRules().stream().flatMap(r -> {
@@ -415,8 +439,11 @@ public class KubernetesService {
     // ── Storage ───────────────────────────────────────────────────────────────
 
     public List<PvcDto> listPersistentVolumeClaims(long clusterId, String namespace) {
-        return clientFactory.getClient(clusterId).persistentVolumeClaims().inNamespace(namespace)
-            .list().getItems().stream()
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.persistentVolumeClaims().inAnyNamespace().list().getItems()
+            : client.persistentVolumeClaims().inNamespace(namespace).list().getItems();
+        return items.stream()
             .map(pvc -> new PvcDto(
                 pvc.getMetadata().getName(),
                 pvc.getMetadata().getNamespace(),

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
-import { Table, Tr, Td } from '../components/Table'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
 import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
@@ -28,10 +28,12 @@ export function JobsPage() {
   const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<Job | null>(null)
   const queryClient = useQueryClient()
+  const showNsColumn = ns === 'all'
 
   return (
     <Layout>
-      <PageHeader title="Jobs" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
+      <PageHeader title="Jobs"
+                  subtitle={ns === 'all' ? 'All namespaces' : ns && ns !== '_' ? `namespace: ${ns}` : undefined}
                   count={data?.length} noun="job"
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Job" />} />
 
@@ -40,10 +42,12 @@ export function JobsPage() {
       {isError && <ErrorBanner message={`Could not load jobs: ${(error as Error).message}`} />}
 
       {data && (
-        <Table columns={COLUMNS}>
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
           {data.map((j) => (
-            <Tr key={j.name} onClick={() => setSelected(j)} highlighted={selected?.name === j.name}>
+            <Tr key={`${j.namespace}/${j.name}`} onClick={() => setSelected(j)}
+                highlighted={selected?.name === j.name && selected?.namespace === j.namespace}>
               <Td className="font-medium text-gray-900">{j.name}</Td>
+              {showNsColumn && <Td className="text-gray-500">{j.namespace}</Td>}
               <Td><StatusBadge status={j.status} /></Td>
               <Td className="tabular-nums text-gray-500">
                 {j.succeeded}/{j.completions ?? '—'}
@@ -58,15 +62,15 @@ export function JobsPage() {
         </Table>
       )}
 
-      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Job · ${ns}`}
+      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Job · ${selected?.namespace ?? ns}`}
                     onClose={() => setSelected(null)}>
         {selected && ns && (
           <>
             <div className="pb-3">
               <ExplainPanel
-                key={`${clusterId}/${ns}/${selected.name}`}
+                key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}
-                namespace={ns}
+                namespace={selected.namespace}
                 kind="Job"
                 name={selected.name}
               />
@@ -74,9 +78,9 @@ export function JobsPage() {
 
             {isAdmin && (
               <div className="pb-3 flex flex-wrap gap-2">
-                <EditYamlButton clusterId={clusterId!} ns={ns} kind="Job" name={selected.name} />
+                <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="Job" name={selected.name} />
                 <DeleteResourceButton
-                  clusterId={clusterId!} ns={ns} kind="Job" name={selected.name}
+                  clusterId={clusterId!} ns={selected.namespace} kind="Job" name={selected.name}
                   onDeleted={() => { setSelected(null); queryClient.invalidateQueries({ queryKey: ['jobs', clusterId, ns] }) }}
                 />
               </div>

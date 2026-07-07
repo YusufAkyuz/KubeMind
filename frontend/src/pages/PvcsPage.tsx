@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
-import { Table, Tr, Td } from '../components/Table'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
 import { StatusBadge } from '../components/StatusBadge'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
@@ -32,10 +32,12 @@ export function PvcsPage() {
   const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<Pvc | null>(null)
   const queryClient = useQueryClient()
+  const showNsColumn = ns === 'all'
 
   return (
     <Layout>
-      <PageHeader title="Persistent Volume Claims" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
+      <PageHeader title="Persistent Volume Claims"
+                  subtitle={ns === 'all' ? 'All namespaces' : ns && ns !== '_' ? `namespace: ${ns}` : undefined}
                   count={data?.length} noun="claim"
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="PersistentVolumeClaim" />} />
 
@@ -44,10 +46,12 @@ export function PvcsPage() {
       {isError && <ErrorBanner message={`Could not load claims: ${(error as Error).message}`} />}
 
       {data && (
-        <Table columns={COLUMNS}>
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
           {data.map((pvc) => (
-            <Tr key={pvc.name} onClick={() => setSelected(pvc)} highlighted={selected?.name === pvc.name}>
+            <Tr key={`${pvc.namespace}/${pvc.name}`} onClick={() => setSelected(pvc)}
+                highlighted={selected?.name === pvc.name && selected?.namespace === pvc.namespace}>
               <Td className="font-medium text-gray-900">{pvc.name}</Td>
+              {showNsColumn && <Td className="text-gray-500">{pvc.namespace}</Td>}
               <Td><StatusBadge status={PHASE[pvc.status] ?? 'Unknown'} /></Td>
               <Td className="text-gray-600 tabular-nums">{pvc.capacity ?? '—'}</Td>
               <Td className="hidden md:table-cell text-gray-500">{pvc.storageClass ?? '—'}</Td>
@@ -57,15 +61,15 @@ export function PvcsPage() {
         </Table>
       )}
 
-      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`PVC · ${ns}`}
+      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`PVC · ${selected?.namespace ?? ns}`}
                     onClose={() => setSelected(null)}>
         {selected && ns && (
           <>
             <div className="pb-3">
               <ExplainPanel
-                key={`${clusterId}/${ns}/${selected.name}`}
+                key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}
-                namespace={ns}
+                namespace={selected.namespace}
                 kind="PersistentVolumeClaim"
                 name={selected.name}
               />
@@ -73,9 +77,9 @@ export function PvcsPage() {
 
             {isAdmin && (
               <div className="pb-3 flex flex-wrap gap-2">
-                <EditYamlButton clusterId={clusterId!} ns={ns} kind="PersistentVolumeClaim" name={selected.name} />
+                <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="PersistentVolumeClaim" name={selected.name} />
                 <DeleteResourceButton
-                  clusterId={clusterId!} ns={ns} kind="PersistentVolumeClaim" name={selected.name}
+                  clusterId={clusterId!} ns={selected.namespace} kind="PersistentVolumeClaim" name={selected.name}
                   onDeleted={() => { setSelected(null); queryClient.invalidateQueries({ queryKey: ['persistentvolumeclaims', clusterId, ns] }) }}
                 />
               </div>

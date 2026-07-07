@@ -11,7 +11,7 @@ interface Props {
 /** "+ Create" entry point shown on resource list pages, ADMIN-only. */
 export function CreateResourceButton({ clusterId, ns, kind }: Props) {
   const { isAdmin } = useAuth()
-  if (!isAdmin || !clusterId || !ns || ns === '_') return null
+  if (!isAdmin || !clusterId || !ns || ns === '_' || ns === 'all') return null
 
   return (
     <Link

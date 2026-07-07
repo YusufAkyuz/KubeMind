@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
-import { Table, Tr, Td } from '../components/Table'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
 import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
@@ -26,10 +26,12 @@ export function IngressesPage() {
   const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<Ingress | null>(null)
   const queryClient = useQueryClient()
+  const showNsColumn = ns === 'all'
 
   return (
     <Layout>
-      <PageHeader title="Ingresses" subtitle={ns && ns !== '_' ? `namespace: ${ns}` : undefined}
+      <PageHeader title="Ingresses"
+                  subtitle={ns === 'all' ? 'All namespaces' : ns && ns !== '_' ? `namespace: ${ns}` : undefined}
                   count={data?.length} noun="ingress"
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Ingress" />} />
 
@@ -38,12 +40,14 @@ export function IngressesPage() {
       {isError && <ErrorBanner message={`Could not load ingresses: ${(error as Error).message}`} />}
 
       {data && (
-        <Table columns={COLUMNS}>
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
           {data.map((ing) => {
             const hosts = [...new Set(ing.rules.map((r) => r.host))].join(', ')
             return (
-              <Tr key={ing.name} onClick={() => setSelected(ing)} highlighted={selected?.name === ing.name}>
+              <Tr key={`${ing.namespace}/${ing.name}`} onClick={() => setSelected(ing)}
+                  highlighted={selected?.name === ing.name && selected?.namespace === ing.namespace}>
                 <Td className="font-medium text-gray-900">{ing.name}</Td>
+                {showNsColumn && <Td className="text-gray-500">{ing.namespace}</Td>}
                 <Td className="text-gray-500">{ing.className ?? '—'}</Td>
                 <Td className="text-gray-600 max-w-xs truncate">{hosts || '—'}</Td>
                 <Td className="text-gray-400 tabular-nums">{formatAge(ing.creationTimestamp)}</Td>
@@ -53,15 +57,15 @@ export function IngressesPage() {
         </Table>
       )}
 
-      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Ingress · ${ns}`}
+      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Ingress · ${selected?.namespace ?? ns}`}
                     onClose={() => setSelected(null)}>
         {selected && ns && (
           <>
             <div className="pb-3">
               <ExplainPanel
-                key={`${clusterId}/${ns}/${selected.name}`}
+                key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}
-                namespace={ns}
+                namespace={selected.namespace}
                 kind="Ingress"
                 name={selected.name}
               />
@@ -69,9 +73,9 @@ export function IngressesPage() {
 
             {isAdmin && (
               <div className="pb-3 flex flex-wrap gap-2">
-                <EditYamlButton clusterId={clusterId!} ns={ns} kind="Ingress" name={selected.name} />
+                <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="Ingress" name={selected.name} />
                 <DeleteResourceButton
-                  clusterId={clusterId!} ns={ns} kind="Ingress" name={selected.name}
+                  clusterId={clusterId!} ns={selected.namespace} kind="Ingress" name={selected.name}
                   onDeleted={() => { setSelected(null); queryClient.invalidateQueries({ queryKey: ['ingresses', clusterId, ns] }) }}
                 />
               </div>
