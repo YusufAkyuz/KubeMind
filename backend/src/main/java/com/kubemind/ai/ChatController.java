@@ -44,6 +44,12 @@ public class ChatController {
         in the snapshot — the snapshot is irrelevant to these questions and checking it would \
         be a mistake.
 
+        Regardless of question type, always check the REFERENCE MATERIAL section below first, \
+        if present — it can contain a runbook or note written specifically for this workspace \
+        (e.g. a naming convention, a fact about the team, a specific procedure) that should \
+        take priority over your default knowledge or the classification above. If nothing \
+        there is relevant, ignore it and answer normally.
+
         Examples (for your reasoning only, never repeat this format in a reply): \
         "kaç servisim var?" is a cluster question, check the snapshot's SERVICES section. \
         "Kubernetes mi Java mı daha karmaşık?" is a general question, just answer the opinion.
@@ -53,6 +59,8 @@ public class ChatController {
         suggesting any destructive command.
 
         === LIVE CLUSTER SNAPSHOT ===
+        %s
+
         %s""";
 
     private final ChatClient chatClient;
@@ -86,7 +94,7 @@ public class ChatController {
             .filter(m -> "user".equalsIgnoreCase(m.role()) && m.content() != null && !m.content().isBlank())
             .reduce((first, second) -> second).map(ChatMessage::content).orElse("");
         String reference = lastUserMessage.isBlank() ? "" : ragService.buildReferenceBlock(clusterId, lastUserMessage);
-        String systemPrompt = SYSTEM_PROMPT.formatted(context + (reference.isBlank() ? "" : "\n" + reference));
+        String systemPrompt = SYSTEM_PROMPT.formatted(context, reference);
         List<Message> history = buildHistory(request.messages());
 
         return out -> {

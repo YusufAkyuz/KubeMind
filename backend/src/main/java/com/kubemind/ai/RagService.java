@@ -35,7 +35,11 @@ public class RagService {
 
     private static final Logger log = LoggerFactory.getLogger(RagService.class);
     private static final int TOP_K_DOCS = 3;
-    private static final int TOP_K_TENANT = 2;
+    // Runbooks are usually short and few per cluster, and generic phrases (e.g. a runbook
+    // mentioning "KubeMind" by name) can out-rank a more specific but shorter one for a
+    // given query. A slightly larger K gives more runbooks a chance to reach the model
+    // instead of only the single closest match(es) — cheap since this corpus stays small.
+    private static final int TOP_K_TENANT = 4;
 
     private final VectorStore vectorStore;
 
