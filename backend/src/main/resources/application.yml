@@ -23,6 +23,17 @@ spring:
         options:
           model: ${OLLAMA_MODEL:qwen2.5-coder:7b}
           temperature: 0.2
+      embedding:
+        options:
+          model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+    vectorstore:
+      pgvector:
+        # Schema is created by Flyway (V6__pgvector.sql), not by Spring AI, so every
+        # schema change stays reviewable and versioned like the rest of this app's tables.
+        initialize-schema: false
+        dimensions: 768
+        index-type: hnsw
+        distance-type: cosine-distance
 
 management:
   endpoints:

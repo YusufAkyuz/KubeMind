@@ -21,6 +21,7 @@ import { IngressesPage } from './pages/IngressesPage'
 import { PvcsPage } from './pages/PvcsPage'
 import { PvsPage } from './pages/PvsPage'
 import { CreateResourcePage } from './pages/CreateResourcePage'
+import { RunbooksPage } from './pages/RunbooksPage'
 import { ChatWidget } from './components/ChatWidget'
 import { TerminalPanelProvider, useTerminalPanel } from './terminal/TerminalPanelContext'
 
@@ -70,6 +71,7 @@ export default function App() {
         {/* Admin */}
         <Route path="/settings/clusters" element={<ProtectedRoute><ClustersPage /></ProtectedRoute>} />
         <Route path="/audit" element={<ProtectedRoute><AuditPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/runbooks" element={<ProtectedRoute><RunbooksPage /></ProtectedRoute>} />
       </Routes>
       <ChatWidget />
       <TerminalPanelHost />

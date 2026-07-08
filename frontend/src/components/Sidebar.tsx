@@ -15,6 +15,7 @@ import {
   IconChevronDown,
   IconPlus,
   IconTerminal,
+  IconLayers,
   Logo,
 } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
@@ -245,6 +246,9 @@ export function Sidebar({ onClose }: Props) {
             </NavLink>
             <NavLink to="/audit" className={linkClass} onClick={onClose}>
               <IconClipboard className="w-4 h-4 shrink-0" /> Audit log
+            </NavLink>
+            <NavLink to={`/clusters/${clusterId}/runbooks`} className={linkClass} onClick={onClose}>
+              <IconLayers className="w-4 h-4 shrink-0" /> Runbooks
             </NavLink>
             <button
               onClick={() => { terminalPanel.openClusterTerminal(clusterId); onClose?.() }}

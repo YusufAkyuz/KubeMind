@@ -21,6 +21,7 @@ public class ExplainService {
     private final ResourceContextCollector resourceContextCollector;
     private final AiDiagnosisRepository repository;
     private final ClusterProfileService clusterProfileService;
+    private final RagService ragService;
     private final ChatClient chatClient;
     private final String model;
 
@@ -28,12 +29,14 @@ public class ExplainService {
                           ResourceContextCollector resourceContextCollector,
                           AiDiagnosisRepository repository,
                           ClusterProfileService clusterProfileService,
+                          RagService ragService,
                           ChatClient chatClient,
                           @Value("${spring.ai.ollama.chat.options.model}") String model) {
         this.podContextCollector = podContextCollector;
         this.resourceContextCollector = resourceContextCollector;
         this.repository = repository;
         this.clusterProfileService = clusterProfileService;
+        this.ragService = ragService;
         this.chatClient = chatClient;
         this.model = model;
     }
@@ -82,6 +85,10 @@ public class ExplainService {
         if (!briefing.isBlank()) {
             promptContext = promptContext + "\n" + briefing;
         }
+        String reference = ragService.buildReferenceBlock(clusterId, context);
+        if (!reference.isBlank()) {
+            promptContext = promptContext + "\n" + reference;
+        }
 
         String explanation;
         try {
@@ -100,6 +107,7 @@ public class ExplainService {
         } catch (DataIntegrityViolationException e) {
             // Concurrent request cached the same state first — serve our fresh result anyway.
         }
+        ragService.indexDiagnosisBestEffort(clusterId, "diag-" + stateHash, kind + "/" + namespace + "/" + name, explanation);
         return new ExplainResult(explanation, false, model,
             diagnosis.getCreatedAt() != null ? diagnosis.getCreatedAt() : Instant.now());
     }

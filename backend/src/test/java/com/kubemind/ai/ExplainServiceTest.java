@@ -18,6 +18,7 @@ class ExplainServiceTest {
     private ResourceContextCollector resourceContextCollector;
     private AiDiagnosisRepository repository;
     private ClusterProfileService clusterProfileService;
+    private RagService ragService;
     private ChatClient chatClient;
     private ExplainService service;
 
@@ -27,11 +28,13 @@ class ExplainServiceTest {
         resourceContextCollector = mock(ResourceContextCollector.class);
         repository = mock(AiDiagnosisRepository.class);
         clusterProfileService = mock(ClusterProfileService.class);
+        ragService = mock(RagService.class);
         chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
         service = new ExplainService(podContextCollector, resourceContextCollector, repository,
-            clusterProfileService, chatClient, "test-model");
+            clusterProfileService, ragService, chatClient, "test-model");
         when(repository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(inv -> inv.getArgument(0));
         when(clusterProfileService.buildBriefing(org.mockito.ArgumentMatchers.anyLong())).thenReturn("");
+        when(ragService.buildReferenceBlock(org.mockito.ArgumentMatchers.anyLong(), anyString())).thenReturn("");
     }
 
     @Test

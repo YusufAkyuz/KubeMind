@@ -58,12 +58,14 @@ public class ChatController {
     private final ChatClient chatClient;
     private final ClusterContextProvider contextProvider;
     private final ClusterProfileService clusterProfileService;
+    private final RagService ragService;
 
     public ChatController(ChatClient chatClient, ClusterContextProvider contextProvider,
-                          ClusterProfileService clusterProfileService) {
+                          ClusterProfileService clusterProfileService, RagService ragService) {
         this.chatClient = chatClient;
         this.contextProvider = contextProvider;
         this.clusterProfileService = clusterProfileService;
+        this.ragService = ragService;
     }
 
     public record ChatMessage(String role, String content) {}
@@ -79,7 +81,12 @@ public class ChatController {
                                       @Valid @RequestBody ChatRequest request) {
         String briefing = clusterProfileService.buildBriefing(clusterId);
         String context = contextProvider.summarize(clusterId) + (briefing.isBlank() ? "" : "\n" + briefing);
-        String systemPrompt = SYSTEM_PROMPT.formatted(context);
+
+        String lastUserMessage = request.messages().stream()
+            .filter(m -> "user".equalsIgnoreCase(m.role()) && m.content() != null && !m.content().isBlank())
+            .reduce((first, second) -> second).map(ChatMessage::content).orElse("");
+        String reference = lastUserMessage.isBlank() ? "" : ragService.buildReferenceBlock(clusterId, lastUserMessage);
+        String systemPrompt = SYSTEM_PROMPT.formatted(context + (reference.isBlank() ? "" : "\n" + reference));
         List<Message> history = buildHistory(request.messages());
 
         return out -> {
