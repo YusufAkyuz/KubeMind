@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Toast enters from the top-right corner it's anchored to (see components/Toast.tsx). */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-toast-in {
+  animation: toast-in 0.2s ease-out;
+}
+
 /* Sidebar nav scrollbar: invisible at rest (blends with the slate-900 sidebar
    background), fades in only while actively scrolling, fades back out ~1s after
    the last scroll event (see the .is-scrolling toggle in components/Sidebar.tsx). */

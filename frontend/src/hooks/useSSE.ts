@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useToast } from '../components/Toast'
 
 /**
  * Opens an SSE connection to `url` and writes received "init" and "update"
@@ -12,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query'
  */
 export function useSSE<T>(url: string | null, queryKey: unknown[]): string | null {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const key = JSON.stringify(queryKey)
   const [streamError, setStreamError] = useState<string | null>(null)
 
@@ -35,13 +37,18 @@ export function useSSE<T>(url: string | null, queryKey: unknown[]): string | nul
     // Backend sends this when the cluster was unreachable before the stream even
     // started (see WatchController.sendErrorAndComplete) — surface it the same way
     // a failed REST fetch would, instead of leaving the page on "Loading…" forever.
-    es.addEventListener('error', (e: MessageEvent) => {
+    // Deliberately NOT named "error": that's a reserved EventSource type shared with
+    // connection-level failures, and browsers don't reliably deliver a server-sent
+    // frame named "error" as a normal, listenable MessageEvent.
+    es.addEventListener('stream-error', (e: MessageEvent) => {
+      let message = 'Live updates disconnected.'
       try {
-        const parsed = JSON.parse(e.data as string)
-        setStreamError(parsed?.error ?? 'Live updates disconnected.')
+        message = JSON.parse(e.data as string)?.error ?? message
       } catch {
-        // not a JSON payload — a plain connection-level error event, nothing to parse
+        // not a JSON payload — keep the generic message
       }
+      setStreamError(message)
+      toast.error(message)
       es.close()
     })
     es.onerror = () => es.close()

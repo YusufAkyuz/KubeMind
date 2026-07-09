@@ -35,12 +35,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={apiRef.current}>
       {children}
       {/* Container */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm px-4">
+      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 w-full max-w-sm px-4 sm:px-0">
         {toasts.map((t) => (
           <div
             key={t.id}
             role="status"
-            className={`rounded-lg px-4 py-3 text-sm shadow-lg border
+            className={`rounded-lg px-4 py-3 text-sm shadow-lg border animate-toast-in
                         ${t.kind === 'success'
                           ? 'bg-white border-emerald-200 text-emerald-800'
                           : 'bg-white border-red-200 text-red-700'}`}

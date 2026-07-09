@@ -63,6 +63,12 @@ public class ClusterClientFactory {
         Config config = Config.fromKubeconfig(kubeconfig);
         config.setConnectionTimeout(CONNECT_TIMEOUT_MS);
         config.setRequestTimeout(REQUEST_TIMEOUT_MS);
+        // Fabric8 defaults to 10 retries with exponential backoff; against an
+        // unreachable cluster each attempt burns the full 4s connect timeout, so a
+        // single failed list() blocked its caller for ~45s+ before any error
+        // surfaced — the UI just showed "Loading…" the whole time. Fail once, fast;
+        // callers (pages, watch streams) have their own refresh/reconnect behavior.
+        config.setRequestRetryBackoffLimit(0);
         return new KubernetesClientBuilder().withConfig(config).build();
     }
 

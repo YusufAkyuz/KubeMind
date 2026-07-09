@@ -1,7 +1,6 @@
 package com.kubemind.k8s;
 
 import com.kubemind.cluster.ClusterClientFactory;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
@@ -12,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ public class WatchController {
             Watch watch = clientFactory.getClient(clusterId).nodes()
                 .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listNodes(clusterId)));
             bindCleanup(emitter, watch);
-        } catch (KubernetesClientException e) {
+        } catch (Exception e) {
             sendErrorAndComplete(emitter, e);
         }
         return emitter;
@@ -56,7 +56,7 @@ public class WatchController {
             Watch watch = ("all".equals(ns) ? client.pods().inAnyNamespace() : client.pods().inNamespace(ns))
                 .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listPods(clusterId, ns)));
             bindCleanup(emitter, watch);
-        } catch (KubernetesClientException e) {
+        } catch (Exception e) {
             sendErrorAndComplete(emitter, e);
         }
         return emitter;
@@ -71,7 +71,7 @@ public class WatchController {
             Watch watch = ("all".equals(ns) ? client.apps().deployments().inAnyNamespace() : client.apps().deployments().inNamespace(ns))
                 .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listDeployments(clusterId, ns)));
             bindCleanup(emitter, watch);
-        } catch (KubernetesClientException e) {
+        } catch (Exception e) {
             sendErrorAndComplete(emitter, e);
         }
         return emitter;
@@ -88,19 +88,33 @@ public class WatchController {
     }
 
     /**
-     * The cluster being unreachable when we haven't started watching yet (e.g. the
-     * initial list() call) must never escape as a thrown exception here: the response
-     * already negotiated text/event-stream, so Spring's normal @ExceptionHandler JSON
-     * body (ApiExceptionHandler) can't be written and fails with a second, more
-     * confusing HttpMediaTypeNotAcceptableException that buries the real error. Send
-     * an in-band "error" event instead and complete the stream — same idea as
-     * AiStreaming.writeFallbackSafely for the AI streaming endpoints.
+     * ANY failure while setting up the stream (cluster unreachable, cluster deleted
+     * mid-request, whatever) must never escape as a thrown exception here: the
+     * response already negotiated text/event-stream, so Spring's normal
+     * @ExceptionHandler JSON body (ApiExceptionHandler) can't be written for a
+     * request whose Accept header is strictly "text/event-stream" — Spring drops it
+     * to a bare, bodyless status code instead of throwing, so the failure is
+     * completely invisible to the caller (confirmed: curl -H "Accept: text/event-
+     * stream" against a nonexistent cluster returns 404 with zero bytes of body).
+     * Send an in-band event instead and complete the stream — same idea as
+     * AiStreaming.writeFallbackSafely for the AI streaming endpoints. Catching
+     * Exception broadly (not just KubernetesClientException) matters here: cluster-
+     * not-found throws ResponseStatusException from a completely different layer
+     * (ClusterClientFactory), and it hit this exact same silent-failure bug.
+     *
+     * Named "stream-error", not "error": EventSource treats "error" as a reserved
+     * type shared with connection-level failures, and browsers are inconsistent
+     * about delivering a server-sent frame explicitly named "error" as a normal,
+     * listenable MessageEvent — a custom name sidesteps that entirely.
      */
-    private void sendErrorAndComplete(SseEmitter emitter, KubernetesClientException e) {
-        log.warn("Watch stream failed to start: {}", e.getMessage());
+    private void sendErrorAndComplete(SseEmitter emitter, Exception e) {
+        String message = e instanceof ResponseStatusException rse && rse.getReason() != null
+            ? rse.getReason()
+            : "Could not reach the Kubernetes cluster: " + e.getMessage();
+        log.warn("Watch stream failed to start: {}", message);
         try {
-            emitter.send(SseEmitter.event().name("error")
-                .data(Map.of("error", "Could not reach the Kubernetes cluster: " + e.getMessage()), MediaType.APPLICATION_JSON));
+            emitter.send(SseEmitter.event().name("stream-error")
+                .data(Map.of("error", message), MediaType.APPLICATION_JSON));
         } catch (IOException ignored) {
             // client already gone
         }
