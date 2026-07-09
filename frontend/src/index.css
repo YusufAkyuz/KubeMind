@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+/* Sidebar nav scrollbar: invisible at rest (blends with the slate-900 sidebar
+   background), fades in only while actively scrolling, fades back out ~1s after
+   the last scroll event (see the .is-scrolling toggle in components/Sidebar.tsx). */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-scroll.is-scrolling {
+  scrollbar-color: rgb(71 85 105) transparent; /* slate-600 thumb */
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.4s ease;
+}
+.sidebar-scroll.is-scrolling::-webkit-scrollbar-thumb {
+  background-color: rgb(71 85 105); /* slate-600 */
+}

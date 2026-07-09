@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
@@ -143,6 +143,17 @@ export function Sidebar({ onClose }: Props) {
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
   const label = 'block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5'
 
+  // Scrollbar only appears while actively scrolling (see .sidebar-scroll in index.css),
+  // then fades back to invisible ~600ms after the last scroll event.
+  const [navScrolling, setNavScrolling] = useState(false)
+  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onNavScroll = () => {
+    setNavScrolling(true)
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current)
+    scrollTimeout.current = setTimeout(() => setNavScrolling(false), 600)
+  }
+  useEffect(() => () => { if (scrollTimeout.current) clearTimeout(scrollTimeout.current) }, [])
+
   return (
     <aside className="flex flex-col h-full w-64 bg-slate-900 select-none">
       {/* Brand */}
@@ -194,7 +205,10 @@ export function Sidebar({ onClose }: Props) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+      <nav
+        onScroll={onNavScroll}
+        className={`sidebar-scroll flex-1 overflow-y-auto px-3 py-4 space-y-0.5 ${navScrolling ? 'is-scrolling' : ''}`}
+      >
         {/* Cluster-wide */}
         <NavLink to={`/clusters/${clusterId}/nodes`} className={linkClass} onClick={onClose} end>
           <IconServer className="w-4 h-4 shrink-0" /> Nodes

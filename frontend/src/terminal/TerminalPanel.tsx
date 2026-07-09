@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent } from 'react'
+import type { Dispatch, MouseEvent as ReactMouseEvent, SetStateAction } from 'react'
 import { useTerminalPanel } from './TerminalPanelContext'
 import type { TerminalSession } from './TerminalPanelContext'
+import { useChatPanel } from '../chat/ChatPanelContext'
 import { useWsTerminal } from '../hooks/useWsTerminal'
 import type { TerminalConnState } from '../hooks/useWsTerminal'
 import { IconChevronDown, IconTerminal, IconX } from '../components/Icons'
@@ -40,6 +41,10 @@ export function TerminalPanel() {
   const { sessions, activeId, isMinimized, height, activate, closeSession, toggleMinimize, setHeight, setContainer } = useTerminalPanel()
   const dragState = useRef<{ startY: number; startHeight: number } | null>(null)
   const [connStates, setConnStates] = useState<Record<string, TerminalConnState>>({})
+  // The AI chat panel (see chat/ChatPanelContext.tsx) is anchored right at a higher
+  // z-index — reserve its width so this dock sits beside it instead of underneath it.
+  const chatPanel = useChatPanel()
+  const reservedRight = chatPanel.isOpen ? chatPanel.width : 0
 
   if (sessions.length === 0) return null
 
@@ -64,8 +69,8 @@ export function TerminalPanel() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 lg:left-64 right-0 z-40 flex flex-col bg-gray-950 border-t border-gray-800 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]"
-      style={{ height: isMinimized ? 40 : height }}
+      className="fixed bottom-0 left-0 lg:left-64 z-40 flex flex-col bg-gray-950 border-t border-gray-800 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]"
+      style={{ height: isMinimized ? 40 : height, right: reservedRight }}
     >
       {!isMinimized && (
         <div
@@ -124,19 +129,23 @@ export function TerminalPanel() {
           key={s.id}
           session={s}
           active={s.id === activeSession.id}
-          onConnStateChange={(state) => setConnStates((prev) => ({ ...prev, [s.id]: state }))}
-          onContainerChange={(c) => setContainer(s.id, c)}
+          setConnStates={setConnStates}
+          setContainer={setContainer}
         />
       ))}
     </div>
   )
 }
 
-function TerminalSessionView({ session, active, onConnStateChange, onContainerChange }: {
+function TerminalSessionView({ session, active, setConnStates, setContainer }: {
   session: TerminalSession
   active: boolean
-  onConnStateChange: (state: TerminalConnState) => void
-  onContainerChange: (container: string) => void
+  // Both setters are referentially stable across renders (a useState setter, and a
+  // useCallback-wrapped context method) — that stability is what makes the effect below
+  // safe. Passing a freshly-created inline closure here instead (as this used to) reruns
+  // the effect on every render and loops forever ("Maximum update depth exceeded").
+  setConnStates: Dispatch<SetStateAction<Record<string, TerminalConnState>>>
+  setContainer: (id: string, container: string) => void
 }) {
   const [confirmed, setConfirmed] = useState(false)
   const requiresConfirm = session.type !== 'pod'
@@ -144,7 +153,9 @@ function TerminalSessionView({ session, active, onConnStateChange, onContainerCh
   const wsUrl = connected ? buildWsUrl(session) : null
   const { termElRef, connState } = useWsTerminal(wsUrl, connected)
 
-  useEffect(() => { onConnStateChange(connState) }, [connState, onConnStateChange])
+  useEffect(() => {
+    setConnStates((prev) => ({ ...prev, [session.id]: connState }))
+  }, [connState, session.id, setConnStates])
   // A closed connection reported before the user ever confirmed shouldn't happen,
   // but if the session is reset (e.g. reopened), require confirming again.
   useEffect(() => { setConfirmed(false) }, [session.id])
@@ -175,7 +186,7 @@ function TerminalSessionView({ session, active, onConnStateChange, onContainerCh
           <span className="text-[11px] text-gray-500">{session.ns}/{session.pod}</span>
           <select
             value={session.container}
-            onChange={(e) => onContainerChange(e.target.value)}
+            onChange={(e) => setContainer(session.id, e.target.value)}
             className="ml-auto h-6 rounded-md border border-gray-700 bg-gray-800 px-1.5 text-xs text-gray-200
                        focus:outline-none focus:ring-1 focus:ring-blue-500"
           >

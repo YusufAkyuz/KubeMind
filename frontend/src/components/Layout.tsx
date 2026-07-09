@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Sidebar } from './Sidebar'
 import { IconMenu, Logo } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
+import { useChatPanel } from '../chat/ChatPanelContext'
 
 interface Props {
   children: ReactNode
@@ -12,6 +13,7 @@ export function Layout({ children }: Props) {
   const [open, setOpen] = useState(false)
   const terminalPanel = useTerminalPanel()
   const reservedBottom = terminalPanel.sessions.length > 0 ? (terminalPanel.isMinimized ? 40 : terminalPanel.height) : 0
+  const chatPanel = useChatPanel()
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -60,6 +62,14 @@ export function Layout({ children }: Props) {
           </div>
         </main>
       </div>
+
+      {/* Reserves room for the sliding AI chat panel (see chat/ChatPanelContext.tsx) so it
+          pushes content aside instead of covering it. Full-width overlay on mobile instead. */}
+      <div
+        className="hidden lg:block shrink-0 transition-[width] duration-200 ease-in-out"
+        style={{ width: chatPanel.isOpen ? chatPanel.width : 0 }}
+        aria-hidden="true"
+      />
     </div>
   )
 }

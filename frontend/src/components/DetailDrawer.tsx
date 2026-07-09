@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { IconX } from './Icons'
+import { useTerminalPanel } from '../terminal/TerminalPanelContext'
+import { useChatPanel } from '../chat/ChatPanelContext'
 
 interface Props {
   open: boolean
@@ -16,6 +18,16 @@ const DEFAULT_WIDTH = 520
 const STORAGE_KEY = 'kubemind.drawerWidth'
 
 export function DetailDrawer({ open, title, subtitle, onClose, children }: Props) {
+  const terminalPanel = useTerminalPanel()
+  // The bottom-docked terminal (see terminal/TerminalPanel.tsx) sits on top of everything
+  // at z-40 — without this, the drawer's bottom rows render underneath it and get clipped.
+  const reservedBottom = terminalPanel.sessions.length > 0
+    ? (terminalPanel.isMinimized ? 40 : terminalPanel.height) : 0
+  // The AI chat panel (see chat/ChatPanelContext.tsx) is anchored right at a higher
+  // z-index — reserve its width so this drawer sits beside it instead of underneath it.
+  const chatPanel = useChatPanel()
+  const reservedRight = chatPanel.isOpen ? chatPanel.width : 0
+
   const [width, setWidth] = useState(() => {
     const stored = Number(localStorage.getItem(STORAGE_KEY))
     return stored >= MIN_WIDTH && stored <= MAX_WIDTH ? stored : DEFAULT_WIDTH
@@ -78,8 +90,8 @@ export function DetailDrawer({ open, title, subtitle, onClose, children }: Props
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        style={{ '--drawer-width': `${width}px` } as React.CSSProperties}
-        className={`fixed top-0 right-0 h-full w-full sm:w-[var(--drawer-width)] bg-white z-30 shadow-xl
+        style={{ '--drawer-width': `${width}px`, bottom: reservedBottom, right: reservedRight } as React.CSSProperties}
+        className={`fixed top-0 w-full sm:w-[var(--drawer-width)] bg-white z-30 shadow-xl
                     flex flex-col transform ease-in-out
                     ${resizing ? '' : 'transition-transform duration-200'}
                     ${open ? 'translate-x-0' : 'translate-x-full'}`}
