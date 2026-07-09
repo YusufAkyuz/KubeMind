@@ -38,7 +38,7 @@ export function NodesPage() {
     enabled: !!clusterId,
   })
 
-  useSSE<NodeResource[]>(clusterId ? `/api/clusters/${clusterId}/watch/nodes` : null, queryKey)
+  const streamError = useSSE<NodeResource[]>(clusterId ? `/api/clusters/${clusterId}/watch/nodes` : null, queryKey)
 
   // metrics-server is optional — an empty array (not an error) means it isn't installed.
   const { data: metrics } = useQuery<NodeMetrics[]>({
@@ -57,8 +57,9 @@ export function NodesPage() {
 
       {clusterId && <ClusterInsightsPanel clusterId={clusterId} />}
 
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load nodes: ${(error as Error).message}`} />}
+      {!isError && streamError && <ErrorBanner message={streamError} />}
 
       {data && (
         <Table columns={COLUMNS}>

@@ -1,9 +1,12 @@
 package com.kubemind.k8s;
 
 import com.kubemind.cluster.ClusterClientFactory;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,11 +16,14 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 @RestController
 @RequestMapping("/api/clusters/{clusterId}/watch")
 public class WatchController {
+
+    private static final Logger log = LoggerFactory.getLogger(WatchController.class);
 
     private final ClusterClientFactory clientFactory;
     private final KubernetesService kubernetesService;
@@ -30,32 +36,44 @@ public class WatchController {
     @GetMapping(value = "/nodes", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter watchNodes(@PathVariable long clusterId) {
         SseEmitter emitter = new SseEmitter(0L);
-        sendEvent(emitter, "init", kubernetesService.listNodes(clusterId));
-        Watch watch = clientFactory.getClient(clusterId).nodes()
-            .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listNodes(clusterId)));
-        bindCleanup(emitter, watch);
+        try {
+            sendEvent(emitter, "init", kubernetesService.listNodes(clusterId));
+            Watch watch = clientFactory.getClient(clusterId).nodes()
+                .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listNodes(clusterId)));
+            bindCleanup(emitter, watch);
+        } catch (KubernetesClientException e) {
+            sendErrorAndComplete(emitter, e);
+        }
         return emitter;
     }
 
     @GetMapping(value = "/namespaces/{ns}/pods", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter watchPods(@PathVariable long clusterId, @PathVariable String ns) {
         SseEmitter emitter = new SseEmitter(0L);
-        sendEvent(emitter, "init", kubernetesService.listPods(clusterId, ns));
-        var client = clientFactory.getClient(clusterId);
-        Watch watch = ("all".equals(ns) ? client.pods().inAnyNamespace() : client.pods().inNamespace(ns))
-            .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listPods(clusterId, ns)));
-        bindCleanup(emitter, watch);
+        try {
+            sendEvent(emitter, "init", kubernetesService.listPods(clusterId, ns));
+            var client = clientFactory.getClient(clusterId);
+            Watch watch = ("all".equals(ns) ? client.pods().inAnyNamespace() : client.pods().inNamespace(ns))
+                .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listPods(clusterId, ns)));
+            bindCleanup(emitter, watch);
+        } catch (KubernetesClientException e) {
+            sendErrorAndComplete(emitter, e);
+        }
         return emitter;
     }
 
     @GetMapping(value = "/namespaces/{ns}/deployments", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter watchDeployments(@PathVariable long clusterId, @PathVariable String ns) {
         SseEmitter emitter = new SseEmitter(0L);
-        sendEvent(emitter, "init", kubernetesService.listDeployments(clusterId, ns));
-        var client = clientFactory.getClient(clusterId);
-        Watch watch = ("all".equals(ns) ? client.apps().deployments().inAnyNamespace() : client.apps().deployments().inNamespace(ns))
-            .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listDeployments(clusterId, ns)));
-        bindCleanup(emitter, watch);
+        try {
+            sendEvent(emitter, "init", kubernetesService.listDeployments(clusterId, ns));
+            var client = clientFactory.getClient(clusterId);
+            Watch watch = ("all".equals(ns) ? client.apps().deployments().inAnyNamespace() : client.apps().deployments().inNamespace(ns))
+                .watch(new ListRefreshWatcher<>(emitter, () -> kubernetesService.listDeployments(clusterId, ns)));
+            bindCleanup(emitter, watch);
+        } catch (KubernetesClientException e) {
+            sendErrorAndComplete(emitter, e);
+        }
         return emitter;
     }
 
@@ -67,6 +85,26 @@ public class WatchController {
         } catch (IOException e) {
             emitter.complete();
         }
+    }
+
+    /**
+     * The cluster being unreachable when we haven't started watching yet (e.g. the
+     * initial list() call) must never escape as a thrown exception here: the response
+     * already negotiated text/event-stream, so Spring's normal @ExceptionHandler JSON
+     * body (ApiExceptionHandler) can't be written and fails with a second, more
+     * confusing HttpMediaTypeNotAcceptableException that buries the real error. Send
+     * an in-band "error" event instead and complete the stream — same idea as
+     * AiStreaming.writeFallbackSafely for the AI streaming endpoints.
+     */
+    private void sendErrorAndComplete(SseEmitter emitter, KubernetesClientException e) {
+        log.warn("Watch stream failed to start: {}", e.getMessage());
+        try {
+            emitter.send(SseEmitter.event().name("error")
+                .data(Map.of("error", "Could not reach the Kubernetes cluster: " + e.getMessage()), MediaType.APPLICATION_JSON));
+        } catch (IOException ignored) {
+            // client already gone
+        }
+        emitter.complete();
     }
 
     private void bindCleanup(SseEmitter emitter, Watch watch) {

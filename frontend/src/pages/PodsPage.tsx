@@ -61,7 +61,7 @@ export function PodsPage() {
     enabled: !!clusterId && !!ns && !noNamespace,
   })
 
-  useSSE<Pod[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/pods` : null, queryKey)
+  const streamError = useSSE<Pod[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/pods` : null, queryKey)
 
   // metrics-server is optional — an empty array (not an error) means it isn't installed.
   const { data: metrics } = useQuery<PodMetrics[]>({
@@ -89,8 +89,9 @@ export function PodsPage() {
           <p className="text-sm text-gray-400">Select a namespace from the sidebar to view pods.</p>
         </div>
       )}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load pods: ${(error as Error).message}`} />}
+      {!isError && streamError && <ErrorBanner message={streamError} />}
 
       {data && (
         <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>

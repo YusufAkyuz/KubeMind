@@ -45,7 +45,7 @@ export function DeploymentsPage() {
     enabled: !!clusterId && !!ns && !noNamespace,
   })
 
-  useSSE<Deployment[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/deployments` : null, queryKey)
+  const streamError = useSSE<Deployment[]>(clusterId && ns ? `/api/clusters/${clusterId}/watch/namespaces/${ns}/deployments` : null, queryKey)
 
   const showNsColumn = ns === 'all'
 
@@ -64,8 +64,9 @@ export function DeploymentsPage() {
           <p className="text-sm text-gray-400">Select a namespace from the sidebar to view deployments.</p>
         </div>
       )}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load deployments: ${(error as Error).message}`} />}
+      {!isError && streamError && <ErrorBanner message={streamError} />}
 
       {data && (
         <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
