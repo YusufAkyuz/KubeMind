@@ -25,6 +25,7 @@ import { RunbooksPage } from './pages/RunbooksPage'
 import { ChatWidget } from './components/ChatWidget'
 import { TerminalPanelProvider, useTerminalPanel } from './terminal/TerminalPanelContext'
 import { ChatPanelProvider } from './chat/ChatPanelContext'
+import { RightReserveProvider } from './layout/RightReserveContext'
 
 // Code-split: xterm.js only loads once a terminal session is actually opened.
 const TerminalPanel = lazy(() => import('./terminal/TerminalPanel').then((m) => ({ default: m.TerminalPanel })))
@@ -42,6 +43,7 @@ function TerminalPanelHost() {
 export default function App() {
   return (
     <TerminalPanelProvider>
+    <RightReserveProvider>
     <ChatPanelProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -78,6 +80,7 @@ export default function App() {
       <ChatWidget />
       <TerminalPanelHost />
     </ChatPanelProvider>
+    </RightReserveProvider>
     </TerminalPanelProvider>
   )
 }

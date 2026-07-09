@@ -27,7 +27,10 @@ public class NodeExecWebSocketHandler extends AbstractEphemeralExecHandler {
 
     private static final String DEBUG_NAMESPACE = "kube-system";
     private static final String DEBUG_IMAGE = "busybox:1.36";
-    private static final int READY_TIMEOUT_SECONDS = 60;
+    // 60s was too tight for clusters where busybox isn't already cached on the node
+    // (first pull over a slower VM/remote network path, e.g. multipass) — the pod would
+    // still be Pending on image pull when waitUntilCondition gave up.
+    private static final int READY_TIMEOUT_SECONDS = 180;
 
     private final ClusterClientFactory clientFactory;
     private final AuditService auditService;

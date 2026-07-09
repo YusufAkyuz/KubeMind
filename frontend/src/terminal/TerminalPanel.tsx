@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import type { Dispatch, MouseEvent as ReactMouseEvent, SetStateAction } from 'react'
 import { useTerminalPanel } from './TerminalPanelContext'
 import type { TerminalSession } from './TerminalPanelContext'
-import { useChatPanel } from '../chat/ChatPanelContext'
 import { useWsTerminal } from '../hooks/useWsTerminal'
 import type { TerminalConnState } from '../hooks/useWsTerminal'
 import { IconChevronDown, IconTerminal, IconX } from '../components/Icons'
@@ -41,10 +40,6 @@ export function TerminalPanel() {
   const { sessions, activeId, isMinimized, height, activate, closeSession, toggleMinimize, setHeight, setContainer } = useTerminalPanel()
   const dragState = useRef<{ startY: number; startHeight: number } | null>(null)
   const [connStates, setConnStates] = useState<Record<string, TerminalConnState>>({})
-  // The AI chat panel (see chat/ChatPanelContext.tsx) is anchored right at a higher
-  // z-index — reserve its width so this dock sits beside it instead of underneath it.
-  const chatPanel = useChatPanel()
-  const reservedRight = chatPanel.isOpen ? chatPanel.width : 0
 
   if (sessions.length === 0) return null
 
@@ -69,8 +64,8 @@ export function TerminalPanel() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 lg:left-64 z-40 flex flex-col bg-gray-950 border-t border-gray-800 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]"
-      style={{ height: isMinimized ? 40 : height, right: reservedRight }}
+      className="fixed bottom-0 left-0 lg:left-64 right-0 z-40 flex flex-col bg-gray-950 border-t border-gray-800 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]"
+      style={{ height: isMinimized ? 40 : height }}
     >
       {!isMinimized && (
         <div

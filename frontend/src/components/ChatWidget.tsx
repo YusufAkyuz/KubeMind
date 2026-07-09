@@ -6,6 +6,7 @@ import { renderLiteMarkdown } from '../utils/markdownLite'
 import { IconHelm, IconX, Logo } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { useChatPanel } from '../chat/ChatPanelContext'
+import { useRightReserve } from '../layout/RightReserveContext'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -28,6 +29,15 @@ export function ChatWidget() {
 
   const [resizing, setResizing] = useState(false)
   const startRef = useRef<{ x: number; width: number } | null>(null)
+
+  // Registers this panel's current footprint so other right-anchored overlays
+  // (the terminal dock, the page's main content area) shrink to make room
+  // instead of running underneath it. See layout/RightReserveContext.tsx.
+  const rightReserve = useRightReserve()
+  useEffect(() => {
+    rightReserve.register('chat', chatPanel.isOpen ? chatPanel.width : 0)
+    return () => rightReserve.register('chat', 0)
+  }, [chatPanel.isOpen, chatPanel.width, rightReserve])
 
   // Current cluster from the URL (defaults to the built-in local cluster).
   const clusterMatch = location.pathname.match(/^\/clusters\/(\d+)/)
@@ -135,14 +145,17 @@ export function ChatWidget() {
       )}
 
       {/* Full-height sliding panel — anchored right, pushes page content aside via the
-          spacer Layout.tsx reserves (chatPanel.width), never overlays/cuts it off. */}
+          spacer Layout.tsx reserves (chatPanel.width). Deliberately spans the full
+          viewport height (z-[45], above the terminal dock's z-40) instead of stopping
+          above the docked terminal — simpler and more predictable than trying to tile
+          two independently-resizable right/bottom panels around each other. */}
       <div
         role="dialog"
         aria-modal="false"
         aria-label="AI assistant"
         aria-hidden={!chatPanel.isOpen}
-        style={{ '--chat-width': `${chatPanel.width}px`, bottom: terminalReserved } as React.CSSProperties}
-        className={`fixed top-0 right-0 z-[45] w-full sm:w-[var(--chat-width)] bg-white
+        style={{ '--chat-width': `${chatPanel.width}px` } as React.CSSProperties}
+        className={`fixed top-0 right-0 bottom-0 z-[45] w-full sm:w-[var(--chat-width)] bg-white
                     border-l border-gray-200 shadow-2xl flex flex-col transform ease-in-out
                     ${resizing ? '' : 'transition-transform duration-200'}
                     ${chatPanel.isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'}`}
