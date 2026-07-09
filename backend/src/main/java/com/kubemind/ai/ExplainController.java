@@ -17,7 +17,7 @@ public class ExplainController {
         this.explainService = explainService;
     }
 
-    public record ExplainResponse(String explanation, boolean cached, String model, Instant createdAt) {}
+    public record ExplainResponse(String explanation, boolean cached, String model, Instant createdAt, String stateHash) {}
 
     /** Pods get their own route because their context includes container logs. */
     @PostMapping("/namespaces/{ns}/pods/{pod}/explain")
@@ -36,6 +36,6 @@ public class ExplainController {
     }
 
     private ExplainResponse toResponse(ExplainService.ExplainResult result) {
-        return new ExplainResponse(result.explanation(), result.cached(), result.model(), result.createdAt());
+        return new ExplainResponse(result.explanation(), result.cached(), result.model(), result.createdAt(), result.stateHash());
     }
 }

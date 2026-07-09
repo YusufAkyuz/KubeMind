@@ -41,7 +41,7 @@ public class ExplainService {
         this.model = model;
     }
 
-    public record ExplainResult(String explanation, boolean cached, String model, Instant createdAt) {}
+    public record ExplainResult(String explanation, boolean cached, String model, Instant createdAt, String stateHash) {}
 
     public ExplainResult explainPod(long clusterId, String namespace, String podName) {
         String context = podContextCollector.collect(clusterId, namespace, podName);
@@ -74,7 +74,7 @@ public class ExplainService {
         var cachedDiagnosis = repository.findFirstByStateHash(stateHash);
         if (cachedDiagnosis.isPresent()) {
             var d = cachedDiagnosis.get();
-            return new ExplainResult(d.getResponse(), true, d.getModel(), d.getCreatedAt());
+            return new ExplainResult(d.getResponse(), true, d.getModel(), d.getCreatedAt(), stateHash);
         }
 
         String promptContext = withPreviousDiagnosis(clusterId, kind, namespace, name, context);
@@ -109,7 +109,7 @@ public class ExplainService {
         }
         ragService.indexDiagnosisBestEffort(clusterId, "diag-" + stateHash, kind + "/" + namespace + "/" + name, explanation);
         return new ExplainResult(explanation, false, model,
-            diagnosis.getCreatedAt() != null ? diagnosis.getCreatedAt() : Instant.now());
+            diagnosis.getCreatedAt() != null ? diagnosis.getCreatedAt() : Instant.now(), stateHash);
     }
 
     /**

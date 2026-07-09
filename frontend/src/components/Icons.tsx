@@ -221,3 +221,19 @@ export function IconHelm({ className = 'w-5 h-5' }: IconProps) {
     </svg>
   )
 }
+
+export function IconThumbUp({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 22V11M2 13v7a2 2 0 0 0 2 2h12.5a2 2 0 0 0 2-1.6l1.3-6.5a2 2 0 0 0-2-2.4H14V4.5a2.5 2.5 0 0 0-5 0V6a4 4 0 0 1-2 3.5L7 11" />
+    </svg>
+  )
+}
+
+export function IconThumbDown({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 2v11M22 11V4a2 2 0 0 0-2-2H7.5a2 2 0 0 0-2 1.6L4.2 10.1a2 2 0 0 0 2 2.4H10v6.6a2.5 2.5 0 0 0 5 0V18a4 4 0 0 1 2-3.5L17 13" />
+    </svg>
+  )
+}

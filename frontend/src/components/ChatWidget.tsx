@@ -7,10 +7,15 @@ import { IconHelm, IconX, Logo } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { useChatPanel } from '../chat/ChatPanelContext'
 import { useRightReserve } from '../layout/RightReserveContext'
+import { AiFeedbackButtons } from './AiFeedbackButtons'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  /** Client-generated — chat has no server-side record to key feedback on (it's
+   *  stateless streaming; see ChatController), so this id exists purely to give
+   *  AiFeedbackButtons a stable contextHash per assistant answer. */
+  id: string
 }
 
 export function ChatWidget() {
@@ -88,17 +93,18 @@ export function ChatWidget() {
     const text = input.trim()
     if (!text || streaming) return
 
-    const history: Message[] = [...messages, { role: 'user', content: text }]
-    setMessages([...history, { role: 'assistant', content: '' }])
+    const history: Message[] = [...messages, { role: 'user', content: text, id: crypto.randomUUID() }]
+    setMessages([...history, { role: 'assistant', content: '', id: crypto.randomUUID() }])
     setInput('')
     setStreaming(true)
 
     try {
-      await streamText(`/api/clusters/${clusterId}/chat`, { messages: history }, (chunk) => {
+      const payload = { messages: history.map(({ role, content }) => ({ role, content })) }
+      await streamText(`/api/clusters/${clusterId}/chat`, payload, (chunk) => {
         setMessages((prev) => {
           const next = [...prev]
           next[next.length - 1] = {
-            role: 'assistant',
+            ...next[next.length - 1],
             content: next[next.length - 1].content + chunk,
           }
           return next
@@ -108,7 +114,7 @@ export function ChatWidget() {
       setMessages((prev) => {
         const next = [...prev]
         next[next.length - 1] = {
-          role: 'assistant',
+          ...next[next.length - 1],
           content: `[${e instanceof Error ? e.message : 'Something went wrong'}]`,
         }
         return next
@@ -198,7 +204,7 @@ export function ChatWidget() {
             </div>
           )}
           {messages.map((m, i) => (
-            <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+            <div key={m.id} className={m.role === 'user' ? 'flex justify-end' : 'flex flex-col items-start'}>
               <div
                 className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
                   m.role === 'user'
@@ -210,6 +216,11 @@ export function ChatWidget() {
                   ? (m.content ? renderLiteMarkdown(m.content) : (streaming ? '…' : ''))
                   : m.content}
               </div>
+              {m.role === 'assistant' && m.content && !(streaming && i === messages.length - 1) && (
+                <div className="mt-1 pl-1">
+                  <AiFeedbackButtons clusterId={clusterId} surface="CHAT" contextHash={m.id} />
+                </div>
+              )}
             </div>
           ))}
         </div>

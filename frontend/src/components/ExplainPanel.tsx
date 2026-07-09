@@ -3,12 +3,14 @@ import axios from 'axios'
 import { api } from '../api/client'
 import { formatAge } from '../utils/format'
 import { renderLiteMarkdown } from '../utils/markdownLite'
+import { AiFeedbackButtons } from './AiFeedbackButtons'
 
 interface ExplainResponse {
   explanation: string
   cached: boolean
   model: string
   createdAt: string
+  stateHash: string
 }
 
 interface Props {
@@ -80,9 +82,10 @@ export function ExplainPanel({ clusterId, namespace, kind, name }: Props) {
         {mutation.data && (
           <>
             <div className="space-y-2">{renderLiteMarkdown(mutation.data.explanation)}</div>
-            <p className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
-              AI-generated — verify before acting.
-            </p>
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-xs text-gray-400">AI-generated — verify before acting.</p>
+              <AiFeedbackButtons clusterId={clusterId} surface="EXPLAIN" contextHash={mutation.data.stateHash} />
+            </div>
           </>
         )}
       </div>
