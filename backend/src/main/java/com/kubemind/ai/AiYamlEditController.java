@@ -72,7 +72,7 @@ public class AiYamlEditController {
                     .blockLast();
             } catch (Exception e) {
                 log.warn("AI edit stream failed: {}", e.getMessage());
-                AiStreaming.writeChunk(out, "\n\n[The AI service is unavailable. Is Ollama running?]");
+                AiStreaming.writeFallbackSafely(out, e);
             }
         };
     }

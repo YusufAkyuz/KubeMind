@@ -108,7 +108,7 @@ public class ChatController {
                     .blockLast();
             } catch (Exception e) {
                 log.warn("Chat stream failed: {}", e.getMessage());
-                AiStreaming.writeChunk(out,"\n\n[The AI service is unavailable. Is Ollama running?]");
+                AiStreaming.writeFallbackSafely(out, e);
             }
         };
     }

@@ -2,6 +2,14 @@ server:
   port: 8080
 
 spring:
+  mvc:
+    async:
+      # Streaming AI responses (chat, draft, analyze, edit-with-AI) hold the request thread
+      # open for as long as Ollama takes to generate. Tomcat/Spring's own default (30s) is
+      # comfortably shorter than a long response from a local 7B model, especially once RAG
+      # reference material grows the prompt — that mid-stream cutoff is what an
+      # InterruptedException with no message downstream in AiStreaming means.
+      request-timeout: 300000
   datasource:
     # Defaults target the local (Homebrew) Postgres on 5432.
     # Override via SPRING_DATASOURCE_* env vars in any non-local deployment.

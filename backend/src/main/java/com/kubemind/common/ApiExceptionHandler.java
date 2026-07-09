@@ -1,6 +1,9 @@
 package com.kubemind.common;
 
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -13,6 +16,8 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException ex) {
@@ -60,7 +65,17 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
+    public ResponseEntity<Map<String, String>> handleGeneric(Exception ex, HttpServletResponse response) {
+        if (response.isCommitted()) {
+            // A streaming response (chat/draft/analyze/edit-with-AI) already wrote content
+            // under a non-JSON Content-Type before failing — writing a JSON body here would
+            // itself throw (no converter for the committed Content-Type) and bury the real
+            // error under a second, more confusing one. Those endpoints already write their
+            // own in-band fallback message (see AiStreaming.writeFallbackSafely); nothing
+            // more to do here.
+            log.warn("Unhandled exception after the response was already committed: {}", ex.getMessage());
+            return null;
+        }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(Map.of("error", "Unexpected error: " + ex.getMessage()));
     }
