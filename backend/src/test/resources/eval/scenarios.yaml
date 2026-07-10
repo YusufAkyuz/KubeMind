@@ -1,0 +1,964 @@
+# Eval fixture set: broken-resource snapshots in the same plain-text format the
+# context collectors produce (see PodContextCollector). Each scenario lists
+# `expect` keyword groups — one group per line, pipe-separated alternatives,
+# case-insensitive substring match against the model's answer. A scenario
+# passes when EVERY group has at least one alternative present.
+#
+# Run: cd backend && mvn test -Dtest=EvalHarness -Deval=true
+# Subset: add -Deval.filter=oom (substring match on id)
+
+- id: crashloop-app-exception
+  expect:
+    - "crashloopbackoff|crash loop"
+    - "exit code 1|exitcode 1|application error|exception|stack trace"
+  context: |
+    === POD ===
+    name: payment-api-7d9f6c4b8-x2lqp
+    namespace: prod
+    phase: Running
+    node: worker-2
+    restartPolicy: Always
+    ownerChain: ReplicaSet/payment-api-7d9f6c4b8 <- Deployment/payment-api
+
+    === NODE (worker-2) ===
+    Ready=True MemoryPressure=False DiskPressure=False PIDPressure=False
+
+    === CONDITIONS ===
+    Ready=False reason=ContainersNotReady message=containers with unready status: [api]
+
+    === CONTAINERS ===
+    - name: api
+      image: registry.local/payment-api:1.4.2
+      ready: false
+      restartCount: 17
+      state: Waiting reason=CrashLoopBackOff message=back-off 5m0s restarting failed container
+      lastState: Terminated reason=Error exitCode=1
+
+    === RECENT EVENTS ===
+    [Warning] BackOff: Back-off restarting failed container api in pod payment-api-7d9f6c4b8-x2lqp (x312)
+
+    === LOGS (api, last 100 lines) ===
+    Exception in thread "main" java.lang.NullPointerException: Cannot invoke "com.acme.Config.getUrl()" because "config" is null
+        at com.acme.payment.Main.start(Main.java:42)
+        at com.acme.payment.Main.main(Main.java:18)
+
+- id: crashloop-missing-env
+  expect:
+    - "crashloopbackoff|crash loop"
+    - "environment variable|env var|DATABASE_URL|missing config"
+  context: |
+    === POD ===
+    name: orders-worker-66b58d8d4d-fkr9m
+    namespace: prod
+    phase: Running
+    node: worker-1
+    restartPolicy: Always
+    ownerChain: ReplicaSet/orders-worker-66b58d8d4d <- Deployment/orders-worker
+
+    === CONTAINERS ===
+    - name: worker
+      image: registry.local/orders-worker:2.1.0
+      env:
+        LOG_LEVEL=info
+      ready: false
+      restartCount: 9
+      state: Waiting reason=CrashLoopBackOff message=back-off 2m40s restarting failed container
+      lastState: Terminated reason=Error exitCode=1
+
+    === RECENT EVENTS ===
+    [Warning] BackOff: Back-off restarting failed container worker (x54)
+
+    === LOGS (worker, last 100 lines) ===
+    FATAL: required environment variable DATABASE_URL is not set
+    exiting.
+
+- id: crashloop-bad-command
+  expect:
+    - "command|entrypoint|executable"
+    - "not found|no such file|127"
+  context: |
+    === POD ===
+    name: batch-runner-5f7b9c6d4-qw8zt
+    namespace: batch
+    phase: Running
+    node: worker-3
+    restartPolicy: Always
+    ownerChain: ReplicaSet/batch-runner-5f7b9c6d4 <- Deployment/batch-runner
+
+    === CONTAINERS ===
+    - name: runner
+      image: registry.local/batch-runner:0.9.1
+      ready: false
+      restartCount: 6
+      state: Waiting reason=CrashLoopBackOff message=back-off 1m20s restarting failed container
+      lastState: Terminated reason=StartError exitCode=127
+
+    === RECENT EVENTS ===
+    [Warning] Failed: Error: failed to create containerd task: OCI runtime create failed: exec: "/app/run.sh": no such file or directory (x6)
+    [Warning] BackOff: Back-off restarting failed container runner (x22)
+
+    === LOGS (runner, last 100 lines) ===
+    (logs unavailable: container not started)
+
+- id: imagepull-bad-tag
+  expect:
+    - "imagepullbackoff|errimagepull|image pull"
+    - "tag|manifest unknown|not found|does not exist"
+  context: |
+    === POD ===
+    name: frontend-59c8b7f6d5-ncv2j
+    namespace: web
+    phase: Pending
+    node: worker-1
+    restartPolicy: Always
+    ownerChain: ReplicaSet/frontend-59c8b7f6d5 <- Deployment/frontend
+
+    === CONTAINERS ===
+    - name: web
+      image: registry.local/frontend:v2.7.3-hotfixx
+      ready: false
+      restartCount: 0
+      state: Waiting reason=ImagePullBackOff message=Back-off pulling image "registry.local/frontend:v2.7.3-hotfixx"
+
+    === RECENT EVENTS ===
+    [Warning] Failed: Failed to pull image "registry.local/frontend:v2.7.3-hotfixx": rpc error: code = NotFound desc = manifest for registry.local/frontend:v2.7.3-hotfixx not found: manifest unknown (x8)
+    [Warning] BackOff: Back-off pulling image "registry.local/frontend:v2.7.3-hotfixx" (x19)
+
+    === LOGS (web, last 100 lines) ===
+    (logs unavailable: container image not present)
+
+- id: imagepull-private-registry
+  expect:
+    - "imagepullbackoff|errimagepull|image pull"
+    - "imagepullsecret|unauthorized|credential|authentication|private registry"
+  context: |
+    === POD ===
+    name: billing-6c4f8d9b7-tt4mk
+    namespace: billing
+    phase: Pending
+    node: worker-2
+    restartPolicy: Always
+    ownerChain: ReplicaSet/billing-6c4f8d9b7 <- Deployment/billing
+
+    === CONTAINERS ===
+    - name: billing
+      image: ghcr.io/acme-internal/billing:3.2.0
+      ready: false
+      restartCount: 0
+      state: Waiting reason=ImagePullBackOff message=Back-off pulling image "ghcr.io/acme-internal/billing:3.2.0"
+
+    === RECENT EVENTS ===
+    [Warning] Failed: Failed to pull image "ghcr.io/acme-internal/billing:3.2.0": rpc error: code = Unknown desc = failed to authorize: 401 Unauthorized (x11)
+    [Warning] BackOff: Back-off pulling image "ghcr.io/acme-internal/billing:3.2.0" (x25)
+
+    === LOGS (billing, last 100 lines) ===
+    (logs unavailable: container image not present)
+
+- id: imagepull-registry-unreachable
+  expect:
+    - "imagepullbackoff|errimagepull|image pull"
+    - "unreachable|no such host|dns|network|resolve"
+  context: |
+    === POD ===
+    name: search-84b6c9d8f7-pl3nx
+    namespace: search
+    phase: Pending
+    node: worker-3
+    restartPolicy: Always
+    ownerChain: ReplicaSet/search-84b6c9d8f7 <- Deployment/search
+
+    === CONTAINERS ===
+    - name: search
+      image: registry.acme-corp.internel/search:1.0.0
+      ready: false
+      restartCount: 0
+      state: Waiting reason=ErrImagePull message=rpc error pulling image
+
+    === RECENT EVENTS ===
+    [Warning] Failed: Failed to pull image "registry.acme-corp.internel/search:1.0.0": rpc error: code = Unknown desc = dial tcp: lookup registry.acme-corp.internel: no such host (x6)
+
+    === LOGS (search, last 100 lines) ===
+    (logs unavailable: container image not present)
+
+- id: oom-limit-too-low
+  expect:
+    - "oomkilled|oom killed|out of memory"
+    - "memory limit|137"
+  context: |
+    === POD ===
+    name: report-gen-7f6d5c4b3-hh8wq
+    namespace: analytics
+    phase: Running
+    node: worker-1
+    restartPolicy: Always
+    ownerChain: ReplicaSet/report-gen-7f6d5c4b3 <- Deployment/report-gen
+
+    === CONTAINERS ===
+    - name: report
+      image: registry.local/report-gen:1.8.0
+      ready: false
+      restartCount: 11
+      state: Waiting reason=CrashLoopBackOff message=back-off 5m0s restarting failed container
+      lastState: Terminated reason=OOMKilled exitCode=137
+
+    === RECENT EVENTS ===
+    [Warning] BackOff: Back-off restarting failed container report (x88)
+
+    === LOGS (report, last 100 lines) ===
+    loading dataset chunk 14/40 (2.1 GiB in memory)
+
+- id: oom-repeated-leak
+  expect:
+    - "oomkilled|oom killed|out of memory"
+    - "leak|memory limit|raise|increase"
+  context: |
+    === POD ===
+    name: session-cache-6b9d8c7f6-mm2rt
+    namespace: prod
+    phase: Running
+    node: worker-2
+    restartPolicy: Always
+    ownerChain: ReplicaSet/session-cache-6b9d8c7f6 <- Deployment/session-cache
+
+    === CONTAINERS ===
+    - name: cache
+      image: registry.local/session-cache:4.0.2
+      ready: true
+      restartCount: 23
+      state: Running since=2026-07-09T10:12:00Z
+      lastState: Terminated reason=OOMKilled exitCode=137
+
+    === RECENT EVENTS ===
+    [Warning] BackOff: Back-off restarting failed container cache (x140)
+
+    === LOGS (cache, last 100 lines) ===
+    heap usage 92% (limit 512Mi), objects retained since startup: 4.1M and growing
+    heap usage 97% (limit 512Mi)
+
+- id: pending-insufficient-cpu
+  expect:
+    - "pending|unschedulable|failedscheduling|schedul"
+    - "insufficient cpu|cpu request|capacity"
+  context: |
+    === POD ===
+    name: ml-trainer-0
+    namespace: ml
+    phase: Pending
+    node: null
+    restartPolicy: Always
+    ownerChain: StatefulSet/ml-trainer
+
+    === CONDITIONS ===
+    PodScheduled=False reason=Unschedulable message=0/3 nodes are available: 3 Insufficient cpu. preemption: 0/3 nodes are available: 3 No preemption victims found for incoming pod.
+
+    === CONTAINERS ===
+    - name: trainer
+      image: registry.local/ml-trainer:2.0.0
+
+    === RECENT EVENTS ===
+    [Warning] FailedScheduling: 0/3 nodes are available: 3 Insufficient cpu. (x14)
+
+    === LOGS (trainer, last 100 lines) ===
+    (logs unavailable: pod not scheduled)
+
+- id: pending-taint
+  expect:
+    - "pending|unschedulable|schedul"
+    - "taint|toleration"
+  context: |
+    === POD ===
+    name: gpu-job-8c7d6b5f4-kk9vp
+    namespace: ml
+    phase: Pending
+    node: null
+    restartPolicy: Always
+    ownerChain: ReplicaSet/gpu-job-8c7d6b5f4 <- Deployment/gpu-job
+
+    === CONDITIONS ===
+    PodScheduled=False reason=Unschedulable message=0/3 nodes are available: 1 node(s) had untolerated taint {nvidia.com/gpu: dedicated}, 2 node(s) didn't match Pod's node affinity/selector.
+
+    === RECENT EVENTS ===
+    [Warning] FailedScheduling: 0/3 nodes are available: 1 node(s) had untolerated taint {nvidia.com/gpu: dedicated}, 2 node(s) didn't match Pod's node affinity/selector. (x9)
+
+    === CONTAINERS ===
+    - name: gpu
+      image: registry.local/gpu-job:1.1.0
+
+    === LOGS (gpu, last 100 lines) ===
+    (logs unavailable: pod not scheduled)
+
+- id: pending-nodeselector
+  expect:
+    - "pending|unschedulable|schedul"
+    - "node selector|nodeselector|affinity|label"
+  context: |
+    === POD ===
+    name: edge-agent-77c6b5d4f3-rr2sm
+    namespace: edge
+    phase: Pending
+    node: null
+    restartPolicy: Always
+    ownerChain: ReplicaSet/edge-agent-77c6b5d4f3 <- Deployment/edge-agent
+
+    === CONDITIONS ===
+    PodScheduled=False reason=Unschedulable message=0/3 nodes are available: 3 node(s) didn't match Pod's node affinity/selector.
+
+    === RECENT EVENTS ===
+    [Warning] FailedScheduling: 0/3 nodes are available: 3 node(s) didn't match Pod's node affinity/selector. (x21)
+
+    === CONTAINERS ===
+    - name: agent
+      image: registry.local/edge-agent:0.5.0
+
+    === LOGS (agent, last 100 lines) ===
+    (logs unavailable: pod not scheduled)
+
+- id: liveness-slow-start
+  expect:
+    - "liveness"
+    - "initialdelayseconds|slow to start|startup|delay"
+  context: |
+    === POD ===
+    name: legacy-erp-5d4c3b2a1-jj7xn
+    namespace: erp
+    phase: Running
+    node: worker-1
+    restartPolicy: Always
+    ownerChain: ReplicaSet/legacy-erp-5d4c3b2a1 <- Deployment/legacy-erp
+
+    === CONTAINERS ===
+    - name: erp
+      image: registry.local/legacy-erp:12.3.1
+      ready: false
+      restartCount: 8
+      state: Running since=2026-07-09T11:40:12Z
+      lastState: Terminated reason=Error exitCode=137
+
+    === RECENT EVENTS ===
+    [Warning] Unhealthy: Liveness probe failed: Get "http://10.244.1.33:8080/health": dial tcp 10.244.1.33:8080: connect: connection refused (x24)
+    [Normal] Killing: Container erp failed liveness probe, will be restarted (x8)
+
+    === LOGS (erp, last 100 lines) ===
+    [startup] loading 240 modules, this typically takes 90-120 seconds...
+    [startup] modules loaded: 61/240
+
+- id: readiness-wrong-port
+  expect:
+    - "readiness"
+    - "port|connection refused"
+  context: |
+    === POD ===
+    name: inventory-6f5e4d3c2-bb1km
+    namespace: prod
+    phase: Running
+    node: worker-2
+    restartPolicy: Always
+    ownerChain: ReplicaSet/inventory-6f5e4d3c2 <- Deployment/inventory
+
+    === CONTAINERS ===
+    - name: inventory
+      image: registry.local/inventory:3.4.0
+      ready: false
+      restartCount: 0
+      state: Running since=2026-07-09T09:00:00Z
+
+    === RECENT EVENTS ===
+    [Warning] Unhealthy: Readiness probe failed: Get "http://10.244.2.17:8081/ready": dial tcp 10.244.2.17:8081: connect: connection refused (x156)
+
+    === LOGS (inventory, last 100 lines) ===
+    server listening on :8080
+    ready to accept connections
+
+- id: readiness-404-path
+  expect:
+    - "readiness"
+    - "404|path|/healthz|/health"
+  context: |
+    === POD ===
+    name: notify-api-9a8b7c6d5-cc3lp
+    namespace: prod
+    phase: Running
+    node: worker-3
+    restartPolicy: Always
+    ownerChain: ReplicaSet/notify-api-9a8b7c6d5 <- Deployment/notify-api
+
+    === CONTAINERS ===
+    - name: api
+      image: registry.local/notify-api:2.2.0
+      ready: false
+      restartCount: 0
+      state: Running since=2026-07-09T08:30:00Z
+
+    === RECENT EVENTS ===
+    [Warning] Unhealthy: Readiness probe failed: HTTP probe failed with statuscode: 404 (x203)
+
+    === LOGS (api, last 100 lines) ===
+    GET /health 404 (registered routes: /healthz, /api/v1/notify)
+
+- id: init-container-failed
+  expect:
+    - "init container|initcontainer|init-container"
+    - "migration|exit code 1|failed"
+  context: |
+    === POD ===
+    name: shop-api-4c3d2e1f0-dd5nq
+    namespace: shop
+    phase: Pending
+    node: worker-1
+    restartPolicy: Always
+    ownerChain: ReplicaSet/shop-api-4c3d2e1f0 <- Deployment/shop-api
+
+    === CONDITIONS ===
+    Initialized=False reason=ContainersNotInitialized message=containers with incomplete status: [db-migrate]
+
+    === CONTAINERS ===
+    - name: api
+      image: registry.local/shop-api:5.1.0
+      ready: false
+      restartCount: 0
+      state: Waiting reason=PodInitializing
+
+    === RECENT EVENTS ===
+    [Warning] BackOff: Back-off restarting failed container db-migrate in pod shop-api-4c3d2e1f0-dd5nq (x18)
+
+    === LOGS (api, last 100 lines) ===
+    (logs unavailable: container not started; init container db-migrate last run: "migration 0042_add_index failed: relation orders does not exist", exit code 1)
+
+- id: configmap-missing
+  expect:
+    - "configmap"
+    - "not found|missing|createcontainerconfigerror|does not exist"
+  context: |
+    === POD ===
+    name: gateway-3b2c1d0e9-ee7rp
+    namespace: prod
+    phase: Pending
+    node: worker-2
+    restartPolicy: Always
+    ownerChain: ReplicaSet/gateway-3b2c1d0e9 <- Deployment/gateway
+
+    === CONTAINERS ===
+    - name: gateway
+      image: registry.local/gateway:1.9.0
+      ready: false
+      restartCount: 0
+      state: Waiting reason=CreateContainerConfigError message=configmap "gateway-routes" not found
+
+    === RECENT EVENTS ===
+    [Warning] Failed: Error: configmap "gateway-routes" not found (x31)
+
+    === LOGS (gateway, last 100 lines) ===
+    (logs unavailable: container not started)
+
+- id: secret-missing
+  expect:
+    - "secret"
+    - "not found|missing|createcontainerconfigerror|does not exist"
+  context: |
+    === POD ===
+    name: mailer-2a1b0c9d8-ff9st
+    namespace: prod
+    phase: Pending
+    node: worker-3
+    restartPolicy: Always
+    ownerChain: ReplicaSet/mailer-2a1b0c9d8 <- Deployment/mailer
+
+    === CONTAINERS ===
+    - name: mailer
+      image: registry.local/mailer:2.0.1
+      env:
+        SMTP_PASSWORD=***REDACTED***
+      ready: false
+      restartCount: 0
+      state: Waiting reason=CreateContainerConfigError message=secret "smtp-credentials" not found
+
+    === RECENT EVENTS ===
+    [Warning] Failed: Error: secret "smtp-credentials" not found (x27)
+
+    === LOGS (mailer, last 100 lines) ===
+    (logs unavailable: container not started)
+
+- id: volume-pvc-unbound
+  expect:
+    - "persistentvolumeclaim|pvc"
+    - "unbound|pending|not bound"
+  context: |
+    === POD ===
+    name: postgres-0
+    namespace: db
+    phase: Pending
+    node: null
+    restartPolicy: Always
+    ownerChain: StatefulSet/postgres
+
+    === CONDITIONS ===
+    PodScheduled=False reason=Unschedulable message=0/3 nodes are available: pod has unbound immediate PersistentVolumeClaims.
+
+    === RECENT EVENTS ===
+    [Warning] FailedScheduling: 0/3 nodes are available: pod has unbound immediate PersistentVolumeClaims. (x17)
+
+    === CONTAINERS ===
+    - name: postgres
+      image: postgres:16.3
+
+    === LOGS (postgres, last 100 lines) ===
+    (logs unavailable: pod not scheduled)
+
+- id: evicted-disk-pressure
+  expect:
+    - "evict"
+    - "disk pressure|ephemeral-storage|disk"
+  context: |
+    === POD ===
+    name: log-shipper-8d7c6b5a4-gg1tu
+    namespace: logging
+    phase: Failed
+    node: worker-1
+    restartPolicy: Always
+    ownerChain: ReplicaSet/log-shipper-8d7c6b5a4 <- Deployment/log-shipper
+
+    === NODE (worker-1) ===
+    Ready=True MemoryPressure=False DiskPressure=True PIDPressure=False
+
+    === CONDITIONS ===
+    Ready=False reason=Evicted message=The node was low on resource: ephemeral-storage. Threshold quantity: 2Gi, available: 1.2Gi.
+
+    === CONTAINERS ===
+    - name: shipper
+      image: registry.local/log-shipper:1.3.0
+
+    === RECENT EVENTS ===
+    [Warning] Evicted: The node was low on resource: ephemeral-storage. (x1)
+
+    === LOGS (shipper, last 100 lines) ===
+    (logs unavailable: pod evicted)
+
+- id: node-notready
+  expect:
+    - "node"
+    - "notready|not ready|node problem|unreachable"
+  context: |
+    === POD ===
+    name: api-cache-5e4d3c2b1-hh3vw
+    namespace: prod
+    phase: Running
+    node: worker-2
+    restartPolicy: Always
+    ownerChain: ReplicaSet/api-cache-5e4d3c2b1 <- Deployment/api-cache
+
+    === NODE (worker-2) ===
+    Ready=Unknown MemoryPressure=Unknown DiskPressure=Unknown PIDPressure=Unknown
+
+    === CONDITIONS ===
+    Ready=False reason=NodeLost message=Node worker-2 which was running pod api-cache-5e4d3c2b1-hh3vw is unresponsive
+
+    === CONTAINERS ===
+    - name: cache
+      image: registry.local/api-cache:2.5.0
+      ready: false
+      restartCount: 0
+      state: Running since=2026-07-08T22:00:00Z
+
+    === RECENT EVENTS ===
+    [Warning] NodeNotReady: Node is not ready (x4)
+
+    === LOGS (cache, last 100 lines) ===
+    (logs unavailable: node unreachable)
+
+- id: stuck-terminating-finalizer
+  expect:
+    - "terminating|deletion"
+    - "finalizer|stuck|force"
+  context: |
+    === POD ===
+    name: old-worker-1b2c3d4e5-ii6xy
+    namespace: batch
+    phase: Running
+    deletionTimestamp: 2026-07-09T06:00:00Z
+    node: worker-3
+    restartPolicy: Always
+    ownerChain: ReplicaSet/old-worker-1b2c3d4e5 <- Deployment/old-worker
+
+    === CONTAINERS ===
+    - name: worker
+      image: registry.local/old-worker:1.0.0
+      ready: false
+      restartCount: 0
+      state: Terminated reason=Completed exitCode=0
+
+    === RECENT EVENTS ===
+    (none)
+
+    === LOGS (worker, last 100 lines) ===
+    shutdown complete
+
+- id: dns-resolution-failure
+  expect:
+    - "dns|resolve|coredns"
+    - "no such host|lookup|service name|payment-svc|hostname"
+  context: |
+    === POD ===
+    name: checkout-9f8e7d6c5-jj8za
+    namespace: shop
+    phase: Running
+    node: worker-1
+    restartPolicy: Always
+    ownerChain: ReplicaSet/checkout-9f8e7d6c5 <- Deployment/checkout
+
+    === CONTAINERS ===
+    - name: checkout
+      image: registry.local/checkout:3.0.0
+      ready: true
+      restartCount: 2
+      state: Running since=2026-07-09T10:00:00Z
+
+    === RECENT EVENTS ===
+    (none)
+
+    === LOGS (checkout, last 100 lines) ===
+    error contacting payment service: Get "http://payment-svc.payments.svc.cluster.local/charge": dial tcp: lookup payment-svc.payments.svc.cluster.local: no such host
+    retrying in 5s...
+    error contacting payment service: dial tcp: lookup payment-svc.payments.svc.cluster.local: no such host
+
+- id: healthy-pod-control
+  expect:
+    - "healthy|no issue|running normally|nothing wrong|looks fine|working as expected|no problem"
+  context: |
+    === POD ===
+    name: static-site-7a6b5c4d3-kk2ab
+    namespace: web
+    phase: Running
+    node: worker-2
+    restartPolicy: Always
+    ownerChain: ReplicaSet/static-site-7a6b5c4d3 <- Deployment/static-site
+
+    === NODE (worker-2) ===
+    Ready=True MemoryPressure=False DiskPressure=False PIDPressure=False
+
+    === CONDITIONS ===
+    Ready=True
+    ContainersReady=True
+    PodScheduled=True
+
+    === CONTAINERS ===
+    - name: nginx
+      image: nginx:1.27.0
+      ready: true
+      restartCount: 0
+      state: Running since=2026-07-01T08:00:00Z
+
+    === RECENT EVENTS ===
+    (none)
+
+    === LOGS (nginx, last 100 lines) ===
+    10.244.1.5 - - [09/Jul/2026:12:00:01 +0000] "GET / HTTP/1.1" 200 615
+    10.244.1.9 - - [09/Jul/2026:12:00:04 +0000] "GET /assets/app.css HTTP/1.1" 200 4210
+
+# The interesting diagnosis here is the ROOT CAUSE in the logs (403 on the
+# bucket), not reciting "backoff limit" back — the event only says why retries
+# stopped, the logs say why it failed.
+- id: job-backofflimit-exceeded
+  expect:
+    - "403|forbidden|permission|credential|access"
+    - "bucket|s3"
+  context: |
+    === POD ===
+    name: nightly-export-vv4cd
+    namespace: batch
+    phase: Failed
+    node: worker-3
+    restartPolicy: Never
+    ownerChain: Job/nightly-export
+
+    === CONTAINERS ===
+    - name: export
+      image: registry.local/exporter:1.2.0
+      ready: false
+      restartCount: 0
+      state: Terminated reason=Error exitCode=2
+
+    === RECENT EVENTS ===
+    [Warning] BackoffLimitExceeded: Job has reached the specified backoff limit (x1)
+
+    === LOGS (export, last 100 lines) ===
+    export failed: destination bucket "s3://acme-reports" returned 403 Forbidden
+
+- id: pvc-no-storageclass
+  expect:
+    - "storageclass|storage class"
+    - "pending|no persistent volumes|provisioner|not found"
+  context: |
+    === PERSISTENTVOLUMECLAIM ===
+    name: analytics-data
+    namespace: analytics
+    status: Pending
+    requestedStorage: 50Gi
+    storageClassName: fast-ssd
+    volumeName: (none)
+
+    === RECENT EVENTS ===
+    [Warning] ProvisioningFailed: storageclass.storage.k8s.io "fast-ssd" not found (x42)
+
+- id: pvc-waitforfirstconsumer
+  expect:
+    - "waitforfirstconsumer|first consumer"
+    - "pod|scheduled|consumer"
+  context: |
+    === PERSISTENTVOLUMECLAIM ===
+    name: cache-volume
+    namespace: prod
+    status: Pending
+    requestedStorage: 10Gi
+    storageClassName: local-path
+    volumeName: (none)
+
+    === RECENT EVENTS ===
+    [Normal] WaitForFirstConsumer: waiting for first consumer to be created before binding (x67)
+
+# ProgressDeadlineExceeded is the symptom; the FailedCreate quota event is the
+# root cause — score the diagnosis, not the condition name.
+- id: deployment-progress-deadline
+  expect:
+    - "quota"
+    - "memory|limit"
+  context: |
+    === DEPLOYMENT ===
+    name: recommendations
+    namespace: prod
+    replicas: desired=4 updated=2 ready=2 available=2 unavailable=2
+
+    === CONDITIONS ===
+    Available=True reason=MinimumReplicasAvailable
+    Progressing=False reason=ProgressDeadlineExceeded message=ReplicaSet "recommendations-8c7b6a5d4" has timed out progressing.
+
+    === RECENT EVENTS ===
+    [Warning] FailedCreate: (from ReplicaSet recommendations-8c7b6a5d4) Error creating: pods "recommendations-8c7b6a5d4-" is forbidden: exceeded quota: prod-quota, requested: limits.memory=2Gi, used: limits.memory=15Gi, limited: limits.memory=16Gi (x33)
+
+- id: service-no-endpoints
+  expect:
+    - "selector|label"
+    - "endpoint|no pods|match"
+  context: |
+    === SERVICE ===
+    name: payments-svc
+    namespace: payments
+    type: ClusterIP
+    clusterIP: 10.96.14.202
+    selector: app=payments-api
+    ports: 80 -> 8080/TCP
+    endpoints: (none)
+
+    === RELATED PODS ===
+    Pods in namespace with label app=payment-api: 3 (Running)
+    Pods in namespace with label app=payments-api: 0
+
+    === RECENT EVENTS ===
+    (none)
+
+- id: hostport-conflict
+  expect:
+    - "pending|unschedulable|schedul"
+    - "host port|hostport|port"
+  context: |
+    === POD ===
+    name: ingress-node-4d3e2f1a0-ll5bc
+    namespace: ingress
+    phase: Pending
+    node: null
+    restartPolicy: Always
+    ownerChain: ReplicaSet/ingress-node-4d3e2f1a0 <- Deployment/ingress-node
+
+    === CONDITIONS ===
+    PodScheduled=False reason=Unschedulable message=0/3 nodes are available: 3 node(s) didn't have free ports for the requested pod ports.
+
+    === RECENT EVENTS ===
+    [Warning] FailedScheduling: 0/3 nodes are available: 3 node(s) didn't have free ports for the requested pod ports. (x12)
+
+    === CONTAINERS ===
+    - name: proxy
+      image: registry.local/ingress-node:2.1.0
+
+    === LOGS (proxy, last 100 lines) ===
+    (logs unavailable: pod not scheduled)
+
+- id: readonly-filesystem-crash
+  expect:
+    - "read-only|readonly|read only"
+    - "filesystem|write|permission"
+  context: |
+    === POD ===
+    name: uploader-6a5b4c3d2-mm7de
+    namespace: media
+    phase: Running
+    node: worker-1
+    restartPolicy: Always
+    ownerChain: ReplicaSet/uploader-6a5b4c3d2 <- Deployment/uploader
+
+    === CONTAINERS ===
+    - name: uploader
+      image: registry.local/uploader:1.4.0
+      ready: false
+      restartCount: 7
+      state: Waiting reason=CrashLoopBackOff message=back-off 2m40s restarting failed container
+      lastState: Terminated reason=Error exitCode=1
+
+    === RECENT EVENTS ===
+    [Warning] BackOff: Back-off restarting failed container uploader (x40)
+
+    === LOGS (uploader, last 100 lines) ===
+    FATAL: cannot create temp dir /var/tmp/uploads: mkdir /var/tmp/uploads: read-only file system
+
+- id: cert-expired-tls
+  expect:
+    - "certificate|tls|x509"
+    - "expired|invalid"
+  context: |
+    === POD ===
+    name: webhook-svc-3c2d1e0f9-nn9fg
+    namespace: infra
+    phase: Running
+    node: worker-2
+    restartPolicy: Always
+    ownerChain: ReplicaSet/webhook-svc-3c2d1e0f9 <- Deployment/webhook-svc
+
+    === CONTAINERS ===
+    - name: webhook
+      image: registry.local/webhook-svc:0.8.0
+      ready: true
+      restartCount: 0
+      state: Running since=2026-07-09T07:00:00Z
+
+    === RECENT EVENTS ===
+    (none)
+
+    === LOGS (webhook, last 100 lines) ===
+    error handling admission review: x509: certificate has expired or is not yet valid: current time 2026-07-09T12:00:00Z is after 2026-07-01T00:00:00Z
+    tls handshake error from 10.244.0.1:44212: remote error: bad certificate
+
+- id: db-connection-refused
+  expect:
+    - "database|postgres|connection"
+    - "refused|unreachable|connect"
+  context: |
+    === POD ===
+    name: user-api-2e1f0a9b8-oo1hi
+    namespace: prod
+    phase: Running
+    node: worker-3
+    restartPolicy: Always
+    ownerChain: ReplicaSet/user-api-2e1f0a9b8 <- Deployment/user-api
+
+    === CONTAINERS ===
+    - name: api
+      image: registry.local/user-api:6.2.0
+      ready: false
+      restartCount: 4
+      state: Running since=2026-07-09T11:55:00Z
+      lastState: Terminated reason=Error exitCode=1
+
+    === RECENT EVENTS ===
+    [Warning] Unhealthy: Readiness probe failed: HTTP probe failed with statuscode: 503 (x36)
+
+    === LOGS (api, last 100 lines) ===
+    connecting to postgres at postgres-rw.db.svc:5432...
+    ERROR: connection to server at "postgres-rw.db.svc" (10.96.22.10), port 5432 failed: Connection refused
+    health endpoint degraded: database unavailable
+
+- id: quota-exceeded-pods
+  expect:
+    - "quota|resourcequota"
+    - "exceeded|forbidden|limit"
+  context: |
+    === DEPLOYMENT ===
+    name: load-test
+    namespace: staging
+    replicas: desired=10 updated=4 ready=4 available=4 unavailable=6
+
+    === CONDITIONS ===
+    Progressing=True reason=ReplicaSetUpdated
+    ReplicaFailure=True reason=FailedCreate message=pods "load-test-5f4e3d2c1-" is forbidden: exceeded quota: staging-quota, requested: pods=1, used: pods=20, limited: pods=20
+
+    === RECENT EVENTS ===
+    [Warning] FailedCreate: pods "load-test-5f4e3d2c1-" is forbidden: exceeded quota: staging-quota, requested: pods=1, used: pods=20, limited: pods=20 (x58)
+
+- id: statefulset-pod-pvc-node-affinity
+  expect:
+    - "volume|persistentvolume|pv"
+    - "node affinity|affinity conflict|different node|bound"
+  context: |
+    === POD ===
+    name: kafka-2
+    namespace: streaming
+    phase: Pending
+    node: null
+    restartPolicy: Always
+    ownerChain: StatefulSet/kafka
+
+    === CONDITIONS ===
+    PodScheduled=False reason=Unschedulable message=0/3 nodes are available: 1 node(s) had volume node affinity conflict, 2 Insufficient memory.
+
+    === RECENT EVENTS ===
+    [Warning] FailedScheduling: 0/3 nodes are available: 1 node(s) had volume node affinity conflict, 2 Insufficient memory. (x19)
+
+    === CONTAINERS ===
+    - name: kafka
+      image: bitnami/kafka:3.7.0
+
+    === LOGS (kafka, last 100 lines) ===
+    (logs unavailable: pod not scheduled)
+
+- id: cronjob-invalid-image-arch
+  expect:
+    - "exec format|architecture|arm|amd64|platform"
+    - "image"
+  context: |
+    === POD ===
+    name: metrics-rollup-29112480-pp3jk
+    namespace: monitoring
+    phase: Running
+    node: worker-arm-1
+    restartPolicy: OnFailure
+    ownerChain: Job/metrics-rollup-29112480
+
+    === CONTAINERS ===
+    - name: rollup
+      image: registry.local/metrics-rollup:1.0.0
+      ready: false
+      restartCount: 5
+      state: Waiting reason=CrashLoopBackOff message=back-off 1m20s restarting failed container
+      lastState: Terminated reason=Error exitCode=1
+
+    === RECENT EVENTS ===
+    [Warning] BackOff: Back-off restarting failed container rollup (x14)
+
+    === LOGS (rollup, last 100 lines) ===
+    exec /usr/local/bin/rollup: exec format error
+
+- id: too-many-restarts-flapping-dependency
+  expect:
+    - "restart"
+    - "dependency|upstream|redis|connection"
+  context: |
+    === POD ===
+    name: rate-limiter-1d0e9f8a7-qq5lm
+    namespace: prod
+    phase: Running
+    node: worker-2
+    restartPolicy: Always
+    ownerChain: ReplicaSet/rate-limiter-1d0e9f8a7 <- Deployment/rate-limiter
+
+    === CONTAINERS ===
+    - name: limiter
+      image: registry.local/rate-limiter:2.3.0
+      ready: true
+      restartCount: 31
+      state: Running since=2026-07-09T12:10:00Z
+      lastState: Terminated reason=Error exitCode=1
+
+    === RECENT EVENTS ===
+    [Warning] BackOff: Back-off restarting failed container limiter (x201)
+
+    === LOGS (limiter, last 100 lines) ===
+    panic: failed to connect to redis at redis-master.cache.svc:6379: i/o timeout
+    goroutine 1 [running]:
+    main.main()
