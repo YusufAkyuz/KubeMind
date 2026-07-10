@@ -119,9 +119,12 @@ export function Sidebar({ onClose }: Props) {
     enabled: !!clusterId && clusterId !== '0' && currentNs !== '_',
     refetchInterval: 15_000,
   })
-  const alertPodCount = (pods ?? []).filter((p) =>
-    p.lastTerminatedReason != null || p.restartCount > 5 || p.containers.some((c) => c.lastTerminatedReason != null || c.restartCount > 5)
-  ).length
+  const alertPodCount = (pods ?? []).filter((p) => {
+    if (p.phase === 'Succeeded' || p.phase === 'Completed') return false
+    const allReady = p.containers.length === 0 || p.containers.every((c) => c.ready)
+    if (p.phase === 'Running' && allReady) return false
+    return p.phase === 'Failed' || p.lastTerminatedReason === 'OOMKilled' || p.containers.some((c) => !c.ready)
+  }).length
 
   const handleClusterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     navigate(`/clusters/${e.target.value}/nodes`); onClose?.()

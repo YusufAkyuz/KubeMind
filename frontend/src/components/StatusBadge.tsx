@@ -21,7 +21,8 @@ interface Props {
   className?: string
 }
 
-export function StatusBadge({ status, className = '' }: Props) {
+export function StatusBadge({ status: rawStatus, className = '' }: Props) {
+  const status = rawStatus === 'Unknown' ? 'Pending' : rawStatus
   const variant = VARIANTS[status] ?? 'bg-gray-100 text-gray-600 ring-gray-500/20'
   return (
     <span

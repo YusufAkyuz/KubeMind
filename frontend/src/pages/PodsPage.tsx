@@ -97,7 +97,8 @@ export function PodsPage() {
         <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
           {data.map((pod) => {
             const readyCount = pod.containers.filter((c) => c.ready).length
-            const highRestarts = pod.restartCount > 5
+            const isHealthy = (pod.phase === 'Running' && (pod.containers.length === 0 || readyCount === pod.containers.length)) ||
+                              pod.phase === 'Succeeded' || pod.phase === 'Completed'
             return (
               <Tr
                 key={`${pod.namespace}/${pod.name}`}
@@ -109,7 +110,7 @@ export function PodsPage() {
                 <Td>
                   <div className="flex items-center gap-1.5">
                     <StatusBadge status={pod.phase} />
-                    {pod.lastTerminatedReason && (
+                    {!isHealthy && pod.lastTerminatedReason && pod.lastTerminatedReason !== pod.phase && (
                       <span className="inline-flex items-center rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-600 border border-red-500/20">
                         {pod.lastTerminatedReason}
                       </span>
@@ -118,7 +119,7 @@ export function PodsPage() {
                 </Td>
                 <Td className="tabular-nums text-gray-500">{readyCount}/{pod.containers.length}</Td>
                 <Td>
-                  <span className={highRestarts || pod.restartCount > 0 ? 'font-semibold text-red-600' : 'text-gray-500 tabular-nums'}>
+                  <span className={!isHealthy && pod.restartCount > 0 ? 'font-semibold text-red-600' : 'text-gray-500 tabular-nums'}>
                     {pod.restartCount}
                   </span>
                 </Td>
@@ -133,117 +134,122 @@ export function PodsPage() {
         </Table>
       )}
 
-      <DetailDrawer
-        open={!!selected}
-        title={selected?.name ?? ''}
-        subtitle={`Pod · ${selected?.namespace ?? ns}`}
-        onClose={() => setSelected(null)}
-      >
-        {selected && ns && (
-          <>
-            <div className="pb-3">
-              <ExplainPanel
-                key={`${clusterId}/${selected.namespace}/${selected.name}`}
-                clusterId={clusterId!}
-                namespace={selected.namespace}
-                kind="Pod"
-                name={selected.name}
-              />
-            </div>
+      {(() => {
+        const selectedReadyCount = selected?.containers.filter((c) => c.ready).length ?? 0
+        const isSelectedHealthy = selected
+          ? (selected.phase === 'Running' && (selected.containers.length === 0 || selectedReadyCount === selected.containers.length)) ||
+            selected.phase === 'Succeeded' || selected.phase === 'Completed'
+          : true
 
-            <DrawerSection title="Overview" />
-            <DrawerRow label="Status" value={
-              <div className="flex items-center gap-2">
-                <StatusBadge status={selected.phase} />
-                {selected.lastTerminatedReason && (
-                  <span className="inline-flex items-center rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-600 border border-red-500/20">
-                    {selected.lastTerminatedReason}
-                  </span>
-                )}
-              </div>
-            } />
-            {selected.lastTerminatedReason && (
-              <DrawerRow label="Last Reason" value={<span className="font-semibold text-red-600">{selected.lastTerminatedReason}</span>} />
-            )}
-            <DrawerRow label="Namespace" value={selected.namespace} />
-            <DrawerRow label="Node" value={selected.nodeName} />
-            <DrawerRow label="Pod IP" value={<span className="font-mono text-xs">{selected.podIP}</span>} />
-            <DrawerRow label="Restarts" value={
-              <span className={selected.restartCount > 0 ? 'font-semibold text-red-600' : ''}>{selected.restartCount}</span>
-            } />
-            <DrawerRow label="CPU (usage)" value={metricsByName.get(selected.name)?.cpuUsage ?? '—'} />
-            <DrawerRow label="Memory (usage)" value={metricsByName.get(selected.name)?.memoryUsage ?? '—'} />
-            <DrawerRow label="Age" value={formatAge(selected.creationTimestamp)} />
-
-            {isAdmin && (
+        return (
+          <DetailDrawer
+            open={!!selected}
+            title={selected?.name ?? ''}
+            subtitle={`Pod · ${selected?.namespace ?? ns}`}
+            onClose={() => setSelected(null)}
+          >
+            {selected && ns && (
               <>
-                <DrawerSection title="Actions" />
-                <button
-                  onClick={() => setDeleteOpen(true)}
-                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium
-                             text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  Delete pod
-                </button>
-              </>
-            )}
+                <div className="pb-3">
+                  <ExplainPanel
+                    key={`${clusterId}/${selected.namespace}/${selected.name}`}
+                    clusterId={clusterId!}
+                    namespace={selected.namespace}
+                    kind="Pod"
+                    name={selected.name}
+                  />
+                </div>
 
-            {selected.containers.length > 0 && (
-              <>
-                <DrawerSection title="Containers" />
-                {selected.containers.map((c) => (
-                  <div key={c.name} className="rounded-lg border border-gray-200 p-3 space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-gray-900 truncate">{c.name}</span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <StatusBadge status={c.ready ? 'Ready' : 'NotReady'} />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/clusters/${clusterId}/namespaces/${selected.namespace}/pods/${selected.name}/logs?container=${c.name}`)
-                          }}
-                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
-                          title="View logs"
-                        >
-                          <IconTerminal className="w-3.5 h-3.5" />
-                          Logs
-                        </button>
-                        {isAdmin && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              terminalPanel.openPodExec(
-                                clusterId!, selected.namespace, selected.name,
-                                selected.containers.map((sc) => sc.name), c.name,
-                              )
-                            }}
-                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
-                            title="Open terminal"
-                          >
-                            <IconTerminal className="w-3.5 h-3.5" />
-                            Exec
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <p className="font-mono text-xs text-gray-400 break-all">{c.image}</p>
-                    <div className="flex items-center gap-4 text-xs">
-                      <span className={c.restartCount > 0 ? 'font-semibold text-red-600' : 'text-gray-400'}>
-                        Restarts: {c.restartCount}
-                      </span>
-                      {c.lastTerminatedReason && (
-                        <span className="inline-flex items-center rounded bg-red-500/15 px-1.5 py-0.5 font-semibold text-red-600 border border-red-500/20">
-                          Last reason: {c.lastTerminatedReason}
-                        </span>
-                      )}
-                    </div>
+                <DrawerSection title="Overview" />
+                <DrawerRow label="Status" value={
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={selected.phase} />
                   </div>
-                ))}
+                } />
+                {!isSelectedHealthy && selected.lastTerminatedReason && selected.lastTerminatedReason !== selected.phase && (
+                  <DrawerRow label="Reason" value={<span className="font-semibold text-red-600">{selected.lastTerminatedReason}</span>} />
+                )}
+                <DrawerRow label="Namespace" value={selected.namespace} />
+                <DrawerRow label="Node" value={selected.nodeName} />
+                <DrawerRow label="Pod IP" value={<span className="font-mono text-xs">{selected.podIP}</span>} />
+                <DrawerRow label="Restarts" value={
+                  <span className={!isSelectedHealthy && selected.restartCount > 0 ? 'font-semibold text-red-600' : ''}>{selected.restartCount}</span>
+                } />
+                <DrawerRow label="CPU (usage)" value={metricsByName.get(selected.name)?.cpuUsage ?? '—'} />
+                <DrawerRow label="Memory (usage)" value={metricsByName.get(selected.name)?.memoryUsage ?? '—'} />
+                <DrawerRow label="Age" value={formatAge(selected.creationTimestamp)} />
+
+                {isAdmin && (
+                  <>
+                    <DrawerSection title="Actions" />
+                    <button
+                      onClick={() => setDeleteOpen(true)}
+                      className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium
+                                 text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      Delete pod
+                    </button>
+                  </>
+                )}
+
+                {selected.containers.length > 0 && (
+                  <>
+                    <DrawerSection title="Containers" />
+                    {selected.containers.map((c) => (
+                      <div key={c.name} className="rounded-lg border border-gray-200 p-3 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium text-gray-900 truncate">{c.name}</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <StatusBadge status={c.ready ? 'Ready' : 'NotReady'} />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(`/clusters/${clusterId}/namespaces/${selected.namespace}/pods/${selected.name}/logs?container=${c.name}`)
+                              }}
+                              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                              title="View logs"
+                            >
+                              <IconTerminal className="w-3.5 h-3.5" />
+                              Logs
+                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  terminalPanel.openPodExec(
+                                    clusterId!, selected.namespace, selected.name,
+                                    selected.containers.map((sc) => sc.name), c.name,
+                                  )
+                                }}
+                                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                                title="Open terminal"
+                              >
+                                <IconTerminal className="w-3.5 h-3.5" />
+                                Exec
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="font-mono text-xs text-gray-400 break-all">{c.image}</p>
+                        <div className="flex items-center gap-4 text-xs">
+                          <span className={!isSelectedHealthy && c.restartCount > 0 ? 'font-semibold text-red-600' : 'text-gray-400'}>
+                            Restarts: {c.restartCount}
+                          </span>
+                          {!isSelectedHealthy && c.lastTerminatedReason && c.lastTerminatedReason !== selected.lastTerminatedReason && (
+                            <span className="inline-flex items-center rounded bg-red-500/15 px-1.5 py-0.5 font-semibold text-red-600 border border-red-500/20">
+                              Reason: {c.lastTerminatedReason}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </>
             )}
-          </>
-        )}
-      </DetailDrawer>
+          </DetailDrawer>
+        )
+      })()}
 
       <ConfirmDialog
         open={deleteOpen}

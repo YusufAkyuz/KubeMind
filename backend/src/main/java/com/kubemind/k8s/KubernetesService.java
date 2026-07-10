@@ -109,13 +109,16 @@ public class KubernetesService {
         var spec = pod.getSpec();
         var status = pod.getStatus();
 
-        String phase = meta.getDeletionTimestamp() != null ? "Terminating"
-            : (status != null && status.getPhase() != null ? status.getPhase() : "Unknown");
-
         Map<String, ContainerStatus> csMap = status != null && status.getContainerStatuses() != null
             ? status.getContainerStatuses().stream()
                 .collect(Collectors.toMap(ContainerStatus::getName, cs -> cs, (a, b) -> a))
             : Map.of();
+
+        String phase = meta.getDeletionTimestamp() != null ? "Terminating"
+            : (status != null && status.getPhase() != null && !"Unknown".equalsIgnoreCase(status.getPhase())
+                ? status.getPhase()
+                : (csMap.values().stream().anyMatch(cs -> cs.getState() != null && cs.getState().getRunning() != null)
+                    ? "Running" : "Pending"));
 
         int totalRestarts = csMap.values().stream()
             .mapToInt(cs -> cs.getRestartCount() != null ? cs.getRestartCount() : 0)
