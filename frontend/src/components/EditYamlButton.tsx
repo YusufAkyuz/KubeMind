@@ -5,6 +5,7 @@ import { useToast } from './Toast'
 import { streamText } from '../utils/streamFetch'
 import { stripLeadingFence, stripTrailingFence } from '../utils/yamlFence'
 import { IconSparkles } from './Icons'
+import { DiffViewer, useDiffCount } from './DiffViewer'
 
 interface Props {
   clusterId: string
@@ -18,16 +19,19 @@ interface Props {
 /** Self-contained "Edit YAML" button + modal, generic across every editable resource kind. */
 export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) {
   const [open, setOpen] = useState(false)
+  const [originalYaml, setOriginalYaml] = useState('')
   const [yaml, setYaml] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [applying, setApplying] = useState(false)
+  const [showDiff, setShowDiff] = useState(false)
 
   const [aiInstruction, setAiInstruction] = useState('')
   const [aiEditing, setAiEditing] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
 
   const toast = useToast()
+  const changeCount = useDiffCount(originalYaml, yaml)
 
   const base = ns
     ? `/clusters/${clusterId}/namespaces/${ns}/resources/${kind}/${name}/yaml`
@@ -39,11 +43,13 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
     setError(null)
     setAiError(null)
     setAiInstruction('')
+    setShowDiff(false)
     try {
       const res = await api.get<string>(base, {
         responseType: 'text',
         transformResponse: [(data) => data], // keep raw YAML string, skip JSON parse
       })
+      setOriginalYaml(res.data)
       setYaml(res.data)
     } catch (e) {
       setError(apiErrorMessage(e, 'Could not load YAML'))
@@ -71,6 +77,7 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
     if (!aiInstruction.trim() || aiEditing) return
     setAiEditing(true)
     setAiError(null)
+    setShowDiff(false)
     let buffer = ''
     try {
       await streamText(
@@ -113,14 +120,14 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
                   onChange={(e) => setAiInstruction(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') editWithAi() }}
                   placeholder='Describe a change, e.g. "increase replicas to 5"'
-                  disabled={aiEditing || applying}
+                  disabled={aiEditing || applying || showDiff}
                   className="flex-1 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs
                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                              disabled:opacity-60"
                 />
                 <button
                   onClick={editWithAi}
-                  disabled={aiEditing || applying || !aiInstruction.trim()}
+                  disabled={aiEditing || applying || !aiInstruction.trim() || showDiff}
                   className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-gradient-to-br from-blue-600 to-violet-600
                              px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50
                              disabled:cursor-not-allowed transition-opacity"
@@ -131,14 +138,52 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
               </div>
               {aiError && <p className="text-xs text-red-600">{aiError}</p>}
 
-              <textarea
-                value={yaml}
-                onChange={(e) => setYaml(e.target.value)}
-                spellCheck={false}
-                className="w-full h-[45vh] rounded-md border border-gray-300 bg-gray-950 text-gray-100
-                           font-mono text-xs leading-5 p-3 resize-none
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              {/* Editor / Diff toggle */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowDiff(false)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    !showDiff
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Editor
+                </button>
+                <button
+                  onClick={() => setShowDiff(true)}
+                  disabled={changeCount === 0}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors
+                    disabled:opacity-40 disabled:cursor-not-allowed ${
+                    showDiff
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Review changes
+                  {changeCount > 0 && (
+                    <span className={`ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                      showDiff ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {changeCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* Editor or Diff view */}
+              {showDiff ? (
+                <DiffViewer oldText={originalYaml} newText={yaml} />
+              ) : (
+                <textarea
+                  value={yaml}
+                  onChange={(e) => setYaml(e.target.value)}
+                  spellCheck={false}
+                  className="w-full h-[45vh] rounded-md border border-gray-300 bg-gray-950 text-gray-100
+                             font-mono text-xs leading-5 p-3 resize-none
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              )}
             </>
           )}
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -157,7 +202,7 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
               </button>
               <button
                 onClick={apply}
-                disabled={applying || loading || aiEditing || !yaml.trim()}
+                disabled={applying || loading || aiEditing || !yaml.trim() || changeCount === 0}
                 className="rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white
                            hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
