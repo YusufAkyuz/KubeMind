@@ -575,6 +575,7 @@
     namespace: batch
     phase: Running
     deletionTimestamp: 2026-07-09T06:00:00Z
+    finalizers: [batch.acme.io/cleanup-hook]
     node: worker-3
     restartPolicy: Always
     ownerChain: ReplicaSet/old-worker-1b2c3d4e5 <- Deployment/old-worker
@@ -591,6 +592,10 @@
 
     === LOGS (worker, last 100 lines) ===
     shutdown complete
+
+    # Note: deletionTimestamp is 8+ hours in the past and the pod is still
+    # present — that gap, plus the unresolved finalizer, is what should read
+    # as "stuck terminating", not the timestamp alone.
 
 - id: dns-resolution-failure
   expect:
@@ -622,7 +627,7 @@
 
 - id: healthy-pod-control
   expect:
-    - "healthy|no issue|running normally|nothing wrong|looks fine|working as expected|no problem"
+    - "healthy|no issue|running normally|nothing wrong|looks fine|working as expected|no problem|functioning correctly|operating normally|no anomal|no error|no evidence of a problem|appears fine|appears healthy|no signs of|is fine"
   context: |
     === POD ===
     name: static-site-7a6b5c4d3-kk2ab
