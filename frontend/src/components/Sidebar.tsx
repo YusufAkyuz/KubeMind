@@ -19,7 +19,7 @@ import {
   Logo,
 } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
-import type { Cluster, Namespace } from '../types/k8s'
+import type { Cluster, Namespace, Pod } from '../types/k8s'
 
 type IconType = ComponentType<{ className?: string }>
 
@@ -113,6 +113,16 @@ export function Sidebar({ onClose }: Props) {
   const currentNs = (urlNs && urlNs !== '_' ? urlNs : null) ?? remembered
   const currentCluster = clusters?.find((c) => String(c.id) === clusterId)
 
+  const { data: pods } = useQuery<Pod[]>({
+    queryKey: ['pods', clusterId, currentNs ?? 'all'],
+    queryFn: async () => (await api.get<Pod[]>(`/clusters/${clusterId}/namespaces/${currentNs ?? 'all'}/pods`)).data,
+    enabled: !!clusterId && clusterId !== '0' && currentNs !== '_',
+    refetchInterval: 15_000,
+  })
+  const alertPodCount = (pods ?? []).filter((p) =>
+    p.lastTerminatedReason != null || p.restartCount > 5 || p.containers.some((c) => c.lastTerminatedReason != null || c.restartCount > 5)
+  ).length
+
   const handleClusterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     navigate(`/clusters/${e.target.value}/nodes`); onClose?.()
   }
@@ -134,7 +144,7 @@ export function Sidebar({ onClose }: Props) {
 
   const subLinkClass = ({ isActive }: { isActive: boolean }) =>
     [
-      'block pl-11 pr-3 py-1.5 rounded-lg text-[13px] transition-colors',
+      'flex items-center justify-between pl-11 pr-3 py-1.5 rounded-lg text-[13px] transition-colors',
       isActive ? 'bg-blue-500/15 text-blue-300 font-medium'
         : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
     ].join(' ')
@@ -221,6 +231,7 @@ export function Sidebar({ onClose }: Props) {
         {/* Namespaced groups */}
         {GROUPS.map(({ key, label: groupLabel, Icon, items }) => {
           const expanded = openGroup === key
+          const showGroupAlert = key === 'workloads' && alertPodCount > 0 && !expanded
           return (
             <div key={key}>
               <button
@@ -230,23 +241,37 @@ export function Sidebar({ onClose }: Props) {
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="flex-1 text-left">{groupLabel}</span>
+                {showGroupAlert && (
+                  <span className="flex h-2 w-2 rounded-full bg-red-500 shrink-0 mr-1" title={`${alertPodCount} pod alerts`} />
+                )}
                 <IconChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${expanded ? '' : '-rotate-90'}`} />
               </button>
               {expanded && (
                 <div className="mt-0.5 space-y-0.5">
-                  {items.map((item) => (
-                    <NavLink
-                      key={item.suffix}
-                      to={item.clusterScoped
-                        ? `/clusters/${clusterId}/${item.suffix}`
-                        : `/clusters/${clusterId}/namespaces/${currentNs ?? '_'}/${item.suffix}`}
-                      className={subLinkClass}
-                      onClick={onClose}
-                      end={item.clusterScoped}
-                    >
-                      {item.label}
-                    </NavLink>
-                  ))}
+                  {items.map((item) => {
+                    const isPodsItem = item.suffix === 'pods' && alertPodCount > 0
+                    return (
+                      <NavLink
+                        key={item.suffix}
+                        to={item.clusterScoped
+                          ? `/clusters/${clusterId}/${item.suffix}`
+                          : `/clusters/${clusterId}/namespaces/${currentNs ?? '_'}/${item.suffix}`}
+                        className={subLinkClass}
+                        onClick={onClose}
+                        end={item.clusterScoped}
+                      >
+                        <span>{item.label}</span>
+                        {isPodsItem && (
+                          <span
+                            className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/25 text-red-400 border border-red-500/30 shrink-0 leading-none"
+                            title={`${alertPodCount} pod(s) with OOMKill/restarts`}
+                          >
+                            {alertPodCount}
+                          </span>
+                        )}
+                      </NavLink>
+                    )
+                  })}
                 </div>
               )}
             </div>

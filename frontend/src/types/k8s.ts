@@ -73,6 +73,7 @@ export interface ContainerInfo {
   image: string
   ready: boolean
   restartCount: number
+  lastTerminatedReason: string | null
 }
 
 export interface Pod {
@@ -83,6 +84,7 @@ export interface Pod {
   restartCount: number
   podIP: string | null
   creationTimestamp: string | null
+  lastTerminatedReason: string | null
   containers: ContainerInfo[]
 }
 

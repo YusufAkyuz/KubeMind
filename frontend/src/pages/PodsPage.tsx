@@ -106,10 +106,19 @@ export function PodsPage() {
               >
                 <Td className="font-medium text-gray-900">{pod.name}</Td>
                 {showNsColumn && <Td className="text-gray-500">{pod.namespace}</Td>}
-                <Td><StatusBadge status={pod.phase} /></Td>
+                <Td>
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge status={pod.phase} />
+                    {pod.lastTerminatedReason && (
+                      <span className="inline-flex items-center rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-600 border border-red-500/20">
+                        {pod.lastTerminatedReason}
+                      </span>
+                    )}
+                  </div>
+                </Td>
                 <Td className="tabular-nums text-gray-500">{readyCount}/{pod.containers.length}</Td>
                 <Td>
-                  <span className={highRestarts ? 'font-semibold text-red-600' : 'text-gray-500 tabular-nums'}>
+                  <span className={highRestarts || pod.restartCount > 0 ? 'font-semibold text-red-600' : 'text-gray-500 tabular-nums'}>
                     {pod.restartCount}
                   </span>
                 </Td>
@@ -143,11 +152,25 @@ export function PodsPage() {
             </div>
 
             <DrawerSection title="Overview" />
-            <DrawerRow label="Status" value={<StatusBadge status={selected.phase} />} />
+            <DrawerRow label="Status" value={
+              <div className="flex items-center gap-2">
+                <StatusBadge status={selected.phase} />
+                {selected.lastTerminatedReason && (
+                  <span className="inline-flex items-center rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-600 border border-red-500/20">
+                    {selected.lastTerminatedReason}
+                  </span>
+                )}
+              </div>
+            } />
+            {selected.lastTerminatedReason && (
+              <DrawerRow label="Last Reason" value={<span className="font-semibold text-red-600">{selected.lastTerminatedReason}</span>} />
+            )}
             <DrawerRow label="Namespace" value={selected.namespace} />
             <DrawerRow label="Node" value={selected.nodeName} />
             <DrawerRow label="Pod IP" value={<span className="font-mono text-xs">{selected.podIP}</span>} />
-            <DrawerRow label="Restarts" value={selected.restartCount} />
+            <DrawerRow label="Restarts" value={
+              <span className={selected.restartCount > 0 ? 'font-semibold text-red-600' : ''}>{selected.restartCount}</span>
+            } />
             <DrawerRow label="CPU (usage)" value={metricsByName.get(selected.name)?.cpuUsage ?? '—'} />
             <DrawerRow label="Memory (usage)" value={metricsByName.get(selected.name)?.memoryUsage ?? '—'} />
             <DrawerRow label="Age" value={formatAge(selected.creationTimestamp)} />
@@ -204,7 +227,16 @@ export function PodsPage() {
                       </div>
                     </div>
                     <p className="font-mono text-xs text-gray-400 break-all">{c.image}</p>
-                    <p className="text-xs text-gray-400">Restarts: {c.restartCount}</p>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className={c.restartCount > 0 ? 'font-semibold text-red-600' : 'text-gray-400'}>
+                        Restarts: {c.restartCount}
+                      </span>
+                      {c.lastTerminatedReason && (
+                        <span className="inline-flex items-center rounded bg-red-500/15 px-1.5 py-0.5 font-semibold text-red-600 border border-red-500/20">
+                          Last reason: {c.lastTerminatedReason}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </>

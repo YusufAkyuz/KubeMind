@@ -84,4 +84,56 @@ class KubernetesServiceTest {
 
         assertThat(all).extracting(PvcDto::name).containsExactlyInAnyOrder("pvc-a", "pvc-b");
     }
+
+    @Test
+    void listPodsExtractsLastTerminatedReasonOomKilled() {
+        client.pods().inNamespace("ns-a").resource(new io.fabric8.kubernetes.api.model.PodBuilder()
+            .withNewMetadata().withName("pod-oom").withNamespace("ns-a").endMetadata()
+            .withNewSpec()
+                .addNewContainer().withName("app").withImage("nginx").endContainer()
+            .endSpec()
+            .withNewStatus()
+                .withPhase("Running")
+                .addNewContainerStatus()
+                    .withName("app")
+                    .withReady(true)
+                    .withRestartCount(2)
+                    .withNewState().withNewRunning().endRunning().endState()
+                    .withNewLastState().withNewTerminated().withReason("OOMKilled").withExitCode(137).endTerminated().endLastState()
+                .endContainerStatus()
+            .endStatus()
+            .build()).create();
+
+        var pods = service.listPods(0L, "ns-a");
+        assertThat(pods).hasSize(1);
+        PodDto pod = pods.get(0);
+        assertThat(pod.lastTerminatedReason()).isEqualTo("OOMKilled");
+        assertThat(pod.containers()).hasSize(1);
+        assertThat(pod.containers().get(0).lastTerminatedReason()).isEqualTo("OOMKilled");
+    }
+
+    @Test
+    void listPodsExtractsLastTerminatedReasonCrashLoop() {
+        client.pods().inNamespace("ns-a").resource(new io.fabric8.kubernetes.api.model.PodBuilder()
+            .withNewMetadata().withName("pod-crash").withNamespace("ns-a").endMetadata()
+            .withNewSpec()
+                .addNewContainer().withName("worker").withImage("busybox").endContainer()
+            .endSpec()
+            .withNewStatus()
+                .withPhase("Running")
+                .addNewContainerStatus()
+                    .withName("worker")
+                    .withReady(false)
+                    .withRestartCount(5)
+                    .withNewState().withNewWaiting().withReason("CrashLoopBackOff").endWaiting().endState()
+                    .withNewLastState().withNewTerminated().withReason("Error").withExitCode(1).endTerminated().endLastState()
+                .endContainerStatus()
+            .endStatus()
+            .build()).create();
+
+        var pods = service.listPods(0L, "ns-a");
+        assertThat(pods).hasSize(1);
+        PodDto pod = pods.get(0);
+        assertThat(pod.lastTerminatedReason()).isEqualTo("CrashLoopBackOff (Error)");
+    }
 }

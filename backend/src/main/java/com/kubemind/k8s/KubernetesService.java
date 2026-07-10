@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -127,10 +128,22 @@ public class KubernetesService {
                     c.getName(),
                     c.getImage(),
                     cs != null && Boolean.TRUE.equals(cs.getReady()),
-                    cs != null && cs.getRestartCount() != null ? cs.getRestartCount() : 0
+                    cs != null && cs.getRestartCount() != null ? cs.getRestartCount() : 0,
+                    extractContainerTerminatedReason(cs)
                 );
               }).toList()
             : List.of();
+
+        String podTerminatedReason = containers.stream()
+            .map(PodDto.ContainerInfo::lastTerminatedReason)
+            .filter(Objects::nonNull)
+            .filter("OOMKilled"::equals)
+            .findFirst()
+            .orElseGet(() -> containers.stream()
+                .map(PodDto.ContainerInfo::lastTerminatedReason)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null));
 
         return new PodDto(
             meta.getName(),
@@ -140,8 +153,41 @@ public class KubernetesService {
             totalRestarts,
             status != null ? status.getPodIP() : null,
             meta.getCreationTimestamp(),
+            podTerminatedReason,
             containers
         );
+    }
+
+    private String extractContainerTerminatedReason(ContainerStatus cs) {
+        if (cs == null) return null;
+        var state = cs.getState();
+        var last = cs.getLastState();
+
+        if (state != null && state.getTerminated() != null && state.getTerminated().getReason() != null) {
+            return state.getTerminated().getReason();
+        }
+
+        String lastReason = (last != null && last.getTerminated() != null) ? last.getTerminated().getReason() : null;
+
+        if (state != null && state.getWaiting() != null && state.getWaiting().getReason() != null) {
+            String waitReason = state.getWaiting().getReason();
+            if ("OOMKilled".equals(lastReason)) {
+                return "OOMKilled";
+            }
+            if (lastReason != null && !"Completed".equals(lastReason)) {
+                return waitReason + " (" + lastReason + ")";
+            }
+            return waitReason;
+        }
+
+        if ("OOMKilled".equals(lastReason)) {
+            return "OOMKilled";
+        }
+        if (lastReason != null && !"Completed".equals(lastReason) && cs.getRestartCount() != null && cs.getRestartCount() > 0) {
+            return lastReason;
+        }
+
+        return null;
     }
 
     // ── Deployments ───────────────────────────────────────────────────────────

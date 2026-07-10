@@ -10,7 +10,14 @@ public record PodDto(
     int restartCount,
     String podIP,
     String creationTimestamp,
+    String lastTerminatedReason,
     List<ContainerInfo> containers
 ) {
-    public record ContainerInfo(String name, String image, boolean ready, int restartCount) {}
+    public record ContainerInfo(
+        String name,
+        String image,
+        boolean ready,
+        int restartCount,
+        String lastTerminatedReason
+    ) {}
 }
