@@ -29,7 +29,8 @@ final class ManifestValidation {
         Map.entry("DaemonSet", "apps/v1"),
         Map.entry("Job", "batch/v1"),
         Map.entry("CronJob", "batch/v1"),
-        Map.entry("Ingress", "networking.k8s.io/v1")
+        Map.entry("Ingress", "networking.k8s.io/v1"),
+        Map.entry("HorizontalPodAutoscaler", "autoscaling/v2")
     );
 
     private ManifestValidation() {}

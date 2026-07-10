@@ -37,4 +37,9 @@ public class WorkloadController {
     public List<CronJobDto> cronJobs(@PathVariable long clusterId, @PathVariable String ns) {
         return kubernetesService.listCronJobs(clusterId, ns);
     }
+
+    @GetMapping("/namespaces/{ns}/hpas")
+    public List<HpaDto> hpas(@PathVariable long clusterId, @PathVariable String ns) {
+        return kubernetesService.listHpas(clusterId, ns);
+    }
 }

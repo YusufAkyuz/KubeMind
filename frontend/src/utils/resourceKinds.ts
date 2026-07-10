@@ -2,6 +2,7 @@
 export const ALLOWED_KINDS = [
   'Pod', 'Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob',
   'Service', 'Ingress', 'ConfigMap', 'Secret', 'PersistentVolumeClaim',
+  'HorizontalPodAutoscaler',
 ] as const
 
 export type AllowedKind = (typeof ALLOWED_KINDS)[number]
@@ -19,6 +20,7 @@ export const KIND_ROUTES: Record<string, string> = {
   ConfigMap: 'configmaps',
   Secret: 'secrets',
   PersistentVolumeClaim: 'persistentvolumeclaims',
+  HorizontalPodAutoscaler: 'hpas',
 }
 
 /** Starter YAML skeletons shown when the editor is empty, before AI drafting. */
@@ -194,5 +196,25 @@ spec:
   resources:
     requests:
       storage: 1Gi
+`,
+  HorizontalPodAutoscaler: (ns) => `apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-hpa
+  namespace: ${ns}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-deployment
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
 `,
 }

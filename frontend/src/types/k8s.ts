@@ -216,3 +216,15 @@ export interface K8sEvent {
   lastTimestamp: string | null
   firstTimestamp: string | null
 }
+
+export interface Hpa {
+  name: string
+  namespace: string
+  targetRef: string
+  minReplicas: number
+  maxReplicas: number
+  currentReplicas: number
+  currentCpuPercent: number | null
+  targetCpuPercent: number | null
+  creationTimestamp: string | null
+}

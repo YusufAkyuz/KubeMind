@@ -23,7 +23,8 @@ public class ResourceCreationService {
     /** Kinds a user may create through this feature. Keep in sync with the frontend's KIND_ROUTES. */
     public static final Set<String> ALLOWED_KINDS = Set.of(
         "Pod", "Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob",
-        "Service", "Ingress", "ConfigMap", "Secret", "PersistentVolumeClaim"
+        "Service", "Ingress", "ConfigMap", "Secret", "PersistentVolumeClaim",
+        "HorizontalPodAutoscaler"
     );
 
     private static final int MAX_YAML_BYTES = 64 * 1024;

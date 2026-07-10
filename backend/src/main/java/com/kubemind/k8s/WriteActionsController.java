@@ -81,4 +81,17 @@ public class WriteActionsController {
         writeService.deleteNamespace(auth.getName(), clusterId, name);
         return ResponseEntity.noContent().build();
     }
+
+    public record ScaleHpaRequest(
+        @Min(1) @Max(KubernetesWriteService.MAX_REPLICAS) int minReplicas,
+        @Min(1) @Max(KubernetesWriteService.MAX_REPLICAS) int maxReplicas
+    ) {}
+
+    @PostMapping("/namespaces/{ns}/hpas/{name}/scale")
+    public HpaDto scaleHpa(@PathVariable long clusterId,
+                           @PathVariable String ns, @PathVariable String name,
+                           @Valid @RequestBody ScaleHpaRequest request, Authentication auth) {
+        return writeService.scaleHpa(auth.getName(), clusterId, ns, name,
+            request.minReplicas(), request.maxReplicas());
+    }
 }

@@ -189,6 +189,83 @@ public class KubernetesWriteService {
         }
     }
 
+    // ── Scale HPA ──────────────────────────────────────────────────────────────
+
+    public HpaDto scaleHpa(String username, long clusterId,
+                           String ns, String name, int minReplicas, int maxReplicas) {
+        if (minReplicas < 1 || minReplicas > MAX_REPLICAS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "minReplicas must be between 1 and " + MAX_REPLICAS);
+        }
+        if (maxReplicas < minReplicas || maxReplicas > MAX_REPLICAS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "maxReplicas must be between " + minReplicas + " and " + MAX_REPLICAS);
+        }
+        String ref = "HorizontalPodAutoscaler/" + ns + "/" + name;
+        Map<String, Object> payload = Map.of("minReplicas", minReplicas, "maxReplicas", maxReplicas);
+        try {
+            var client = clientFactory.getClient(clusterId);
+            var existing = client.autoscaling().v2().horizontalPodAutoscalers()
+                .inNamespace(ns).withName(name).get();
+            if (existing == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, ref + " not found");
+            }
+            existing.getSpec().setMinReplicas(minReplicas);
+            existing.getSpec().setMaxReplicas(maxReplicas);
+            var updated = client.autoscaling().v2().horizontalPodAutoscalers()
+                .inNamespace(ns).withName(name).replace(existing);
+            auditService.record(username, clusterId, "SCALE_HPA", ref, payload, true, null);
+            return toHpaDto(updated);
+        } catch (Exception e) {
+            auditService.record(username, clusterId, "SCALE_HPA", ref, payload, false, e.getMessage());
+            throw e;
+        }
+    }
+
+    private HpaDto toHpaDto(io.fabric8.kubernetes.api.model.autoscaling.v2.HorizontalPodAutoscaler hpa) {
+        var meta = hpa.getMetadata();
+        var spec = hpa.getSpec();
+        var status = hpa.getStatus();
+
+        String targetRef = spec != null && spec.getScaleTargetRef() != null
+            ? spec.getScaleTargetRef().getKind() + "/" + spec.getScaleTargetRef().getName()
+            : "—";
+
+        Integer currentCpu = null;
+        Integer targetCpu = null;
+        if (spec != null && spec.getMetrics() != null) {
+            for (var metric : spec.getMetrics()) {
+                if ("Resource".equals(metric.getType()) && metric.getResource() != null
+                    && "cpu".equals(metric.getResource().getName())
+                    && metric.getResource().getTarget() != null
+                    && metric.getResource().getTarget().getAverageUtilization() != null) {
+                    targetCpu = metric.getResource().getTarget().getAverageUtilization();
+                    break;
+                }
+            }
+        }
+        if (status != null && status.getCurrentMetrics() != null) {
+            for (var metric : status.getCurrentMetrics()) {
+                if ("Resource".equals(metric.getType()) && metric.getResource() != null
+                    && "cpu".equals(metric.getResource().getName())
+                    && metric.getResource().getCurrent() != null
+                    && metric.getResource().getCurrent().getAverageUtilization() != null) {
+                    currentCpu = metric.getResource().getCurrent().getAverageUtilization();
+                    break;
+                }
+            }
+        }
+
+        return new HpaDto(
+            meta.getName(), meta.getNamespace(), targetRef,
+            spec != null && spec.getMinReplicas() != null ? spec.getMinReplicas() : 1,
+            spec != null && spec.getMaxReplicas() != null ? spec.getMaxReplicas() : 0,
+            status != null && status.getCurrentReplicas() != null ? status.getCurrentReplicas() : 0,
+            currentCpu, targetCpu,
+            meta.getCreationTimestamp()
+        );
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void validateReplicas(int replicas) {

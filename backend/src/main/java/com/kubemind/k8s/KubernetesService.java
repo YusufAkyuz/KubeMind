@@ -477,6 +477,74 @@ public class KubernetesService {
             .toList();
     }
 
+    // ── HPA (Horizontal Pod Autoscalers) ─────────────────────────────────────
+
+    public List<HpaDto> listHpas(long clusterId, String namespace) {
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.autoscaling().v2().horizontalPodAutoscalers().inAnyNamespace().list().getItems()
+            : client.autoscaling().v2().horizontalPodAutoscalers().inNamespace(namespace).list().getItems();
+        return items.stream()
+            .map(this::toHpaDto)
+            .toList();
+    }
+
+    private HpaDto toHpaDto(io.fabric8.kubernetes.api.model.autoscaling.v2.HorizontalPodAutoscaler hpa) {
+        var meta = hpa.getMetadata();
+        var spec = hpa.getSpec();
+        var status = hpa.getStatus();
+
+        String targetRef = spec != null && spec.getScaleTargetRef() != null
+            ? spec.getScaleTargetRef().getKind() + "/" + spec.getScaleTargetRef().getName()
+            : "—";
+
+        int minReplicas = spec != null && spec.getMinReplicas() != null ? spec.getMinReplicas() : 1;
+        int maxReplicas = spec != null && spec.getMaxReplicas() != null ? spec.getMaxReplicas() : 0;
+        int currentReplicas = status != null && status.getCurrentReplicas() != null ? status.getCurrentReplicas() : 0;
+
+        // Extract CPU utilization from metrics (most common metric type)
+        Integer currentCpu = null;
+        Integer targetCpu = null;
+
+        if (spec != null && spec.getMetrics() != null) {
+            for (var metric : spec.getMetrics()) {
+                if (metric.getType() != null && "Resource".equals(metric.getType())
+                    && metric.getResource() != null
+                    && "cpu".equals(metric.getResource().getName())) {
+                    if (metric.getResource().getTarget() != null
+                        && metric.getResource().getTarget().getAverageUtilization() != null) {
+                        targetCpu = metric.getResource().getTarget().getAverageUtilization();
+                    }
+                    break;
+                }
+            }
+        }
+        if (status != null && status.getCurrentMetrics() != null) {
+            for (var metric : status.getCurrentMetrics()) {
+                if (metric.getType() != null && "Resource".equals(metric.getType())
+                    && metric.getResource() != null
+                    && "cpu".equals(metric.getResource().getName())
+                    && metric.getResource().getCurrent() != null
+                    && metric.getResource().getCurrent().getAverageUtilization() != null) {
+                    currentCpu = metric.getResource().getCurrent().getAverageUtilization();
+                    break;
+                }
+            }
+        }
+
+        return new HpaDto(
+            meta.getName(),
+            meta.getNamespace(),
+            targetRef,
+            minReplicas,
+            maxReplicas,
+            currentReplicas,
+            currentCpu,
+            targetCpu,
+            meta.getCreationTimestamp()
+        );
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String firstImage(List<io.fabric8.kubernetes.api.model.Container> containers) {
