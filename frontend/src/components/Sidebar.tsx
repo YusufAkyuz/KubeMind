@@ -16,6 +16,7 @@ import {
   IconPlus,
   IconTerminal,
   IconLayers,
+  IconShield,
   Logo,
 } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
@@ -61,6 +62,19 @@ const GROUPS: NavGroup[] = [
       { suffix: 'persistentvolumeclaims', label: 'Persistent Volume Claims' },
       // Cluster-scoped (no namespace segment) — sits in the same group as PVCs.
       { suffix: 'persistentvolumes', label: 'Persistent Volumes', clusterScoped: true },
+    ],
+  },
+  {
+    // Read-only: none of these kinds go through the generic create/edit-YAML
+    // paths (see KubernetesService's Access Control section / CLAUDE.md
+    // least-privilege rule) — this group is view-only by design.
+    key: 'access', label: 'Access Control', Icon: IconShield, items: [
+      { suffix: 'serviceaccounts', label: 'Service Accounts' },
+      // ClusterRoles/ClusterRoleBindings are cluster-scoped — same pattern as PVs above.
+      { suffix: 'clusterroles', label: 'Cluster Roles', clusterScoped: true },
+      { suffix: 'roles', label: 'Roles' },
+      { suffix: 'clusterrolebindings', label: 'Cluster Role Bindings', clusterScoped: true },
+      { suffix: 'rolebindings', label: 'Role Bindings' },
     ],
   },
 ]

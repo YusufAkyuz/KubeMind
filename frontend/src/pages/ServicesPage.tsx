@@ -8,6 +8,7 @@ import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import { EditYamlButton } from '../components/EditYamlButton'
+import { ForwardServiceButton } from '../components/ForwardServiceButton'
 import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
 import { useAuth } from '../auth/AuthContext'
@@ -72,6 +73,7 @@ export function ServicesPage() {
 
             {isAdmin && (
               <div className="pb-3 flex flex-wrap gap-2">
+                <ForwardServiceButton clusterId={clusterId!} ns={selected.namespace} name={selected.name} />
                 <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="Service" name={selected.name} />
                 <DeleteResourceButton
                   clusterId={clusterId!} ns={selected.namespace} kind="Service" name={selected.name}

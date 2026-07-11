@@ -41,7 +41,13 @@ public class SecurityConfig {
             // mutating request. BREACH protection stays on for server-rendered use.
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
+                .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+                // The port-forward proxy (see PortForwardController) passes through arbitrary
+                // HTTP traffic to a Service inside the cluster — that traffic's own POST/PUT
+                // forms have no idea about our XSRF cookie scheme, so our CSRF check can't
+                // apply to it. The session id in the path is itself an unguessable capability
+                // token, and the route is ADMIN-gated + audited at session-open time.
+                .ignoringRequestMatchers("/api/port-forward/**"))
             .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()

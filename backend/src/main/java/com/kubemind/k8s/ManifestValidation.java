@@ -30,7 +30,12 @@ final class ManifestValidation {
         Map.entry("Job", "batch/v1"),
         Map.entry("CronJob", "batch/v1"),
         Map.entry("Ingress", "networking.k8s.io/v1"),
-        Map.entry("HorizontalPodAutoscaler", "autoscaling/v2")
+        Map.entry("HorizontalPodAutoscaler", "autoscaling/v2"),
+        Map.entry("ServiceAccount", "v1"),
+        Map.entry("Role", "rbac.authorization.k8s.io/v1"),
+        Map.entry("RoleBinding", "rbac.authorization.k8s.io/v1"),
+        Map.entry("ClusterRole", "rbac.authorization.k8s.io/v1"),
+        Map.entry("ClusterRoleBinding", "rbac.authorization.k8s.io/v1")
     );
 
     private ManifestValidation() {}

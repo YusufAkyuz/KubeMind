@@ -2,7 +2,7 @@
 export const ALLOWED_KINDS = [
   'Pod', 'Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob',
   'Service', 'Ingress', 'ConfigMap', 'Secret', 'PersistentVolumeClaim',
-  'HorizontalPodAutoscaler',
+  'HorizontalPodAutoscaler', 'ServiceAccount', 'Role', 'RoleBinding',
 ] as const
 
 export type AllowedKind = (typeof ALLOWED_KINDS)[number]
@@ -21,6 +21,9 @@ export const KIND_ROUTES: Record<string, string> = {
   Secret: 'secrets',
   PersistentVolumeClaim: 'persistentvolumeclaims',
   HorizontalPodAutoscaler: 'hpas',
+  ServiceAccount: 'serviceaccounts',
+  Role: 'roles',
+  RoleBinding: 'rolebindings',
 }
 
 /** Starter YAML skeletons shown when the editor is empty, before AI drafting. */
@@ -216,5 +219,35 @@ spec:
         target:
           type: Utilization
           averageUtilization: 80
+`,
+  ServiceAccount: (ns) => `apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-service-account
+  namespace: ${ns}
+`,
+  Role: (ns) => `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-role
+  namespace: ${ns}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+`,
+  RoleBinding: (ns) => `apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-role-binding
+  namespace: ${ns}
+subjects:
+  - kind: ServiceAccount
+    name: my-service-account
+    namespace: ${ns}
+roleRef:
+  kind: Role
+  name: my-role
+  apiGroup: rbac.authorization.k8s.io
 `,
 }

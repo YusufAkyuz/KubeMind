@@ -25,7 +25,8 @@ public class ResourceEditService {
         .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
     /** Cluster-scoped kinds editable through the no-namespace route. */
-    public static final Set<String> CLUSTER_SCOPED_EDITABLE_KINDS = Set.of("Namespace");
+    public static final Set<String> CLUSTER_SCOPED_EDITABLE_KINDS =
+        Set.of("Namespace", "ClusterRole", "ClusterRoleBinding");
 
     private final ClusterClientFactory clientFactory;
     private final AuditService auditService;

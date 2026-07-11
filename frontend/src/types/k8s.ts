@@ -230,3 +230,68 @@ export interface Hpa {
   targetCpuPercent: number | null
   creationTimestamp: string | null
 }
+
+// ── Access Control (RBAC) — see AccessControlController ────────────────────────
+// ServiceAccount/Role/RoleBinding are creatable/editable/deletable (generic resource
+// endpoints); ClusterRole/ClusterRoleBinding are creatable/editable (cluster-scoped
+// endpoints) but not deletable through this app yet. `systemManaged` is a UI-only
+// hint (see backend RbacFilters) — pages default to hiding these rows.
+
+export interface ServiceAccount {
+  name: string
+  namespace: string
+  secretCount: number
+  imagePullSecretCount: number
+  automountToken: boolean | null
+  creationTimestamp: string | null
+  systemManaged: boolean
+}
+
+export interface RbacRule {
+  apiGroups: string[]
+  resources: string[]
+  resourceNames: string[]
+  verbs: string[]
+}
+
+export interface RbacSubject {
+  kind: string
+  name: string
+  namespace: string | null
+}
+
+export interface Role {
+  name: string
+  namespace: string
+  rules: RbacRule[]
+  creationTimestamp: string | null
+  systemManaged: boolean
+}
+
+/** Cluster-scoped. */
+export interface ClusterRole {
+  name: string
+  rules: RbacRule[]
+  creationTimestamp: string | null
+  systemManaged: boolean
+}
+
+export interface RoleBinding {
+  name: string
+  namespace: string
+  roleRefKind: string | null
+  roleRefName: string | null
+  subjects: RbacSubject[]
+  creationTimestamp: string | null
+  systemManaged: boolean
+}
+
+/** Cluster-scoped. */
+export interface ClusterRoleBinding {
+  name: string
+  roleRefKind: string | null
+  roleRefName: string | null
+  subjects: RbacSubject[]
+  creationTimestamp: string | null
+  systemManaged: boolean
+}

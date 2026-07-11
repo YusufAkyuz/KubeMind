@@ -13,9 +13,17 @@ import java.util.Set;
 /**
  * Creates arbitrary-but-allowlisted Kubernetes resources from a user-authored
  * YAML manifest. Deliberately scoped to the kinds this app already manages
- * elsewhere — RBAC objects, Namespaces, and CRDs are out of scope so this
- * feature cannot be used for privilege escalation (see CLAUDE.md least-privilege
- * rule). Every attempt, successful or not, is audited.
+ * elsewhere. Namespaces and CRDs are out of scope so this feature cannot be
+ * used for privilege escalation via cluster-scoped admin objects. Every
+ * attempt, successful or not, is audited.
+ *
+ * ServiceAccount/Role/RoleBinding ARE included (2026-07: maintainer explicitly
+ * accepted the privilege-escalation risk this reopens — an ADMIN can now grant
+ * any permission to any identity via a RoleBinding, same trust tier as the
+ * Cluster Terminal's cluster-admin grant. Still ADMIN-only + audited, no new
+ * exception beyond what CLAUDE.md already documents for ADMIN-tier actions).
+ * ClusterRole/ClusterRoleBinding are cluster-scoped and go through
+ * {@link ClusterResourceCreationService} instead — see CLUSTER_ALLOWED_KINDS.
  */
 @Service
 public class ResourceCreationService {
@@ -24,7 +32,7 @@ public class ResourceCreationService {
     public static final Set<String> ALLOWED_KINDS = Set.of(
         "Pod", "Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob",
         "Service", "Ingress", "ConfigMap", "Secret", "PersistentVolumeClaim",
-        "HorizontalPodAutoscaler"
+        "HorizontalPodAutoscaler", "ServiceAccount", "Role", "RoleBinding"
     );
 
     private static final int MAX_YAML_BYTES = 64 * 1024;

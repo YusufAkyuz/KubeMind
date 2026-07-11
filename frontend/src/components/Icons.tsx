@@ -237,3 +237,19 @@ export function IconThumbDown({ className = 'w-4 h-4' }: IconProps) {
     </svg>
   )
 }
+
+export function IconShield({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" />
+    </svg>
+  )
+}
+
+export function IconDownload({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" />
+    </svg>
+  )
+}

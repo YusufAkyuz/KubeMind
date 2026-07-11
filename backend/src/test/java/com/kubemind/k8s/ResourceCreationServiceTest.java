@@ -146,7 +146,7 @@ class ResourceCreationServiceTest {
     void allowedKindsAreSortedAndStable() {
         assertThat(service.allowedKinds()).containsExactly(
             "ConfigMap", "CronJob", "DaemonSet", "Deployment", "HorizontalPodAutoscaler", "Ingress", "Job",
-            "PersistentVolumeClaim", "Pod", "Secret", "Service", "StatefulSet"
+            "PersistentVolumeClaim", "Pod", "Role", "RoleBinding", "Secret", "Service", "ServiceAccount", "StatefulSet"
         );
     }
 }

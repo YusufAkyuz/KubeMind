@@ -22,7 +22,13 @@ import { IngressesPage } from './pages/IngressesPage'
 import { PvcsPage } from './pages/PvcsPage'
 import { PvsPage } from './pages/PvsPage'
 import { CreateResourcePage } from './pages/CreateResourcePage'
+import { CreateClusterResourcePage } from './pages/CreateClusterResourcePage'
 import { RunbooksPage } from './pages/RunbooksPage'
+import { ServiceAccountsPage } from './pages/ServiceAccountsPage'
+import { RolesPage } from './pages/RolesPage'
+import { RoleBindingsPage } from './pages/RoleBindingsPage'
+import { ClusterRolesPage } from './pages/ClusterRolesPage'
+import { ClusterRoleBindingsPage } from './pages/ClusterRoleBindingsPage'
 import { ChatWidget } from './components/ChatWidget'
 import { TerminalPanelProvider, useTerminalPanel } from './terminal/TerminalPanelContext'
 import { ChatPanelProvider } from './chat/ChatPanelContext'
@@ -73,6 +79,14 @@ export default function App() {
         <Route path="/clusters/:clusterId/persistentvolumes" element={<ProtectedRoute><PvsPage /></ProtectedRoute>} />
         <Route path="/clusters/:clusterId/namespaces/:ns/create" element={<ProtectedRoute><CreateResourcePage /></ProtectedRoute>} />
         <Route path="/clusters/:clusterId/namespaces/:ns/pods/:pod/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
+
+        {/* Access Control (RBAC) — read-only */}
+        <Route path="/clusters/:clusterId/namespaces/:ns/serviceaccounts" element={<ProtectedRoute><ServiceAccountsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/roles" element={<ProtectedRoute><RolesPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/rolebindings" element={<ProtectedRoute><RoleBindingsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/clusterroles" element={<ProtectedRoute><ClusterRolesPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/clusterrolebindings" element={<ProtectedRoute><ClusterRoleBindingsPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/create" element={<ProtectedRoute><CreateClusterResourcePage /></ProtectedRoute>} />
 
         {/* Admin */}
         <Route path="/settings/clusters" element={<ProtectedRoute><ClustersPage /></ProtectedRoute>} />

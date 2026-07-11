@@ -9,6 +9,8 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.batch.v1.CronJob;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
+import io.fabric8.kubernetes.api.model.rbac.PolicyRule;
+import io.fabric8.kubernetes.api.model.rbac.Subject;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -592,6 +594,113 @@ public class KubernetesService {
             targetCpu,
             meta.getCreationTimestamp()
         );
+    }
+
+    // ── Access Control (RBAC) ───────────────────────────────────────────────────
+    // ServiceAccount/Role/RoleBinding are creatable/editable/deletable through the
+    // generic resource endpoints (ResourceCreationService.ALLOWED_KINDS); ClusterRole/
+    // ClusterRoleBinding through ClusterResourceCreationService + the cluster-scoped
+    // edit route. See those classes' comments for the privilege-escalation trade-off
+    // the maintainer accepted. `systemManaged` (RbacFilters) is a UI-only signal so
+    // the pages can default to hiding the ~70 Kubernetes-bootstrapped rows by name.
+
+    public List<ServiceAccountDto> listServiceAccounts(long clusterId, String namespace) {
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.serviceAccounts().inAnyNamespace().list().getItems()
+            : client.serviceAccounts().inNamespace(namespace).list().getItems();
+        return items.stream()
+            .map(sa -> new ServiceAccountDto(
+                sa.getMetadata().getName(),
+                sa.getMetadata().getNamespace(),
+                sa.getSecrets() != null ? sa.getSecrets().size() : 0,
+                sa.getImagePullSecrets() != null ? sa.getImagePullSecrets().size() : 0,
+                sa.getAutomountServiceAccountToken(),
+                sa.getMetadata().getCreationTimestamp(),
+                RbacFilters.isDefaultServiceAccount(sa.getMetadata().getName())
+                    || RbacFilters.isSystemNamespace(sa.getMetadata().getNamespace())))
+            .toList();
+    }
+
+    public List<RoleDto> listRoles(long clusterId, String namespace) {
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.rbac().roles().inAnyNamespace().list().getItems()
+            : client.rbac().roles().inNamespace(namespace).list().getItems();
+        return items.stream()
+            .map(r -> new RoleDto(
+                r.getMetadata().getName(),
+                r.getMetadata().getNamespace(),
+                rules(r.getRules()),
+                r.getMetadata().getCreationTimestamp(),
+                RbacFilters.isSystemName(r.getMetadata().getName())
+                    || RbacFilters.hasBootstrapLabel(r.getMetadata())
+                    || RbacFilters.isSystemNamespace(r.getMetadata().getNamespace())))
+            .toList();
+    }
+
+    public List<ClusterRoleDto> listClusterRoles(long clusterId) {
+        return clientFactory.getClient(clusterId).rbac().clusterRoles()
+            .list().getItems().stream()
+            .map(cr -> new ClusterRoleDto(
+                cr.getMetadata().getName(),
+                rules(cr.getRules()),
+                cr.getMetadata().getCreationTimestamp(),
+                RbacFilters.isSystemName(cr.getMetadata().getName())
+                    || RbacFilters.hasBootstrapLabel(cr.getMetadata())))
+            .toList();
+    }
+
+    public List<RoleBindingDto> listRoleBindings(long clusterId, String namespace) {
+        var client = clientFactory.getClient(clusterId);
+        var items = "all".equals(namespace)
+            ? client.rbac().roleBindings().inAnyNamespace().list().getItems()
+            : client.rbac().roleBindings().inNamespace(namespace).list().getItems();
+        return items.stream()
+            .map(rb -> new RoleBindingDto(
+                rb.getMetadata().getName(),
+                rb.getMetadata().getNamespace(),
+                rb.getRoleRef() != null ? rb.getRoleRef().getKind() : null,
+                rb.getRoleRef() != null ? rb.getRoleRef().getName() : null,
+                subjects(rb.getSubjects()),
+                rb.getMetadata().getCreationTimestamp(),
+                RbacFilters.isSystemName(rb.getMetadata().getName())
+                    || RbacFilters.isSystemNamespace(rb.getMetadata().getNamespace())
+                    || (rb.getRoleRef() != null && RbacFilters.isSystemName(rb.getRoleRef().getName()))))
+            .toList();
+    }
+
+    public List<ClusterRoleBindingDto> listClusterRoleBindings(long clusterId) {
+        return clientFactory.getClient(clusterId).rbac().clusterRoleBindings()
+            .list().getItems().stream()
+            .map(crb -> new ClusterRoleBindingDto(
+                crb.getMetadata().getName(),
+                crb.getRoleRef() != null ? crb.getRoleRef().getKind() : null,
+                crb.getRoleRef() != null ? crb.getRoleRef().getName() : null,
+                subjects(crb.getSubjects()),
+                crb.getMetadata().getCreationTimestamp(),
+                RbacFilters.isSystemName(crb.getMetadata().getName())
+                    || RbacFilters.hasBootstrapLabel(crb.getMetadata())
+                    || (crb.getRoleRef() != null && RbacFilters.isSystemName(crb.getRoleRef().getName()))))
+            .toList();
+    }
+
+    private List<RbacRuleDto> rules(List<PolicyRule> rules) {
+        if (rules == null) return List.of();
+        return rules.stream()
+            .map(r -> new RbacRuleDto(
+                r.getApiGroups() != null ? r.getApiGroups() : List.of(),
+                r.getResources() != null ? r.getResources() : List.of(),
+                r.getResourceNames() != null ? r.getResourceNames() : List.of(),
+                r.getVerbs() != null ? r.getVerbs() : List.of()))
+            .toList();
+    }
+
+    private List<RbacSubjectDto> subjects(List<Subject> subjects) {
+        if (subjects == null) return List.of();
+        return subjects.stream()
+            .map(s -> new RbacSubjectDto(s.getKind(), s.getName(), s.getNamespace()))
+            .toList();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
