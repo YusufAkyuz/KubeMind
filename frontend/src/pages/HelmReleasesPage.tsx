@@ -11,7 +11,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { useAuth } from '../auth/AuthContext'
-import type { HelmRelease, HelmReleaseDetail } from '../types/k8s'
+import type { HelmChart, HelmRelease, HelmReleaseDetail, HelmRepo } from '../types/k8s'
 
 const COLUMNS = [
   { key: 'name', label: 'Name' },
@@ -38,6 +38,7 @@ export function HelmReleasesPage() {
   const [tab, setTab] = useState<'values' | 'manifest' | 'notes'>('values')
   const [editedValues, setEditedValues] = useState('')
   const [upgrading, setUpgrading] = useState(false)
+  const [linkRepo, setLinkRepo] = useState('')
   const [linkChartRef, setLinkChartRef] = useState('')
   const [linking, setLinking] = useState(false)
   const showNsColumn = ns === 'all'
@@ -47,6 +48,22 @@ export function HelmReleasesPage() {
     queryFn: async () => (await api.get<HelmReleaseDetail>(
       `/clusters/${clusterId}/namespaces/${selected!.namespace}/helm/releases/${selected!.name}`)).data,
     enabled: !!selected,
+  })
+
+  // Repo + chart pickers for the "link an externally-installed release" flow — the user
+  // always picks from a list, never types a repo/chart reference by hand (that's what led
+  // to someone pasting a repo *URL* into a chart-reference field and helm trying to fetch
+  // an HTML page as a chart archive).
+  const { data: repos } = useQuery<HelmRepo[]>({
+    queryKey: ['helm-repos', clusterId],
+    queryFn: async () => (await api.get<HelmRepo[]>(`/clusters/${clusterId}/helm/repos`)).data,
+    enabled: !!selected && isAdmin,
+  })
+  const { data: repoCharts } = useQuery<HelmChart[]>({
+    queryKey: ['helm-charts-for-repo', clusterId, linkRepo],
+    queryFn: async () => (await api.get<HelmChart[]>(
+      `/clusters/${clusterId}/helm/charts/search`, { params: { q: `${linkRepo}/` } })).data,
+    enabled: !!linkRepo,
   })
 
   // Reset the editor to the server's current values whenever a different release is opened.
@@ -93,6 +110,7 @@ export function HelmReleasesPage() {
         chartRef: linkChartRef.trim(),
       })
       toast.success('Chart reference linked — values editing unlocked')
+      setLinkRepo('')
       setLinkChartRef('')
       queryClient.invalidateQueries({ queryKey: ['helm-release-detail', clusterId, selected.namespace, selected.name] })
     } catch (e) {
@@ -178,27 +196,41 @@ export function HelmReleasesPage() {
                 {isAdmin && !detail.chartRef && (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 mb-1.5">
                     <p className="text-[11px] text-amber-700 mb-1.5">
-                      This release wasn't installed through KubeMind, so its chart reference is unknown and editing is
-                      disabled. If you know which chart it came from (e.g. installed on the server with a raw
-                      <code className="font-mono"> helm install</code>), link it here to unlock editing — the repo must
-                      already be added on the Charts page.
+                      Couldn't auto-detect this release's chart — either its name doesn't match any added repo, or it
+                      matches more than one, so editing is disabled until you pick the right one below.
                     </p>
                     <div className="flex gap-1.5">
-                      <input
-                        type="text" value={linkChartRef} onChange={(e) => setLinkChartRef(e.target.value)}
-                        placeholder="repo/chart, e.g. bitnami/nginx"
-                        className="flex-1 rounded border border-amber-300 bg-white px-2 py-1 text-xs font-mono
+                      <select
+                        value={linkRepo}
+                        onChange={(e) => { setLinkRepo(e.target.value); setLinkChartRef('') }}
+                        className="flex-1 rounded border border-amber-300 bg-white px-2 py-1 text-xs
                                    focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      />
+                      >
+                        <option value="">Repo…</option>
+                        {(repos ?? []).map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
+                      </select>
+                      <select
+                        value={linkChartRef}
+                        onChange={(e) => setLinkChartRef(e.target.value)}
+                        disabled={!linkRepo}
+                        className="flex-1 rounded border border-amber-300 bg-white px-2 py-1 text-xs
+                                   focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-50"
+                      >
+                        <option value="">Chart…</option>
+                        {(repoCharts ?? []).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                      </select>
                       <button
                         onClick={linkChart}
-                        disabled={linking || !linkChartRef.trim()}
+                        disabled={linking || !linkChartRef}
                         className="shrink-0 rounded bg-amber-600 px-2.5 py-1 text-xs font-medium text-white
                                    hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {linking ? 'Linking…' : 'Link'}
                       </button>
                     </div>
+                    {repos && repos.length === 0 && (
+                      <p className="text-[10px] text-amber-600 mt-1">No repos added yet — add one on the Charts page first.</p>
+                    )}
                   </div>
                 )}
                 <textarea

@@ -35,12 +35,23 @@ import java.util.concurrent.TimeUnit;
  * written to a short-lived temp file (0600, deleted in a finally block) and
  * passed via --kubeconfig so nothing sensitive touches disk longer than one
  * command's lifetime.
+ *
+ * Every call also points HELM_CACHE_HOME/HELM_CONFIG_HOME/HELM_DATA_HOME at a
+ * directory this backend owns exclusively ({@code ~/.kubemind/helm/...}),
+ * instead of inheriting the OS-default `helm` locations (`~/.config/helm`,
+ * `~/Library/Caches/helm` on macOS, etc). Without this, a developer running
+ * the backend locally shares one repo index and chart cache with their own
+ * `helm` CLI usage — a corrupted cache entry or a repo added outside KubeMind
+ * silently affects (or is affected by) this app. FreeLens does the same thing
+ * by bundling its own helm binary; we can't bundle the binary in local dev,
+ * but isolating its state directory gets the same independence.
  */
 @Service
 public class HelmCliService {
 
     private static final Logger log = LoggerFactory.getLogger(HelmCliService.class);
     private static final Duration TIMEOUT = Duration.ofMinutes(5);
+    private static final Path HELM_HOME = Path.of(System.getProperty("user.home"), ".kubemind", "helm");
 
     private final ClusterClientFactory clientFactory;
 
@@ -65,7 +76,14 @@ public class HelmCliService {
                 command.add(tempKubeconfig.toString());
             }
 
+            Files.createDirectories(HELM_HOME.resolve("cache"));
+            Files.createDirectories(HELM_HOME.resolve("config"));
+            Files.createDirectories(HELM_HOME.resolve("data"));
+
             ProcessBuilder pb = new ProcessBuilder(command).redirectErrorStream(false);
+            pb.environment().put("HELM_CACHE_HOME", HELM_HOME.resolve("cache").toString());
+            pb.environment().put("HELM_CONFIG_HOME", HELM_HOME.resolve("config").toString());
+            pb.environment().put("HELM_DATA_HOME", HELM_HOME.resolve("data").toString());
             Process process = pb.start();
 
             String stdout = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
