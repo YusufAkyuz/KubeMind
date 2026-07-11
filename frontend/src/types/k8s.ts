@@ -295,3 +295,39 @@ export interface ClusterRoleBinding {
   creationTimestamp: string | null
   systemManaged: boolean
 }
+
+// ── Helm — see HelmReleaseController/HelmChartController/HelmRepoController ────
+// Everything here shells out to the `helm` CLI on the backend (no Java Helm SDK
+// exists) — same trust tier as the Cluster Terminal. Read (list/search) is open
+// to any authenticated user; install/uninstall/repo add/remove are ADMIN-only.
+
+export interface HelmRelease {
+  name: string
+  namespace: string
+  revision: string
+  updated: string
+  status: string
+  chart: string
+  appVersion: string
+}
+
+export interface HelmReleaseDetail {
+  values: string
+  manifest: string
+  notes: string
+  /** Null when this release wasn't installed through KubeMind — editing values is disabled then. */
+  chartRef: string | null
+}
+
+export interface HelmRepo {
+  name: string
+  url: string
+}
+
+export interface HelmChart {
+  /** "repo/chart" */
+  name: string
+  version: string
+  appVersion: string
+  description: string
+}

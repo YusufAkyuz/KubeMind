@@ -17,6 +17,7 @@ import {
   IconTerminal,
   IconLayers,
   IconShield,
+  IconHelm,
   Logo,
 } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
@@ -65,9 +66,9 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
-    // Read-only: none of these kinds go through the generic create/edit-YAML
-    // paths (see KubernetesService's Access Control section / CLAUDE.md
-    // least-privilege rule) — this group is view-only by design.
+    // Create/Edit/(Delete for the namespaced ones) are wired up for every kind
+    // here — see ResourceCreationService's class comment for the privilege-
+    // escalation trade-off the maintainer explicitly accepted (2026-07).
     key: 'access', label: 'Access Control', Icon: IconShield, items: [
       { suffix: 'serviceaccounts', label: 'Service Accounts' },
       // ClusterRoles/ClusterRoleBindings are cluster-scoped — same pattern as PVs above.
@@ -75,6 +76,14 @@ const GROUPS: NavGroup[] = [
       { suffix: 'roles', label: 'Roles' },
       { suffix: 'clusterrolebindings', label: 'Cluster Role Bindings', clusterScoped: true },
       { suffix: 'rolebindings', label: 'Role Bindings' },
+    ],
+  },
+  {
+    // Everything here shells out to the `helm` CLI on the backend (see
+    // HelmCliService) — same trust tier as the Cluster Terminal.
+    key: 'helm', label: 'Helm', Icon: IconHelm, items: [
+      { suffix: 'helm/releases', label: 'Releases' },
+      { suffix: 'helm/charts', label: 'Charts' },
     ],
   },
 ]

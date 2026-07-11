@@ -29,6 +29,8 @@ import { RolesPage } from './pages/RolesPage'
 import { RoleBindingsPage } from './pages/RoleBindingsPage'
 import { ClusterRolesPage } from './pages/ClusterRolesPage'
 import { ClusterRoleBindingsPage } from './pages/ClusterRoleBindingsPage'
+import { HelmReleasesPage } from './pages/HelmReleasesPage'
+import { HelmChartsPage } from './pages/HelmChartsPage'
 import { ChatWidget } from './components/ChatWidget'
 import { TerminalPanelProvider, useTerminalPanel } from './terminal/TerminalPanelContext'
 import { ChatPanelProvider } from './chat/ChatPanelContext'
@@ -87,6 +89,10 @@ export default function App() {
         <Route path="/clusters/:clusterId/clusterroles" element={<ProtectedRoute><ClusterRolesPage /></ProtectedRoute>} />
         <Route path="/clusters/:clusterId/clusterrolebindings" element={<ProtectedRoute><ClusterRoleBindingsPage /></ProtectedRoute>} />
         <Route path="/clusters/:clusterId/create" element={<ProtectedRoute><CreateClusterResourcePage /></ProtectedRoute>} />
+
+        {/* Helm */}
+        <Route path="/clusters/:clusterId/namespaces/:ns/helm/releases" element={<ProtectedRoute><HelmReleasesPage /></ProtectedRoute>} />
+        <Route path="/clusters/:clusterId/namespaces/:ns/helm/charts" element={<ProtectedRoute><HelmChartsPage /></ProtectedRoute>} />
 
         {/* Admin */}
         <Route path="/settings/clusters" element={<ProtectedRoute><ClustersPage /></ProtectedRoute>} />

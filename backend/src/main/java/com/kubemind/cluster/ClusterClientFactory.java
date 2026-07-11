@@ -72,6 +72,21 @@ public class ClusterClientFactory {
         return new KubernetesClientBuilder().withConfig(config).build();
     }
 
+    /**
+     * Raw kubeconfig text for a cluster, or null for the built-in local cluster
+     * (id 0) — callers should fall back to whatever ambient config the process
+     * already runs under (in-cluster ServiceAccount / ~/.kube/config) rather
+     * than writing one. Used by HelmCliService to point the `helm` subprocess
+     * at the right cluster via a temp --kubeconfig file.
+     */
+    public String getKubeconfig(long clusterId) {
+        if (clusterId == DEFAULT_CLUSTER_ID) return null;
+        Cluster cluster = repository.findById(clusterId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                "Cluster " + clusterId + " not found"));
+        return crypto.decrypt(cluster.getKubeconfigEncrypted());
+    }
+
     /** Closes and drops the cached client (cluster deleted or kubeconfig replaced). */
     public void evict(long clusterId) {
         KubernetesClient client = cache.remove(clusterId);

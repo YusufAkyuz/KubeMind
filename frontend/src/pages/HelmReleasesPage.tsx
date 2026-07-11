@@ -1,0 +1,262 @@
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, apiErrorMessage } from '../api/client'
+import { Layout } from '../components/Layout'
+import { PageHeader } from '../components/PageHeader'
+import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
+import { StatusBadge } from '../components/StatusBadge'
+import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDrawer'
+import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { useToast } from '../components/Toast'
+import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
+import { useAuth } from '../auth/AuthContext'
+import type { HelmRelease, HelmReleaseDetail } from '../types/k8s'
+
+const COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'status', label: 'Status' },
+  { key: 'chart', label: 'Chart' },
+  { key: 'appVersion', label: 'App version', className: 'hidden md:table-cell' },
+  { key: 'revision', label: 'Rev', className: 'hidden lg:table-cell' },
+  { key: 'updated', label: 'Updated', className: 'hidden lg:table-cell' },
+]
+
+// Helm's own status vocabulary → StatusBadge's (deployed/failed/pending-* etc.).
+const STATUS_MAP: Record<string, string> = {
+  deployed: 'Ready', failed: 'Failed', uninstalled: 'Failed',
+  'pending-install': 'Pending', 'pending-upgrade': 'Pending', 'pending-rollback': 'Pending',
+}
+
+export function HelmReleasesPage() {
+  const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<HelmRelease>('helm/releases')
+  const { isAdmin } = useAuth()
+  const toast = useToast()
+  const queryClient = useQueryClient()
+  const [selected, setSelected] = useState<HelmRelease | null>(null)
+  const [uninstallOpen, setUninstallOpen] = useState(false)
+  const [tab, setTab] = useState<'values' | 'manifest' | 'notes'>('values')
+  const [editedValues, setEditedValues] = useState('')
+  const [upgrading, setUpgrading] = useState(false)
+  const [linkChartRef, setLinkChartRef] = useState('')
+  const [linking, setLinking] = useState(false)
+  const showNsColumn = ns === 'all'
+
+  const { data: detail, isLoading: detailLoading } = useQuery<HelmReleaseDetail>({
+    queryKey: ['helm-release-detail', clusterId, selected?.namespace, selected?.name],
+    queryFn: async () => (await api.get<HelmReleaseDetail>(
+      `/clusters/${clusterId}/namespaces/${selected!.namespace}/helm/releases/${selected!.name}`)).data,
+    enabled: !!selected,
+  })
+
+  // Reset the editor to the server's current values whenever a different release is opened.
+  useEffect(() => { setEditedValues(detail?.values ?? '') }, [detail?.values])
+
+  const dirty = detail != null && editedValues !== detail.values
+
+  const uninstall = async () => {
+    if (!selected) return
+    try {
+      await api.delete(`/clusters/${clusterId}/namespaces/${selected.namespace}/helm/releases/${selected.name}`)
+      toast.success(`Release "${selected.name}" uninstalled`)
+      setSelected(null)
+      queryClient.invalidateQueries({ queryKey: ['helm/releases', clusterId, ns] })
+    } catch (e) {
+      throw new Error(apiErrorMessage(e, 'Uninstall failed'))
+    }
+  }
+
+  const saveAndUpgrade = async () => {
+    if (!selected || !detail?.chartRef) return
+    setUpgrading(true)
+    try {
+      await api.post(`/clusters/${clusterId}/namespaces/${selected.namespace}/helm/install`, {
+        releaseName: selected.name,
+        chartRef: detail.chartRef,
+        valuesYaml: editedValues,
+      })
+      toast.success(`"${selected.name}" upgraded`)
+      queryClient.invalidateQueries({ queryKey: ['helm/releases', clusterId, ns] })
+      queryClient.invalidateQueries({ queryKey: ['helm-release-detail', clusterId, selected.namespace, selected.name] })
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Upgrade failed'))
+    } finally {
+      setUpgrading(false)
+    }
+  }
+
+  const linkChart = async () => {
+    if (!selected || !linkChartRef.trim()) return
+    setLinking(true)
+    try {
+      await api.post(`/clusters/${clusterId}/namespaces/${selected.namespace}/helm/releases/${selected.name}/chart-ref`, {
+        chartRef: linkChartRef.trim(),
+      })
+      toast.success('Chart reference linked — values editing unlocked')
+      setLinkChartRef('')
+      queryClient.invalidateQueries({ queryKey: ['helm-release-detail', clusterId, selected.namespace, selected.name] })
+    } catch (e) {
+      toast.error(apiErrorMessage(e, "Could not link — check the chart reference is correct and its repo is added"))
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  return (
+    <Layout>
+      <PageHeader title="Helm Releases"
+                  subtitle={ns === 'all' ? 'All namespaces' : ns && ns !== '_' ? `namespace: ${ns}` : undefined}
+                  count={data?.length} noun="release" />
+
+      {noNamespace && <EmptyState message={noNamespaceMessage('helm releases')} />}
+      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isError && <ErrorBanner message={`Could not load releases: ${(error as Error).message}`} />}
+
+      {data && data.length === 0 && !isLoading && (
+        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
+          <p className="text-sm text-gray-400">No Helm releases in this namespace.</p>
+        </div>
+      )}
+
+      {data && data.length > 0 && (
+        <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
+          {data.map((r) => (
+            <Tr key={`${r.namespace}/${r.name}`} onClick={() => { setSelected(r); setTab('values') }}
+                highlighted={selected?.name === r.name && selected?.namespace === r.namespace}>
+              <Td className="font-medium text-gray-900">{r.name}</Td>
+              {showNsColumn && <Td className="text-gray-500">{r.namespace}</Td>}
+              <Td><StatusBadge status={STATUS_MAP[r.status] ?? r.status} /></Td>
+              <Td className="text-gray-500">{r.chart}</Td>
+              <Td className="hidden md:table-cell text-gray-500">{r.appVersion || '—'}</Td>
+              <Td className="hidden lg:table-cell text-gray-400 tabular-nums">{r.revision}</Td>
+              <Td className="hidden lg:table-cell text-gray-400 text-xs">{r.updated}</Td>
+            </Tr>
+          ))}
+        </Table>
+      )}
+
+      <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle={`Helm release · ${selected?.namespace ?? ns}`}
+                    onClose={() => setSelected(null)}>
+        {selected && (
+          <>
+            {isAdmin && (
+              <div className="pb-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setUninstallOpen(true)}
+                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium
+                             text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  Uninstall
+                </button>
+              </div>
+            )}
+
+            <DrawerSection title="Overview" />
+            <DrawerRow label="Status" value={<StatusBadge status={STATUS_MAP[selected.status] ?? selected.status} />} />
+            <DrawerRow label="Chart" value={selected.chart} />
+            <DrawerRow label="App version" value={selected.appVersion || '—'} />
+            <DrawerRow label="Revision" value={selected.revision} />
+            <DrawerRow label="Updated" value={selected.updated} />
+
+            <DrawerSection title="Details" />
+            <div className="flex gap-1 mb-2">
+              {(['values', 'manifest', 'notes'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
+                    tab === t ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            {detailLoading && <p className="text-sm text-gray-400">Loading…</p>}
+
+            {detail && tab === 'values' && (
+              <>
+                {isAdmin && !detail.chartRef && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 mb-1.5">
+                    <p className="text-[11px] text-amber-700 mb-1.5">
+                      This release wasn't installed through KubeMind, so its chart reference is unknown and editing is
+                      disabled. If you know which chart it came from (e.g. installed on the server with a raw
+                      <code className="font-mono"> helm install</code>), link it here to unlock editing — the repo must
+                      already be added on the Charts page.
+                    </p>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text" value={linkChartRef} onChange={(e) => setLinkChartRef(e.target.value)}
+                        placeholder="repo/chart, e.g. bitnami/nginx"
+                        className="flex-1 rounded border border-amber-300 bg-white px-2 py-1 text-xs font-mono
+                                   focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                      <button
+                        onClick={linkChart}
+                        disabled={linking || !linkChartRef.trim()}
+                        className="shrink-0 rounded bg-amber-600 px-2.5 py-1 text-xs font-medium text-white
+                                   hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {linking ? 'Linking…' : 'Link'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <textarea
+                  value={editedValues}
+                  onChange={(e) => setEditedValues(e.target.value)}
+                  readOnly={!isAdmin || !detail.chartRef}
+                  spellCheck={false}
+                  rows={16}
+                  className="w-full rounded-lg border border-gray-200 bg-gray-950 text-gray-100 font-mono text-xs
+                             leading-5 p-3 resize-none focus:outline-none disabled:opacity-60"
+                />
+                {isAdmin && detail.chartRef && (
+                  <div className="flex items-center justify-between mt-2">
+                    <button
+                      onClick={() => setEditedValues(detail.values)}
+                      disabled={!dirty || upgrading}
+                      className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Revert changes
+                    </button>
+                    <button
+                      onClick={saveAndUpgrade}
+                      disabled={!dirty || upgrading}
+                      className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white
+                                 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {upgrading ? 'Upgrading…' : 'Save & Upgrade'}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {detail && tab !== 'values' && (
+              <pre className="rounded-lg border border-gray-200 bg-gray-950 text-gray-100 font-mono text-xs
+                               leading-5 p-3 whitespace-pre-wrap break-all max-h-96 overflow-y-auto">
+                {detail[tab] || `(no ${tab})`}
+              </pre>
+            )}
+          </>
+        )}
+      </DetailDrawer>
+
+      <ConfirmDialog
+        open={uninstallOpen}
+        title={`Uninstall ${selected?.name ?? ''}`}
+        message={
+          <>
+            This will remove the Helm release <span className="font-mono font-medium text-gray-800">{selected?.name}</span> and
+            everything it deployed from namespace <span className="font-medium">{selected?.namespace}</span>.
+          </>
+        }
+        confirmLabel="Uninstall"
+        danger
+        requireText={selected?.name}
+        onConfirm={uninstall}
+        onClose={() => setUninstallOpen(false)}
+      />
+    </Layout>
+  )
+}
