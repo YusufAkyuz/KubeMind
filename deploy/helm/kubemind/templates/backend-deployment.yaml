@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubemind.fullname" . }}-backend
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kubemind.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "kubemind.labels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: {{ include "kubemind.serviceAccountName" . }}
+      {{- with .Values.image.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: "{{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}"
+          imagePullPolicy: {{ .Values.image.backend.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: {{ include "kubemind.jdbcUrl" . | quote }}
+            - name: SPRING_DATASOURCE_USERNAME
+              value: {{ include "kubemind.dbUsername" . | quote }}
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubemind.secretName" . }}
+                  key: db-password
+            - name: OLLAMA_BASE_URL
+              value: {{ include "kubemind.ollamaBaseUrl" . | quote }}
+            - name: OLLAMA_MODEL
+              value: {{ .Values.ollama.chatModel | quote }}
+            - name: OLLAMA_EMBEDDING_MODEL
+              value: {{ .Values.ollama.embeddingModel | quote }}
+            - name: KUBEMIND_ADMIN_USERNAME
+              value: {{ .Values.auth.adminUsername | quote }}
+            - name: KUBEMIND_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubemind.secretName" . }}
+                  key: admin-password
+            - name: KUBEMIND_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubemind.secretName" . }}
+                  key: encryption-key
+                  optional: true
+            {{- with .Values.backend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kubemind.fullname" . }}-backend
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ include "kubemind.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

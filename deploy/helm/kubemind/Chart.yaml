@@ -1,0 +1,15 @@
+apiVersion: v2
+name: kubemind
+description: >-
+  KubeMind — web-based, AI-assisted Kubernetes dashboard. Deploys the backend
+  (Spring Boot) and frontend (nginx) plus, optionally, a pgvector-enabled
+  PostgreSQL and an Ollama instance so a bare `helm install` yields a fully
+  working system.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - dashboard
+  - ai
+home: https://github.com/kubemind/kubemind

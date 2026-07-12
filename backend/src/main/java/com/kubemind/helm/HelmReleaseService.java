@@ -50,9 +50,9 @@ public class HelmReleaseService {
     }
 
     /**
-     * Auto-resolves a release's chart reference without asking the user, the same way
-     * FreeLens does it: `helm get metadata` gives the bare chart name (e.g. "grafana",
-     * never concatenated with a version — unlike `helm list`'s "chart" field, which is
+     * Auto-resolves a release's chart reference without asking the user:
+     * `helm get metadata` gives the bare chart name (e.g. "grafana", never
+     * concatenated with a version — unlike `helm list`'s "chart" field, which is
      * "grafana-10.5.15" and would need fragile string-splitting), then that name is
      * searched across every repo the user has already added. If it matches exactly one
      * repo, that's unambiguous enough to trust and persist automatically. If it matches

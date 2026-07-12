@@ -1,0 +1,21 @@
+{{- if .Values.rbac.clusterAdmin }}
+# DELIBERATE, DISCLOSED, FULL-PRIVILEGE GRANT — see the security note at the top
+# of values.yaml. The Cluster Terminal (provisions its own cluster-admin SA),
+# Node Shell (privileged host-mounted debug pods), and Access Control pages
+# (create RBAC objects) all require this level of access; a narrower role that
+# still allowed those operations would be equivalent power in disguise.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kubemind.fullname" . }}-cluster-admin
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kubemind.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

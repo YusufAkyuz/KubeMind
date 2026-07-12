@@ -42,9 +42,9 @@ import java.util.concurrent.TimeUnit;
  * `~/Library/Caches/helm` on macOS, etc). Without this, a developer running
  * the backend locally shares one repo index and chart cache with their own
  * `helm` CLI usage — a corrupted cache entry or a repo added outside KubeMind
- * silently affects (or is affected by) this app. FreeLens does the same thing
- * by bundling its own helm binary; we can't bundle the binary in local dev,
- * but isolating its state directory gets the same independence.
+ * silently affects (or is affected by) this app. Isolating the state
+ * directory gives this app's helm usage full independence from whatever else
+ * runs on the host.
  */
 @Service
 public class HelmCliService {

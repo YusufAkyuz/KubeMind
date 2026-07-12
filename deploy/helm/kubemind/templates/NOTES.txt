@@ -1,0 +1,44 @@
+KubeMind {{ .Chart.AppVersion }} deployed as release "{{ .Release.Name }}".
+
+1. Access the UI
+{{- if .Values.ingress.enabled }}
+   http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}
+{{- else }}
+   Ingress is disabled — use a port-forward:
+     kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "kubemind.fullname" . }} 8080:{{ .Values.service.port }}
+   then open http://localhost:8080
+{{- end }}
+
+2. Log in
+   Username: {{ .Values.auth.adminUsername }}
+   Password: the value you set in auth.adminPassword
+   (or: kubectl -n {{ .Release.Namespace }} get secret {{ include "kubemind.secretName" . }} -o jsonpath='{.data.admin-password}' | base64 -d)
+
+{{- if .Values.ollama.enabled }}
+
+3. AI readiness
+   The bundled Ollama pulls its models on first start
+   ({{ .Values.ollama.chatModel }} is ~4.7GB) — AI features return errors until
+   that finishes. Watch progress with:
+     kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "kubemind.fullname" . }}-ollama -f
+{{- else }}
+
+3. AI backend
+   Using external Ollama at {{ .Values.ollama.external.baseUrl }} — make sure
+   models "{{ .Values.ollama.chatModel }}" and "{{ .Values.ollama.embeddingModel }}"
+   are pulled there.
+{{- end }}
+{{- if not .Values.postgresql.enabled }}
+
+4. Database
+   Using your external PostgreSQL. Flyway migrates the schema on first boot,
+   but the `vector` and `uuid-ossp` extensions must already exist (see the
+   comment in migration V6__pgvector.sql).
+{{- end }}
+
+SECURITY REMINDERS
+  * The backend ServiceAccount is bound to cluster-admin
+    ({{ if .Values.rbac.clusterAdmin }}rbac.clusterAdmin=true{{ else }}DISABLED — most write features will fail with 403s{{ end }}).
+    Anyone who can log in to KubeMind as ADMIN effectively holds cluster-admin.
+  * Never expose this deployment to the public internet. VPN or IP-allowlisted
+    ingress + TLS only.

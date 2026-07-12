@@ -1,0 +1,105 @@
+{{- if .Values.ollama.enabled }}
+# Single-replica Ollama for self-contained installs. Models persist in a PVC so
+# the multi-GB pull only happens once. For GPU nodes or a shared Ollama, set
+# ollama.enabled=false and point ollama.external.baseUrl at it instead.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "kubemind.fullname" . }}-ollama-models
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.ollama.storage.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.ollama.storage.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubemind.fullname" . }}-ollama
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  replicas: 1
+  strategy:
+    # The models PVC is RWO — a rolling update would deadlock on the volume.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kubemind.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: ollama
+  template:
+    metadata:
+      labels:
+        {{- include "kubemind.labels" . | nindent 8 }}
+        app.kubernetes.io/component: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: {{ .Values.ollama.image }}
+          ports:
+            - name: http
+              containerPort: 11434
+          {{- if .Values.ollama.pullModelsOnStart }}
+          lifecycle:
+            postStart:
+              exec:
+                # postStart races the server's own startup — wait for the API,
+                # then pull. Pulls are no-ops when the models are already in the PVC.
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    for i in $(seq 1 60); do
+                      ollama list >/dev/null 2>&1 && break
+                      sleep 2
+                    done
+                    ollama pull {{ .Values.ollama.chatModel }}
+                    ollama pull {{ .Values.ollama.embeddingModel }}
+          {{- end }}
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+          readinessProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            # First boot may spend minutes inside postStart pulling models.
+            failureThreshold: 120
+          resources:
+            {{- toYaml .Values.ollama.resources | nindent 12 }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ include "kubemind.fullname" . }}-ollama-models
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kubemind.fullname" . }}-ollama
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ include "kubemind.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: ollama
+  ports:
+    - name: http
+      port: 11434
+      targetPort: http
+{{- end }}

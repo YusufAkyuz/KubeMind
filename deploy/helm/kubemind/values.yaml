@@ -1,0 +1,129 @@
+# KubeMind Helm chart values.
+#
+# SECURITY — READ BEFORE INSTALLING
+# =================================
+# 1. The backend ServiceAccount is bound to the `cluster-admin` ClusterRole
+#    (rbac.clusterAdmin below). This is required by the current feature set:
+#    the Cluster Terminal provisions its own cluster-admin ServiceAccount, the
+#    Node Shell schedules privileged host-mounted pods, and the Access Control
+#    pages create RBAC objects. A "restricted" role that can still do those
+#    things would be equivalent power wearing a costume — so the grant is
+#    explicit instead. If that is unacceptable in your environment, do not
+#    install this chart yet; a feature-flagged reduced-privilege mode is on
+#    the roadmap.
+# 2. NEVER expose KubeMind directly to the internet. Put it behind your
+#    ingress with TLS and network-level access control (VPN/allowlist), or
+#    keep ingress disabled and access it via `kubectl port-forward`.
+
+image:
+  backend:
+    repository: kubemind/backend
+    tag: 0.1.0
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: kubemind/frontend
+    tag: 0.1.0
+    pullPolicy: IfNotPresent
+  # imagePullSecrets: [{ name: my-registry-secret }]
+  imagePullSecrets: []
+
+# Login sessions are in-memory (JSESSIONID) — more than 1 backend replica needs
+# sticky sessions on your ingress, which this chart does not configure for you.
+replicaCount: 1
+
+auth:
+  # First-login admin user, seeded on startup. REQUIRED — the chart refuses to
+  # render without a password so no deployment ever ships a default credential.
+  adminUsername: admin
+  adminPassword: ""
+  # base64-encoded 32 bytes (`openssl rand -base64 32`). Encrypts stored
+  # kubeconfigs of registered remote clusters. Leave empty to disable remote
+  # cluster registration (the built-in local cluster keeps working).
+  encryptionKey: ""
+  # Alternatively, point at an existing Secret with keys:
+  #   admin-password, encryption-key
+  existingSecret: ""
+
+rbac:
+  # See the security note at the top of this file.
+  clusterAdmin: true
+
+serviceAccount:
+  create: true
+  name: ""
+
+# ── PostgreSQL (pgvector) ──────────────────────────────────────────────────────
+# enabled: true  → the chart deploys a single-node pgvector-enabled PostgreSQL.
+# enabled: false → fill in `external` with your own database's connection info.
+#                  Your DB must have the `vector` and `uuid-ossp` extensions
+#                  installed (see backend/src/main/resources/db/migration/V6).
+postgresql:
+  enabled: true
+  image: pgvector/pgvector:pg16
+  database: kubemind
+  username: kubemind
+  # REQUIRED when enabled and no existingSecret (key: db-password) is set.
+  password: ""
+  storage:
+    size: 5Gi
+    # storageClassName: ""
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+  external:
+    # Used only when enabled: false. jdbcUrl example:
+    #   jdbc:postgresql://mydb.example.com:5432/kubemind
+    jdbcUrl: ""
+    username: ""
+    password: ""
+
+# ── Ollama (local AI model) ────────────────────────────────────────────────────
+# enabled: true  → the chart deploys Ollama and pulls the models on first start
+#                  (chat model ~4.7GB — the first startup takes a while).
+# enabled: false → fill in `external.baseUrl` with a reachable Ollama endpoint.
+ollama:
+  enabled: true
+  image: ollama/ollama:latest
+  chatModel: qwen2.5-coder:7b
+  embeddingModel: nomic-embed-text
+  # Pull the models automatically when the pod starts. Disable if you preload
+  # models into the volume yourself.
+  pullModelsOnStart: true
+  storage:
+    size: 20Gi
+    # storageClassName: ""
+  # The 7B chat model wants ~6-8GB of memory. Adjust to your node capacity.
+  resources:
+    requests: { cpu: "1", memory: 6Gi }
+    limits: { memory: 10Gi }
+  external:
+    baseUrl: ""
+
+backend:
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 1Gi }
+  # Extra environment variables for the backend container.
+  extraEnv: []
+
+frontend:
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 128Mi }
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: nginx
+  host: kubemind.example.internal
+  annotations: {}
+  tls:
+    enabled: false
+    secretName: kubemind-tls
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

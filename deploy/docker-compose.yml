@@ -1,0 +1,73 @@
+# KubeMind — standalone / out-of-cluster mode.
+#
+# Nothing gets installed into any cluster in this mode.
+# Run this stack on a VM (or your own machine), open http://localhost:8080,
+# and register every cluster you manage via Settings -> Clusters with a
+# kubeconfig. Permissions against each cluster are exactly whatever that
+# kubeconfig grants — give prod a read-only ServiceAccount kubeconfig and
+# KubeMind physically cannot write there.
+#
+# Usage (from the repo root, after building the images — see CLAUDE.md):
+#   KUBEMIND_ADMIN_PASSWORD=... KUBEMIND_DB_PASSWORD=... \
+#     docker compose -f deploy/docker-compose.yml up -d
+#
+# Notes:
+# * AI features expect an Ollama at OLLAMA_BASE_URL. The default points at the
+#   Docker host's native Ollama (host.docker.internal:11434) — on macOS that's
+#   your Metal-accelerated Ollama app, which is faster than anything in a
+#   container anyway.
+# * The built-in "local" cluster (id 0) resolves from ~/.kube/config mounted
+#   into the backend. Careful with kind/minikube: their kubeconfig points at
+#   127.0.0.1, which inside a container is the container itself. Either
+#   register clusters through the UI with a reachable server address, or leave
+#   the mount out and treat every cluster as a registered one.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: kubemind
+      POSTGRES_USER: kubemind
+      POSTGRES_PASSWORD: ${KUBEMIND_DB_PASSWORD:?set KUBEMIND_DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kubemind"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    image: kubemind/backend:0.1.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kubemind
+      SPRING_DATASOURCE_USERNAME: kubemind
+      SPRING_DATASOURCE_PASSWORD: ${KUBEMIND_DB_PASSWORD:?set KUBEMIND_DB_PASSWORD}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      KUBEMIND_ADMIN_PASSWORD: ${KUBEMIND_ADMIN_PASSWORD:?set KUBEMIND_ADMIN_PASSWORD}
+      # openssl rand -base64 32 — required to register remote clusters.
+      KUBEMIND_ENCRYPTION_KEY: ${KUBEMIND_ENCRYPTION_KEY:-}
+    extra_hosts:
+      # Makes host.docker.internal work on Linux too (no-op on Docker Desktop).
+      - "host.docker.internal:host-gateway"
+    # Uncomment to give the built-in "local" cluster (id 0) your kubeconfig —
+    # see the 127.0.0.1 caveat in the header note.
+    # volumes:
+    #   - ~/.kube/config:/home/kubemind/.kube/config:ro
+
+  frontend:
+    image: kubemind/frontend:0.1.0
+    depends_on:
+      - backend
+    environment:
+      BACKEND_HOST: backend
+      BACKEND_PORT: "8080"
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

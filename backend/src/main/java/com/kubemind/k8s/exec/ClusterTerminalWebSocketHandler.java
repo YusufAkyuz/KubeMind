@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Raw kubectl terminal, connected directly to the selected cluster — the
- * FreeLens-style "just give me a shell" escape hatch.
+ * "just give me a shell" escape hatch for operations the UI doesn't cover.
  *
  * This is a deliberate, accepted trade-off against the rest of the app's
  * security model: every other write path here is allowlisted, validated, and

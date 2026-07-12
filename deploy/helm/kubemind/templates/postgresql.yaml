@@ -1,0 +1,101 @@
+{{- if .Values.postgresql.enabled }}
+# Single-node pgvector-enabled PostgreSQL for self-contained installs. For
+# production-grade needs (HA, backups, tuning) set postgresql.enabled=false
+# and point postgresql.external at a properly operated database instead.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubemind.fullname" . }}-postgresql-init
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+data:
+  # Runs once on first initdb — the extensions Flyway's V6 migration expects.
+  init-extensions.sql: |
+    CREATE EXTENSION IF NOT EXISTS vector;
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "kubemind.fullname" . }}-postgresql
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  serviceName: {{ include "kubemind.fullname" . }}-postgresql
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kubemind.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: postgresql
+  template:
+    metadata:
+      labels:
+        {{- include "kubemind.labels" . | nindent 8 }}
+        app.kubernetes.io/component: postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: {{ .Values.postgresql.image }}
+          ports:
+            - name: pg
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubemind.secretName" . }}
+                  key: db-password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgresql.username | quote }}]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.postgresql.resources | nindent 12 }}
+      volumes:
+        - name: init
+          configMap:
+            name: {{ include "kubemind.fullname" . }}-postgresql-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.postgresql.storage.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.storage.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kubemind.fullname" . }}-postgresql
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: {{ include "kubemind.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: postgresql
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: pg
+{{- end }}

@@ -32,7 +32,7 @@ interface NavGroup {
   items: { suffix: string; label: string; clusterScoped?: boolean }[]
 }
 
-// Namespaced resource groups (Lens-style). Cluster-wide items handled separately.
+// Namespaced resource groups, collapsible per category. Cluster-wide items handled separately.
 const GROUPS: NavGroup[] = [
   {
     key: 'workloads', label: 'Workloads', Icon: IconCube, items: [
@@ -212,8 +212,7 @@ export function Sidebar({ onClose }: Props) {
             {currentCluster && !currentCluster.builtIn && (
               <span
                 title={currentCluster.lastCheckOk === false ? 'Unreachable' : 'Healthy'}
-                className={`shrink-0 w-2 h-2 rounded-full ${
-                  currentCluster.lastCheckOk === false ? 'bg-red-500'
+                className={`shrink-0 w-2 h-2 rounded-full ${currentCluster.lastCheckOk === false ? 'bg-red-500'
                   : currentCluster.lastCheckOk === true ? 'bg-emerald-500' : 'bg-slate-600'}`}
               />
             )}
@@ -222,9 +221,15 @@ export function Sidebar({ onClose }: Props) {
         <div>
           <label className={label}>Namespace</label>
           <select value={currentNs ?? ''} onChange={handleNsChange} className={selectClass}>
-            <option value="">Select namespace…</option>
+            {/* Only shown while nothing is selected yet — once a namespace is picked,
+                re-showing this placeholder in the list read as a second, redundant option. */}
+            {!currentNs && <option value="">Select namespace…</option>}
             <option value="all">All namespaces</option>
-            {namespaces?.map((ns) => <option key={ns.name} value={ns.name}>{ns.name}</option>)}
+            {/* A real namespace literally named "all" would otherwise collide with our
+                "All namespaces" sentinel value above and show up as a visually duplicate entry. */}
+            {namespaces?.filter((ns) => ns.name !== 'all').map((ns) => (
+              <option key={ns.name} value={ns.name}>{ns.name}</option>
+            ))}
           </select>
         </div>
         {isAdmin && currentNs && currentNs !== 'all' && (
@@ -331,7 +336,7 @@ export function Sidebar({ onClose }: Props) {
       <div className="shrink-0 px-4 py-3 border-t border-slate-800">
         <p className="text-sm font-medium text-slate-200 truncate">{username}</p>
         <button onClick={() => { logout(); onClose?.() }}
-                className="mt-0.5 text-xs text-slate-500 hover:text-slate-300 transition-colors">
+          className="mt-0.5 text-xs text-slate-500 hover:text-slate-300 transition-colors">
           Sign out
         </button>
       </div>
