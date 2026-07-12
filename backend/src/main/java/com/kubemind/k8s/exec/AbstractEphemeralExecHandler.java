@@ -66,6 +66,7 @@ abstract class AbstractEphemeralExecHandler extends TextWebSocketHandler {
         try {
             p = provision(session, params);
         } catch (Exception e) {
+            log.error("Ephemeral exec provisioning failed", e);
             sendText(session, "\r\n[error] " + e.getMessage() + "\r\n");
             close(session, CloseStatus.SERVER_ERROR);
             return;
@@ -94,6 +95,7 @@ abstract class AbstractEphemeralExecHandler extends TextWebSocketHandler {
             sessions.put(session.getId(), new Session(watch, p.cleanup()));
             Thread.ofVirtual().name("exec-out/" + p.podName()).start(() -> pumpOutput(session, watch));
         } catch (Exception e) {
+            log.error("Ephemeral exec failed after provisioning", e);
             runCleanup(p.cleanup());
             sendText(session, "\r\n[error] " + e.getMessage() + "\r\n");
             close(session, CloseStatus.SERVER_ERROR);

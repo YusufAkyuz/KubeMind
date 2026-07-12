@@ -84,6 +84,11 @@ public class WatchController {
             emitter.send(SseEmitter.event().name(eventName).data(data, MediaType.APPLICATION_JSON));
         } catch (IOException e) {
             emitter.complete();
+        } catch (IllegalStateException e) {
+            // Watch events can race the emitter's own onCompletion/onTimeout/onError callback
+            // (client disconnect closes the fabric8 Watch asynchronously, so an in-flight
+            // eventReceived can still land after the emitter already completed) — harmless,
+            // just don't let it crash the watcher's worker thread.
         }
     }
 
@@ -115,7 +120,7 @@ public class WatchController {
         try {
             emitter.send(SseEmitter.event().name("stream-error")
                 .data(Map.of("error", message), MediaType.APPLICATION_JSON));
-        } catch (IOException ignored) {
+        } catch (IOException | IllegalStateException ignored) {
             // client already gone
         }
         emitter.complete();

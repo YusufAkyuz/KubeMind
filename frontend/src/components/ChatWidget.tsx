@@ -8,6 +8,7 @@ import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { useChatPanel } from '../chat/ChatPanelContext'
 import { useRightReserve } from '../layout/RightReserveContext'
 import { AiFeedbackButtons } from './AiFeedbackButtons'
+import { randomId } from '../utils/id'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -93,8 +94,8 @@ export function ChatWidget() {
     const text = input.trim()
     if (!text || streaming) return
 
-    const history: Message[] = [...messages, { role: 'user', content: text, id: crypto.randomUUID() }]
-    setMessages([...history, { role: 'assistant', content: '', id: crypto.randomUUID() }])
+    const history: Message[] = [...messages, { role: 'user', content: text, id: randomId() }]
+    setMessages([...history, { role: 'assistant', content: '', id: randomId() }])
     setInput('')
     setStreaming(true)
 
