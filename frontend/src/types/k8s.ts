@@ -8,6 +8,12 @@ export interface Cluster {
   lastCheckOk: boolean | null
 }
 
+export interface AppUser {
+  id: number
+  username: string
+  role: 'ADMIN' | 'USER'
+}
+
 export interface Namespace {
   name: string
   phase: string | null

@@ -10,6 +10,7 @@ import { EventsPage } from './pages/EventsPage'
 import { LogsPage } from './pages/LogsPage'
 import { AuditPage } from './pages/AuditPage'
 import { ClustersPage } from './pages/ClustersPage'
+import { UsersPage } from './pages/UsersPage'
 import { ConfigMapsPage } from './pages/ConfigMapsPage'
 import { SecretsPage } from './pages/SecretsPage'
 import { StatefulSetsPage } from './pages/StatefulSetsPage'
@@ -96,6 +97,7 @@ export default function App() {
 
         {/* Admin */}
         <Route path="/settings/clusters" element={<ProtectedRoute><ClustersPage /></ProtectedRoute>} />
+        <Route path="/settings/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
         <Route path="/audit" element={<ProtectedRoute><AuditPage /></ProtectedRoute>} />
         <Route path="/clusters/:clusterId/runbooks" element={<ProtectedRoute><RunbooksPage /></ProtectedRoute>} />
       </Routes>

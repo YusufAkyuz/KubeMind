@@ -18,8 +18,7 @@ import {
   IconLayers,
   IconShield,
   IconHelm,
-  Logo,
-} from './Icons'
+  Logo, IconUsers } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import type { Cluster, Namespace, Pod } from '../types/k8s'
 
@@ -314,6 +313,9 @@ export function Sidebar({ onClose }: Props) {
             <div className="my-2 border-t border-slate-800" />
             <NavLink to="/settings/clusters" className={linkClass} onClick={onClose}>
               <IconServer className="w-4 h-4 shrink-0" /> Clusters
+            </NavLink>
+            <NavLink to="/settings/users" className={linkClass} onClick={onClose}>
+              <IconUsers className="w-4 h-4 shrink-0" /> Users
             </NavLink>
             <NavLink to="/audit" className={linkClass} onClick={onClose}>
               <IconClipboard className="w-4 h-4 shrink-0" /> Audit log
