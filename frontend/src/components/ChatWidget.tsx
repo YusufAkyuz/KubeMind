@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { streamText } from '../utils/streamFetch'
 import { renderLiteMarkdown } from '../utils/markdownLite'
-import { IconHelm, IconX, Logo } from './Icons'
+import { IconSparkles, IconX, Logo } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { useChatPanel } from '../chat/ChatPanelContext'
 import { useRightReserve } from '../layout/RightReserveContext'
@@ -147,7 +147,7 @@ export function ChatWidget() {
                      hover:shadow-xl hover:scale-105 transition-all"
           aria-label="Open AI assistant"
         >
-          <IconHelm className="w-5 h-5" />
+          <IconSparkles className="w-5 h-5" />
         </button>
       )}
 

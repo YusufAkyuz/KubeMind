@@ -23,6 +23,25 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.postgresql.enabled }}
+      # The bundled Postgres StatefulSet can take a while to become ready (PVC
+      # provisioning, first-boot initdb) — without this, the backend starts,
+      # fails DB connection, and Spring/Hikari's own retry logic burns through
+      # a CrashLoopBackOff cycle before ever reaching Flyway. Only added for the
+      # bundled DB: an external Postgres's availability is the operator's own
+      # responsibility, and there's no single well-known host:port to probe.
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z -w2 {{ include "kubemind.fullname" . }}-postgresql 5432; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+      {{- end }}
       containers:
         - name: backend
           image: "{{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}"
