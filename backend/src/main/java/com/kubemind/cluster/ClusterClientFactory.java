@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -45,6 +46,12 @@ public class ClusterClientFactory {
 
     public KubernetesClient getClient(long clusterId) {
         if (clusterId == DEFAULT_CLUSTER_ID) {
+            // Open to every authenticated user, same as any other cluster — there's
+            // no per-user credential to scope this one by (it's the one identity
+            // this KubeMind install itself runs as), so "same rules as other
+            // clusters" means "no extra gate here", not "ADMIN-only". Deliberate,
+            // maintainer-confirmed: this does mean a USER shares the same access
+            // to this specific cluster as ADMIN (see ClusterService.list javadoc).
             return defaultClient;
         }
         return cache.computeIfAbsent(clusterId, this::buildClient);
@@ -54,6 +61,12 @@ public class ClusterClientFactory {
         Cluster cluster = repository.findById(clusterId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                 "Cluster " + clusterId + " not found"));
+        // Single choke point every K8s call passes through — a USER-submitted cluster
+        // stays unusable until an ADMIN approves it, no matter which controller asks.
+        if (!"APPROVED".equals(cluster.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "This cluster is " + cluster.getStatus().toLowerCase(Locale.ROOT) + " and not yet usable");
+        }
         String kubeconfig = crypto.decrypt(cluster.getKubeconfigEncrypted());
         return buildFromKubeconfig(kubeconfig);
     }

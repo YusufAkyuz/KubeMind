@@ -6,6 +6,16 @@ export interface Cluster {
   createdAt: string | null
   lastCheckedAt: string | null
   lastCheckOk: boolean | null
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | null
+}
+
+/** ADMIN's minimal-exposure view of a cluster request awaiting a decision —
+ *  no kubeconfig, no health data (see backend PendingClusterDto). */
+export interface PendingCluster {
+  id: number
+  name: string
+  createdBy: string
+  createdAt: string
 }
 
 export interface AppUser {

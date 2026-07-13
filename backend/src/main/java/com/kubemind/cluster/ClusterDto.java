@@ -10,5 +10,6 @@ public record ClusterDto(
     String createdBy,
     Instant createdAt,
     Instant lastCheckedAt,
-    Boolean lastCheckOk
+    Boolean lastCheckOk,
+    String status
 ) {}

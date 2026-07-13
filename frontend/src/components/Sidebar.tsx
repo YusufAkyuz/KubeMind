@@ -20,7 +20,7 @@ import {
   IconHelm,
   Logo, IconUsers } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
-import type { Cluster, Namespace, Pod } from '../types/k8s'
+import type { Cluster, Namespace, Pod, PendingCluster } from '../types/k8s'
 
 type IconType = ComponentType<{ className?: string }>
 
@@ -135,6 +135,17 @@ export function Sidebar({ onClose }: Props) {
   const currentNs = (urlNs && urlNs !== '_' ? urlNs : null) ?? remembered
   const currentCluster = clusters?.find((c) => String(c.id) === clusterId)
 
+  // ADMIN never sees other users' clusters in the main list (see ClusterService
+  // javadoc) — the pending-approval count comes from the separate, minimal
+  // /clusters/pending endpoint instead.
+  const { data: pendingClusters } = useQuery<PendingCluster[]>({
+    queryKey: ['clusters', 'pending'],
+    queryFn: async () => (await api.get<PendingCluster[]>('/clusters/pending')).data,
+    enabled: isAdmin,
+    staleTime: 30_000,
+  })
+  const pendingClusterCount = pendingClusters?.length ?? 0
+
   const { data: pods } = useQuery<Pod[]>({
     queryKey: ['pods', clusterId, currentNs ?? 'all'],
     queryFn: async () => (await api.get<Pod[]>(`/clusters/${clusterId}/namespaces/${currentNs ?? 'all'}/pods`)).data,
@@ -204,8 +215,11 @@ export function Sidebar({ onClose }: Props) {
           <label className={label}>Cluster</label>
           <div className="flex items-center gap-2">
             <select value={clusterId} onChange={handleClusterChange} className={selectClass}>
+              {clusters?.length === 0 && <option value="0">No clusters yet</option>}
               {(clusters ?? [{ id: 0, name: 'local', builtIn: true } as Cluster]).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id} disabled={!!c.status && c.status !== 'APPROVED'}>
+                  {c.name}{c.status === 'PENDING' ? ' (pending)' : c.status === 'REJECTED' ? ' (rejected)' : ''}
+                </option>
               ))}
             </select>
             {currentCluster && !currentCluster.builtIn && (
@@ -308,12 +322,22 @@ export function Sidebar({ onClose }: Props) {
           )
         })}
 
+        <div className="my-2 border-t border-slate-800" />
+        <NavLink to="/settings/clusters" className={linkClass} onClick={onClose}>
+          <IconServer className="w-4 h-4 shrink-0" /> Clusters
+          {isAdmin && pendingClusterCount > 0 && (
+            <span
+              className="ml-auto inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px]
+                         font-bold bg-amber-500/25 text-amber-400 border border-amber-500/30 shrink-0 leading-none"
+              title={`${pendingClusterCount} cluster request(s) awaiting approval`}
+            >
+              {pendingClusterCount}
+            </span>
+          )}
+        </NavLink>
+
         {isAdmin && (
           <>
-            <div className="my-2 border-t border-slate-800" />
-            <NavLink to="/settings/clusters" className={linkClass} onClick={onClose}>
-              <IconServer className="w-4 h-4 shrink-0" /> Clusters
-            </NavLink>
             <NavLink to="/settings/users" className={linkClass} onClick={onClose}>
               <IconUsers className="w-4 h-4 shrink-0" /> Users
             </NavLink>

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './auth/LoginPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { HomeRedirect } from './components/HomeRedirect'
 import { NodesPage } from './pages/NodesPage'
 import { NamespacesPage } from './pages/NamespacesPage'
 import { PodsPage } from './pages/PodsPage'
@@ -58,8 +59,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Default: the built-in local cluster */}
-        <Route path="/" element={<ProtectedRoute><Navigate to="/clusters/0/nodes" replace /></ProtectedRoute>} />
+        {/* Default: first usable cluster, or the Clusters page if none yet (see HomeRedirect) */}
+        <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
 
         {/* Cluster-scoped */}
         <Route path="/clusters/:clusterId/nodes" element={<ProtectedRoute><NodesPage /></ProtectedRoute>} />

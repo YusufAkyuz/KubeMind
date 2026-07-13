@@ -8,20 +8,122 @@ import { ErrorBanner } from '../components/ErrorBanner'
 import { Modal } from '../components/Modal'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
+import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
-import type { Cluster } from '../types/k8s'
+import type { Cluster, PendingCluster } from '../types/k8s'
 
 const COLUMNS = [
   { key: 'name', label: 'Name' },
   { key: 'status', label: 'Status' },
-  { key: 'createdBy', label: 'Added by' },
+  { key: 'health', label: 'Health' },
   { key: 'checked', label: 'Last check' },
   { key: 'actions', label: '' },
 ]
 
+const PENDING_COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'requestedBy', label: 'Requested by' },
+  { key: 'requestedAt', label: 'Requested' },
+  { key: 'actions', label: '' },
+]
+
+function StatusBadge({ status }: { status: Cluster['status'] }) {
+  if (!status || status === 'APPROVED') {
+    return (
+      <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+        Approved
+      </span>
+    )
+  }
+  if (status === 'PENDING') {
+    return (
+      <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+        Pending approval
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+      Rejected
+    </span>
+  )
+}
+
+/** ADMIN-only: requests awaiting a decision. Deliberately a separate, minimal
+ *  view (name/owner/date only, no kubeconfig or health) — approving is a
+ *  one-time "yes, register this" decision, not a grant of ongoing visibility
+ *  into someone else's cluster. Once approved, it disappears from here for
+ *  good and the admin has no further access to it. */
+function PendingRequests() {
+  const toast = useToast()
+  const queryClient = useQueryClient()
+
+  const { data, isLoading } = useQuery<PendingCluster[]>({
+    queryKey: ['clusters', 'pending'],
+    queryFn: async () => (await api.get<PendingCluster[]>('/clusters/pending')).data,
+  })
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['clusters', 'pending'] })
+    queryClient.invalidateQueries({ queryKey: ['clusters'] })
+  }
+
+  const approveMutation = useMutation({
+    mutationFn: async (id: number) => (await api.post(`/clusters/${id}/approve`)).data,
+    onSuccess: () => { toast.success('Cluster request approved'); invalidate() },
+    onError: (e) => toast.error(apiErrorMessage(e, 'Could not approve request')),
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: async (id: number) => (await api.post(`/clusters/${id}/reject`)).data,
+    onSuccess: () => { toast.success('Cluster request rejected'); invalidate() },
+    onError: (e) => toast.error(apiErrorMessage(e, 'Could not reject request')),
+  })
+
+  if (isLoading || !data || data.length === 0) return null
+
+  return (
+    <div className="mb-6">
+      <h2 className="text-sm font-semibold text-gray-700 mb-2">
+        Pending cluster requests ({data.length})
+      </h2>
+      <Table columns={PENDING_COLUMNS} minWidth="560px">
+        {data.map((p) => (
+          <Tr key={p.id}>
+            <Td className="font-medium text-gray-900">{p.name}</Td>
+            <Td className="text-gray-500">{p.createdBy}</Td>
+            <Td className="text-gray-400 tabular-nums">{formatAge(p.createdAt)} ago</Td>
+            <Td>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => approveMutation.mutate(p.id)}
+                  disabled={approveMutation.isPending}
+                  className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white
+                             hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => rejectMutation.mutate(p.id)}
+                  disabled={rejectMutation.isPending}
+                  className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-600
+                             hover:bg-red-50 transition-colors"
+                >
+                  Reject
+                </button>
+              </div>
+            </Td>
+          </Tr>
+        ))}
+      </Table>
+    </div>
+  )
+}
+
 export function ClustersPage() {
   const toast = useToast()
   const queryClient = useQueryClient()
+  const { isAdmin } = useAuth()
   const [addOpen, setAddOpen] = useState(false)
   const [deleting, setDeleting] = useState<Cluster | null>(null)
   const [name, setName] = useState('')
@@ -39,7 +141,11 @@ export function ClustersPage() {
     mutationFn: async () =>
       (await api.post<Cluster>('/clusters', { name: name.trim(), kubeconfig })).data,
     onSuccess: (c) => {
-      toast.success(`Cluster ${c.name} added`)
+      toast.success(
+        c.status === 'PENDING'
+          ? `Cluster ${c.name} submitted — waiting for admin approval`
+          : `Cluster ${c.name} added`
+      )
       setAddOpen(false)
       setName('')
       setKubeconfig('')
@@ -77,7 +183,11 @@ export function ClustersPage() {
     <Layout>
       <PageHeader
         title="Clusters"
-        subtitle="Connected Kubernetes clusters. Kubeconfigs are encrypted at rest and never leave the server."
+        subtitle={
+          isAdmin
+            ? "Clusters you've registered, plus the built-in one. Other users' clusters are private to them — you only ever see their PENDING requests, below, to approve or reject."
+            : "Clusters you've registered with your own kubeconfig. A new cluster stays pending until an admin approves it."
+        }
         count={data?.length}
         noun="cluster"
         actions={
@@ -91,11 +201,21 @@ export function ClustersPage() {
         }
       />
 
+      {isAdmin && <PendingRequests />}
+
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load clusters: ${(error as Error).message}`} />}
 
-      {data && (
-        <Table columns={COLUMNS} minWidth="560px">
+      {data && data.length === 0 && (
+        <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center">
+          <p className="text-sm text-gray-500">
+            No clusters yet. Add one with your own kubeconfig to get started.
+          </p>
+        </div>
+      )}
+
+      {data && data.length > 0 && (
+        <Table columns={COLUMNS} minWidth="600px">
           {data.map((c) => (
             <Tr key={c.id}>
               <Td className="font-medium text-gray-900">
@@ -108,7 +228,16 @@ export function ClustersPage() {
               </Td>
               <Td>
                 {c.builtIn ? (
+                  <span className="text-xs text-gray-400">—</span>
+                ) : (
+                  <StatusBadge status={c.status} />
+                )}
+              </Td>
+              <Td>
+                {c.builtIn ? (
                   <span className="text-xs text-gray-400">always available</span>
+                ) : c.status !== 'APPROVED' ? (
+                  <span className="text-xs text-gray-400">—</span>
                 ) : (
                   <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
                     c.lastCheckOk === true ? 'text-emerald-600'
@@ -122,21 +251,22 @@ export function ClustersPage() {
                   </span>
                 )}
               </Td>
-              <Td className="text-gray-500">{c.createdBy ?? '—'}</Td>
               <Td className="text-gray-400 tabular-nums">
                 {c.lastCheckedAt ? `${formatAge(c.lastCheckedAt)} ago` : '—'}
               </Td>
               <Td>
                 {!c.builtIn && (
                   <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => testMutation.mutate(c.id)}
-                      disabled={testMutation.isPending}
-                      className="rounded-md border border-gray-300 px-2.5 py-1 text-xs text-gray-600
-                                 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                    >
-                      Test
-                    </button>
+                    {c.status === 'APPROVED' && (
+                      <button
+                        onClick={() => testMutation.mutate(c.id)}
+                        disabled={testMutation.isPending}
+                        className="rounded-md border border-gray-300 px-2.5 py-1 text-xs text-gray-600
+                                   hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                      >
+                        Test
+                      </button>
+                    )}
                     <button
                       onClick={() => setDeleting(c)}
                       className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-600
@@ -181,6 +311,7 @@ export function ClustersPage() {
             <p className="mt-1.5 text-xs text-gray-400">
               Prefer a kubeconfig bound to a least-privilege (read-only) ServiceAccount.
               The connection is tested before the cluster is saved.
+              {!isAdmin && ' An admin needs to approve it before you can use it.'}
             </p>
           </div>
           {addError && <p className="text-sm text-red-600">{addError}</p>}
