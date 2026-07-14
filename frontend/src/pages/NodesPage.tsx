@@ -11,7 +11,6 @@ import { ErrorBanner } from '../components/ErrorBanner'
 import { ClusterInsightsPanel } from '../components/ClusterInsightsPanel'
 import { useSSE } from '../hooks/useSSE'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
-import { useAuth } from '../auth/AuthContext'
 import { formatAge } from '../utils/format'
 import type { NodeMetrics, NodeResource } from '../types/k8s'
 
@@ -28,7 +27,6 @@ const COLUMNS = [
 export function NodesPage() {
   const { clusterId } = useParams<{ clusterId: string }>()
   const terminalPanel = useTerminalPanel()
-  const { isAdmin } = useAuth()
   const [selected, setSelected] = useState<NodeResource | null>(null)
   const queryKey = ['nodes', clusterId]
 
@@ -97,17 +95,18 @@ export function NodesPage() {
       >
         {selected && (
           <>
-            {isAdmin && (
-              <div className="pb-3">
-                <button
-                  onClick={() => terminalPanel.openNodeExec(clusterId!, selected.name)}
-                  className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium
-                             text-amber-800 hover:bg-amber-100 transition-colors"
-                >
-                  Node shell
-                </button>
-              </div>
-            )}
+            {/* Not ADMIN-gated: node shell schedules a debug pod using the
+                target cluster's own kubeconfig — real Kubernetes RBAC decides
+                what it can actually do, same as any other cluster action. */}
+            <div className="pb-3">
+              <button
+                onClick={() => terminalPanel.openNodeExec(clusterId!, selected.name)}
+                className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium
+                           text-amber-800 hover:bg-amber-100 transition-colors"
+              >
+                Node shell
+              </button>
+            </div>
 
             <DrawerSection title="Overview" />
             <DrawerRow label="Status" value={<StatusBadge status={selected.status} />} />

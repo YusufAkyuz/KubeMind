@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KubeMind — Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-page: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-surface-hover: #f1f5f9;
+    
+    --text-main: #0f172a;
+    --text-muted: #475569;
+    --text-faint: #94a3b8;
+    
+    --border-light: #e2e8f0;
+    --border-strong: #cbd5e1;
+    
+    --accent-primary: #2563eb;
+    --accent-primary-soft: #eff6ff;
+    
+    --accent-dep: #0d9488;
+    --accent-dep-soft: #f0fdfa;
+    
+    --accent-risk: #d97706;
+    --accent-risk-soft: #fffbeb;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body { 
+    background-color: var(--bg-page);
+    color: var(--text-main);
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 80px 24px;
+  }
+
+  header {
+    margin-bottom: 48px;
+    text-align: center;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--accent-primary);
+    background: var(--accent-primary-soft);
+    padding: 6px 12px;
+    border-radius: 99px;
+    margin-bottom: 24px;
+  }
+
+  h1 {
+    font-size: 40px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text-main);
+    margin-bottom: 16px;
+  }
+
+  .subtitle {
+    font-size: 18px;
+    color: var(--text-muted);
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .subtitle .mono {
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 15px;
+    color: var(--text-main);
+  }
+
+  .diagram-container {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 64px;
+    overflow-x: auto;
+  }
+
+  .diagram-container svg {
+    width: 100%;
+    min-width: 800px;
+    height: auto;
+    display: block;
+  }
+
+  /* SVG Styling */
+  .svg-box {
+    fill: #ffffff;
+    stroke: var(--border-strong);
+    stroke-width: 1.5;
+    rx: 12;
+  }
+  .svg-box-accent {
+    fill: var(--accent-primary-soft);
+    stroke: var(--accent-primary);
+  }
+  .svg-box-dep {
+    fill: var(--accent-dep-soft);
+    stroke: var(--accent-dep);
+  }
+  .svg-box-k8s {
+    fill: #f8fafc;
+    stroke: var(--border-strong);
+  }
+  .svg-text-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    fill: var(--text-main);
+  }
+  .svg-text-desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    fill: var(--text-muted);
+  }
+  .svg-text-tiny {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    fill: var(--text-faint);
+  }
+  .svg-path {
+    fill: none;
+    stroke: var(--border-strong);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .svg-path-accent { stroke: var(--accent-primary); }
+  .svg-path-dep { stroke: var(--accent-dep); }
+
+ .features-grid {
+  display: grid;
+  /* 2 eşit kolon oluşturacak şekilde güncellendi */
+  grid-template-columns: repeat(2, 1fr); 
+  gap: 24px;
+  margin-bottom: 64px;
+}
+
+/* Mobil cihazlarda (ekran küçüldüğünde) kartların alt alta gelmesi için bu medya sorgusunu da ekleyebilirsin: */
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+}.features-grid {
+  display: grid;
+  /* 2 eşit kolon oluşturacak şekilde güncellendi */
+  grid-template-columns: repeat(2, 1fr); 
+  gap: 24px;
+  margin-bottom: 64px;
+}
+
+/* Mobil cihazlarda (ekran küçüldüğünde) kartların alt alta gelmesi için bu medya sorgusunu da ekleyebilirsin: */
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+  .feature-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .tag-path { background: var(--accent-primary-soft); color: var(--accent-primary); }
+  .tag-dep { background: var(--accent-dep-soft); color: var(--accent-dep); }
+  .tag-risk { background: var(--accent-risk-soft); color: var(--accent-risk); }
+
+  .card-body {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin-bottom: 24px;
+  }
+
+  .tech-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tech-pill {
+    background: #f1f5f9;
+    border: 1px solid var(--border-light);
+    color: var(--text-main);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+
+  footer {
+    border-top: 1px solid var(--border-light);
+    padding-top: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-faint);
+    font-size: 14px;
+  }
+
+  .github-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-surface);
+    color: var(--text-main);
+    border: 1px solid var(--border-light);
+    padding: 10px 20px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+  }
+
+  .github-btn:hover {
+    background: #f8fafc;
+    border-color: var(--border-strong);
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-top: 32px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="badge mono">KubeMind Architecture</div>
+    <h1>Request Lifecycle in KubeMind</h1>
+    <p class="subtitle">
+      One deployment, every engineer opens a URL. The browser talks to a Spring Boot backend over REST, SSE, and WebSocket. The backend reaches the Kubernetes API via Fabric8 and relies on <span class="mono">PostgreSQL</span>, <span class="mono">Ollama</span>, and the <span class="mono">helm</span> CLI.
+    </p>
+  </header>
+
+  <div class="diagram-container">
+    <svg viewBox="0 0 900 480" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1" />
+        </marker>
+        <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+        </marker>
+        <marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d9488" />
+        </marker>
+        
+        <!-- Soft drop shadow for SVG boxes -->
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+          <feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity="0.03"/>
+        </filter>
+      </defs>
+
+      <!-- Connections -->
+      <!-- Browser to Frontend -->
+      <path d="M 120 80 L 120 130" class="svg-path" marker-end="url(#arrow-gray)" />
+      
+      <!-- Frontend to Backend -->
+      <path d="M 230 160 L 360 160" class="svg-path svg-path-accent" marker-end="url(#arrow-blue)" />
+      <path d="M 230 185 L 360 185" class="svg-path svg-path-accent" marker-end="url(#arrow-blue)" />
+      <path d="M 230 210 L 360 210" class="svg-path svg-path-accent" marker-end="url(#arrow-blue)" />
+      
+      <!-- Backend to K8s -->
+      <path d="M 580 185 L 700 185" class="svg-path" marker-end="url(#arrow-gray)" />
+
+      <!-- Backend to Deps -->
+      <path d="M 470 250 L 470 320" class="svg-path svg-path-dep" marker-end="url(#arrow-teal)" />
+      <path d="M 470 250 L 220 280 L 220 320" class="svg-path svg-path-dep" marker-end="url(#arrow-teal)" />
+      <path d="M 470 250 L 720 280 L 720 320" class="svg-path svg-path-dep" marker-end="url(#arrow-teal)" />
+
+      <!-- Nodes -->
+      
+      <!-- Browser -->
+      <g transform="translate(45, 20)">
+        <rect width="150" height="60" class="svg-box" filter="url(#shadow)" />
+        <text x="75" y="30" text-anchor="middle" class="svg-text-title">Browser</text>
+        <text x="75" y="48" text-anchor="middle" class="svg-text-desc">Operator / User</text>
+      </g>
+
+      <!-- Frontend -->
+      <g transform="translate(10, 130)">
+        <rect width="220" height="120" class="svg-box svg-box-accent" filter="url(#shadow)" />
+        <text x="110" y="35" text-anchor="middle" class="svg-text-title">Frontend</text>
+        <text x="110" y="60" text-anchor="middle" class="svg-text-desc">React + TypeScript</text>
+        <text x="110" y="80" text-anchor="middle" class="svg-text-desc">served by nginx</text>
+        <text x="110" y="102" text-anchor="middle" class="svg-text-tiny mono">proxies /api + /ws</text>
+      </g>
+
+      <!-- Connection Labels (REST, SSE, WS) -->
+      <text x="295" y="152" text-anchor="middle" class="svg-text-tiny mono" fill="#2563eb">REST</text>
+      <text x="295" y="177" text-anchor="middle" class="svg-text-tiny mono" fill="#2563eb">SSE</text>
+      <text x="295" y="202" text-anchor="middle" class="svg-text-tiny mono" fill="#2563eb">WS</text>
+
+      <!-- Backend -->
+      <g transform="translate(360, 130)">
+        <rect width="220" height="120" class="svg-box svg-box-accent" filter="url(#shadow)" />
+        <text x="110" y="45" text-anchor="middle" class="svg-text-title">Backend</text>
+        <text x="110" y="70" text-anchor="middle" class="svg-text-desc">Spring Boot · Java 21</text>
+        <text x="110" y="90" text-anchor="middle" class="svg-text-desc">Security &amp; Logic</text>
+      </g>
+
+      <!-- K8s Label -->
+      <text x="640" y="177" text-anchor="middle" class="svg-text-tiny mono">Fabric8</text>
+
+      <!-- Kubernetes -->
+      <g transform="translate(700, 130)">
+        <rect width="190" height="120" class="svg-box svg-box-k8s" filter="url(#shadow)" />
+        <text x="95" y="45" text-anchor="middle" class="svg-text-title">Kubernetes API</text>
+        <text x="95" y="70" text-anchor="middle" class="svg-text-desc">Cluster Source of Truth</text>
+        
+        <!-- Inner risk badge -->
+        <rect x="25" y="85" width="140" height="24" rx="6" fill="#fffbeb" stroke="#d97706" />
+        <text x="95" y="101" text-anchor="middle" class="svg-text-tiny mono" fill="#d97706">3 audited terminals</text>
+      </g>
+
+      <!-- PostgreSQL -->
+      <g transform="translate(110, 320)">
+        <rect width="220" height="100" class="svg-box svg-box-dep" filter="url(#shadow)" />
+        <text x="110" y="40" text-anchor="middle" class="svg-text-title">PostgreSQL</text>
+        <text x="110" y="62" text-anchor="middle" class="svg-text-desc">app data + pgvector</text>
+        <text x="110" y="80" text-anchor="middle" class="svg-text-desc">audit log · diagnoses</text>
+      </g>
+
+      <!-- Ollama -->
+      <g transform="translate(360, 320)">
+        <rect width="220" height="100" class="svg-box svg-box-dep" filter="url(#shadow)" />
+        <text x="110" y="40" text-anchor="middle" class="svg-text-title">Ollama</text>
+        <text x="110" y="62" text-anchor="middle" class="svg-text-desc">via Spring AI</text>
+        <text x="110" y="80" text-anchor="middle" class="svg-text-tiny mono">qwen2.5-coder:7b</text>
+      </g>
+
+      <!-- Helm -->
+      <g transform="translate(610, 320)">
+        <rect width="220" height="100" class="svg-box svg-box-dep" filter="url(#shadow)" />
+        <text x="110" y="40" text-anchor="middle" class="svg-text-title">helm</text>
+        <text x="110" y="62" text-anchor="middle" class="svg-text-desc">CLI subprocess</text>
+        <text x="110" y="80" text-anchor="middle" class="svg-text-desc">isolated state dir</text>
+      </g>
+
+    </svg>
+
+    <div class="legend">
+      <div class="legend-item"><div class="dot" style="background: var(--accent-primary)"></div> Request Path</div>
+      <div class="legend-item"><div class="dot" style="background: var(--accent-dep)"></div> Backend Dependency</div>
+      <div class="legend-item"><div class="dot" style="background: var(--accent-risk)"></div> Disclosed Risk</div>
+    </div>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="card-header">
+        <h3 class="card-title">Frontend</h3>
+        <span class="tag tag-path">Request Path</span>
+      </div>
+      <p class="card-body">Single-page app served by nginx, which also reverse-proxies <strong>/api</strong> and <strong>/ws</strong> straight to the backend — one entrypoint for HTTP, streaming, and terminals alike.</p>
+      <div class="tech-stack mono">
+        <span class="tech-pill">React</span>
+        <span class="tech-pill">TypeScript</span>
+        <span class="tech-pill">TanStack Query</span>
+        <span class="tech-pill">nginx</span>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="card-header">
+        <h3 class="card-title">Backend</h3>
+        <span class="tag tag-path">Request Path</span>
+      </div>
+      <p class="card-body">Package-by-feature Spring Boot app. Reads and watches flow through Fabric8's informers; every write is allowlisted, ADMIN-gated, and rigorously audited.</p>
+      <div class="tech-stack mono">
+        <span class="tech-pill">Java 21</span>
+        <span class="tech-pill">Spring Boot 3.5</span>
+        <span class="tech-pill">Fabric8</span>
+        <span class="tech-pill">Spring Security</span>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="card-header">
+        <h3 class="card-title">Data &amp; AI</h3>
+        <span class="tag tag-dep">Dependency</span>
+      </div>
+      <p class="card-body">Postgres holds app data only. The K8s API stays the single source of truth. Ollama answers questions grounded in redacted context, entirely on your infrastructure.</p>
+      <div class="tech-stack mono">
+        <span class="tech-pill">PostgreSQL</span>
+        <span class="tech-pill">pgvector</span>
+        <span class="tech-pill">Spring AI</span>
+        <span class="tech-pill">Ollama</span>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="card-header">
+        <h3 class="card-title">Cluster Access</h3>
+        <span class="tag tag-risk">Disclosed Risk</span>
+      </div>
+      <p class="card-body">Pod exec, node shell, and full cluster terminal — each requires an explicit risk acknowledgment before connecting, actively written to the audit log.</p>
+      <div class="tech-stack mono">
+        <span class="tech-pill">Pod Exec</span>
+        <span class="tech-pill">Node Shell</span>
+        <span class="tech-pill">Cluster Terminal</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="mono">generated from the current architecture — kubemind, apache-2.0</div>
+    <a href="https://github.com/YusufAkyuz/KubeMind" target="_blank" rel="noopener" class="github-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+      </svg>
+      View on GitHub
+    </a>
+  </footer>
+</div>
+
+</body>
+</html>

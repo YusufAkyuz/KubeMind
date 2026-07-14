@@ -52,9 +52,17 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
-                // Interactive exec is effectively full write access — ADMIN only,
-                // enforced at the WebSocket handshake (an HTTP GET upgrade).
-                .requestMatchers("/ws/**").hasRole("ADMIN")
+                // Cluster Terminal provisions its own ServiceAccount bound to
+                // cluster-admin for the session, unconditionally — that's full
+                // access regardless of the caller's own kubeconfig, so it stays
+                // the one deliberate ADMIN-only exception among the terminals.
+                .requestMatchers("/ws/exec-cluster").hasRole("ADMIN")
+                // Pod exec and Node shell just use the target cluster's own
+                // kubeconfig — real Kubernetes RBAC decides what they can do,
+                // same as every other action against a registered cluster. No
+                // extra ADMIN gate here (enforced at the WebSocket handshake,
+                // an HTTP GET upgrade).
+                .requestMatchers("/ws/exec", "/ws/exec-node").authenticated()
                 .anyRequest().authenticated())
             .exceptionHandling(ex -> ex.authenticationEntryPoint(
                 (request, response, authException) ->

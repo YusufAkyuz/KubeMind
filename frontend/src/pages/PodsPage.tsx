@@ -212,22 +212,23 @@ export function PodsPage() {
                               <IconTerminal className="w-3.5 h-3.5" />
                               Logs
                             </button>
-                            {isAdmin && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  terminalPanel.openPodExec(
-                                    clusterId!, selected.namespace, selected.name,
-                                    selected.containers.map((sc) => sc.name), c.name,
-                                  )
-                                }}
-                                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
-                                title="Open terminal"
-                              >
-                                <IconTerminal className="w-3.5 h-3.5" />
-                                Exec
-                              </button>
-                            )}
+                            {/* Not ADMIN-gated: exec uses the target cluster's own
+                                kubeconfig — real Kubernetes RBAC decides what it
+                                can actually do, same as any other cluster action. */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                terminalPanel.openPodExec(
+                                  clusterId!, selected.namespace, selected.name,
+                                  selected.containers.map((sc) => sc.name), c.name,
+                                )
+                              }}
+                              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                              title="Open terminal"
+                            >
+                              <IconTerminal className="w-3.5 h-3.5" />
+                              Exec
+                            </button>
                           </div>
                         </div>
                         <p className="font-mono text-xs text-gray-400 break-all">{c.image}</p>
