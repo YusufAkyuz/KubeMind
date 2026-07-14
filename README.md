@@ -211,12 +211,13 @@ Found a vulnerability? Please follow [SECURITY.md](./SECURITY.md) — don't open
 
 ## Release plan
 
-The following are planned and tracked for the public launch:
-
-- Publish the `kubemind/backend` and `kubemind/frontend` images to Docker Hub on tagged
-  releases (automated via GitHub Actions).
+- ✅ **Tagged releases publish images to Docker Hub.** Pushing a tag like `v0.1.0` triggers
+  [`.github/workflows/release.yml`](./.github/workflows/release.yml), which builds and pushes
+  `kubemind/backend:0.1.0` and `kubemind/frontend:0.1.0` (plus `:latest`), amd64 + arm64. Once
+  a release is out, `helm install` works straight from this repo's chart with no local
+  `docker build` step.
 - Publish the Helm chart to a chart repository so users can `helm repo add` + `helm install`
-  without cloning this repo.
+  without cloning this repo at all.
 - Branch protection on `main` (required CI, required review) — see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Contributing
