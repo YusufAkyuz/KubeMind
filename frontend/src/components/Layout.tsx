@@ -16,7 +16,7 @@ export function Layout({ children }: Props) {
   const rightReserve = useRightReserve()
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       {/* ── Desktop sidebar ───────────────────────────────────────────────── */}
       <div className="hidden lg:block shrink-0">
         <Sidebar />

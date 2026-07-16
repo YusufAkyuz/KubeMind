@@ -96,17 +96,17 @@ export function UsersPage() {
         }
       />
 
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load users: ${(error as Error).message}`} />}
 
       {data && (
         <Table columns={COLUMNS} minWidth="480px">
           {data.map((u) => (
             <Tr key={u.id}>
-              <Td className="font-medium text-gray-900">
+              <Td className="font-medium text-gray-900 dark:text-slate-100">
                 {u.username}
                 {u.username === currentUsername && (
-                  <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 ring-1 ring-inset ring-gray-500/20">
+                  <span className="ml-2 rounded-full bg-gray-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:text-slate-400 ring-1 ring-inset ring-gray-500/20 dark:ring-slate-500/30">
                     you
                   </span>
                 )}
@@ -114,8 +114,8 @@ export function UsersPage() {
               <Td>
                 <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
                   u.role === 'ADMIN'
-                    ? 'bg-violet-50 text-violet-700 ring-violet-600/20'
-                    : 'bg-gray-50 text-gray-600 ring-gray-500/20'
+                    ? 'bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 ring-violet-600/20'
+                    : 'bg-gray-50 dark:bg-slate-800/60 text-gray-600 dark:text-slate-400 ring-gray-500/20 dark:ring-slate-500/30'
                 }`}>
                   {u.role}
                 </span>
@@ -124,15 +124,15 @@ export function UsersPage() {
                 <div className="flex justify-end gap-2">
                   <button
                     onClick={() => { setFormError(null); setNewPassword(''); setResetting(u) }}
-                    className="rounded-md border border-gray-300 px-2.5 py-1 text-xs text-gray-600
-                               hover:bg-gray-50 transition-colors"
+                    className="rounded-md border border-gray-300 dark:border-slate-600 px-2.5 py-1 text-xs text-gray-600 dark:text-slate-400
+                               hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                   >
                     Reset password
                   </button>
                   {u.username !== currentUsername && (
                     <button
                       onClick={() => setDeleting(u)}
-                      className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-600
+                      className="rounded-md border border-red-200 dark:border-red-500/30 px-2.5 py-1 text-xs text-red-600 dark:text-red-400
                                  hover:bg-red-50 transition-colors"
                     >
                       Delete
@@ -149,7 +149,7 @@ export function UsersPage() {
       <Modal open={addOpen} title="Add user" onClose={() => setAddOpen(false)}>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">Username</label>
+            <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1.5">Username</label>
             <input
               type="text"
               value={username}
@@ -157,12 +157,12 @@ export function UsersPage() {
               placeholder="jane.doe"
               maxLength={64}
               autoComplete="off"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">Password</label>
+            <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1.5">Password</label>
             <input
               type="password"
               value={password}
@@ -170,35 +170,35 @@ export function UsersPage() {
               placeholder="Min 8 characters"
               maxLength={128}
               autoComplete="new-password"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">Role</label>
+            <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1.5">Role</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as 'USER' | 'ADMIN')}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white
+              className="w-full rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-900
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="USER">USER — read-only</option>
               <option value="ADMIN">ADMIN — full access (effectively cluster-admin)</option>
             </select>
             {role === 'ADMIN' && (
-              <p className="mt-1.5 text-xs text-amber-600">
+              <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
                 ADMINs can use the terminals and every write action — treat this like handing
                 out cluster-admin.
               </p>
             )}
           </div>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setAddOpen(false)}
               disabled={addMutation.isPending}
-              className="rounded-md border border-gray-300 px-3.5 py-2 text-sm text-gray-700
-                         hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="rounded-md border border-gray-300 dark:border-slate-600 px-3.5 py-2 text-sm text-gray-700 dark:text-slate-300
+                         hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
             >
               Cancel
             </button>
@@ -222,7 +222,7 @@ export function UsersPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">New password</label>
+            <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1.5">New password</label>
             <input
               type="password"
               value={newPassword}
@@ -230,17 +230,17 @@ export function UsersPage() {
               placeholder="Min 8 characters"
               maxLength={128}
               autoComplete="new-password"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setResetting(null)}
               disabled={resetMutation.isPending}
-              className="rounded-md border border-gray-300 px-3.5 py-2 text-sm text-gray-700
-                         hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="rounded-md border border-gray-300 dark:border-slate-600 px-3.5 py-2 text-sm text-gray-700 dark:text-slate-300
+                         hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
             >
               Cancel
             </button>

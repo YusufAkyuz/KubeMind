@@ -30,20 +30,20 @@ const PENDING_COLUMNS = [
 function StatusBadge({ status }: { status: Cluster['status'] }) {
   if (!status || status === 'APPROVED') {
     return (
-      <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+      <span className="inline-flex rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-600/20">
         Approved
       </span>
     )
   }
   if (status === 'PENDING') {
     return (
-      <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+      <span className="inline-flex rounded-full bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 ring-1 ring-inset ring-amber-600/20">
         Pending approval
       </span>
     )
   }
   return (
-    <span className="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+    <span className="inline-flex rounded-full bg-red-50 dark:bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:text-red-400 ring-1 ring-inset ring-red-600/20">
       Rejected
     </span>
   )
@@ -84,15 +84,15 @@ function PendingRequests() {
 
   return (
     <div className="mb-6">
-      <h2 className="text-sm font-semibold text-gray-700 mb-2">
+      <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
         Pending cluster requests ({data.length})
       </h2>
       <Table columns={PENDING_COLUMNS} minWidth="560px">
         {data.map((p) => (
           <Tr key={p.id}>
-            <Td className="font-medium text-gray-900">{p.name}</Td>
-            <Td className="text-gray-500">{p.createdBy}</Td>
-            <Td className="text-gray-400 tabular-nums">{formatAge(p.createdAt)} ago</Td>
+            <Td className="font-medium text-gray-900 dark:text-slate-100">{p.name}</Td>
+            <Td className="text-gray-500 dark:text-slate-400">{p.createdBy}</Td>
+            <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(p.createdAt)} ago</Td>
             <Td>
               <div className="flex justify-end gap-2">
                 <button
@@ -106,7 +106,7 @@ function PendingRequests() {
                 <button
                   onClick={() => rejectMutation.mutate(p.id)}
                   disabled={rejectMutation.isPending}
-                  className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-600
+                  className="rounded-md border border-red-200 dark:border-red-500/30 px-2.5 py-1 text-xs text-red-600 dark:text-red-400
                              hover:bg-red-50 transition-colors"
                 >
                   Reject
@@ -203,12 +203,12 @@ export function ClustersPage() {
 
       {isAdmin && <PendingRequests />}
 
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load clusters: ${(error as Error).message}`} />}
 
       {data && data.length === 0 && (
-        <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center">
-          <p className="text-sm text-gray-500">
+        <div className="rounded-md border border-dashed border-gray-300 dark:border-slate-600 px-4 py-8 text-center">
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             No clusters yet. Add one with your own kubeconfig to get started.
           </p>
         </div>
@@ -218,40 +218,40 @@ export function ClustersPage() {
         <Table columns={COLUMNS} minWidth="600px">
           {data.map((c) => (
             <Tr key={c.id}>
-              <Td className="font-medium text-gray-900">
+              <Td className="font-medium text-gray-900 dark:text-slate-100">
                 {c.name}
                 {c.builtIn && (
-                  <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 ring-1 ring-inset ring-gray-500/20">
+                  <span className="ml-2 rounded-full bg-gray-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:text-slate-400 ring-1 ring-inset ring-gray-500 dark:ring-slate-500/20">
                     built-in
                   </span>
                 )}
               </Td>
               <Td>
                 {c.builtIn ? (
-                  <span className="text-xs text-gray-400">—</span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500">—</span>
                 ) : (
                   <StatusBadge status={c.status} />
                 )}
               </Td>
               <Td>
                 {c.builtIn ? (
-                  <span className="text-xs text-gray-400">always available</span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500">always available</span>
                 ) : c.status !== 'APPROVED' ? (
-                  <span className="text-xs text-gray-400">—</span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500">—</span>
                 ) : (
                   <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                    c.lastCheckOk === true ? 'text-emerald-600'
-                    : c.lastCheckOk === false ? 'text-red-600' : 'text-gray-400'
+                    c.lastCheckOk === true ? 'text-emerald-600 dark:text-emerald-400'
+                    : c.lastCheckOk === false ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-slate-500'
                   }`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${
                       c.lastCheckOk === true ? 'bg-emerald-500'
-                      : c.lastCheckOk === false ? 'bg-red-500' : 'bg-gray-300'
+                      : c.lastCheckOk === false ? 'bg-red-500' : 'bg-gray-300 dark:bg-slate-600'
                     }`} />
                     {c.lastCheckOk === true ? 'Reachable' : c.lastCheckOk === false ? 'Unreachable' : 'Unknown'}
                   </span>
                 )}
               </Td>
-              <Td className="text-gray-400 tabular-nums">
+              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">
                 {c.lastCheckedAt ? `${formatAge(c.lastCheckedAt)} ago` : '—'}
               </Td>
               <Td>
@@ -261,15 +261,15 @@ export function ClustersPage() {
                       <button
                         onClick={() => testMutation.mutate(c.id)}
                         disabled={testMutation.isPending}
-                        className="rounded-md border border-gray-300 px-2.5 py-1 text-xs text-gray-600
-                                   hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                        className="rounded-md border border-gray-300 dark:border-slate-600 px-2.5 py-1 text-xs text-gray-600 dark:text-slate-400
+                                   hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
                       >
                         Test
                       </button>
                     )}
                     <button
                       onClick={() => setDeleting(c)}
-                      className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-600
+                      className="rounded-md border border-red-200 dark:border-red-500/30 px-2.5 py-1 text-xs text-red-600 dark:text-red-400
                                  hover:bg-red-50 transition-colors"
                     >
                       Remove
@@ -286,19 +286,20 @@ export function ClustersPage() {
       <Modal open={addOpen} title="Add cluster" onClose={() => setAddOpen(false)} wide>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">Cluster name</label>
+            <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1.5">Cluster name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="staging"
               maxLength={128}
-              className="w-full sm:w-72 rounded-md border border-gray-300 px-3 py-2 text-sm
+              className="w-full sm:w-72 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800
+                         text-gray-900 dark:text-slate-100 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">Kubeconfig</label>
+            <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1.5">Kubeconfig</label>
             <textarea
               value={kubeconfig}
               onChange={(e) => setKubeconfig(e.target.value)}
@@ -308,19 +309,19 @@ export function ClustersPage() {
                          font-mono text-xs leading-5 p-3 resize-none
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            <p className="mt-1.5 text-xs text-gray-400">
+            <p className="mt-1.5 text-xs text-gray-400 dark:text-slate-500">
               Prefer a kubeconfig bound to a least-privilege (read-only) ServiceAccount.
               The connection is tested before the cluster is saved.
               {!isAdmin && ' An admin needs to approve it before you can use it.'}
             </p>
           </div>
-          {addError && <p className="text-sm text-red-600">{addError}</p>}
+          {addError && <p className="text-sm text-red-600 dark:text-red-400">{addError}</p>}
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setAddOpen(false)}
               disabled={addMutation.isPending}
-              className="rounded-md border border-gray-300 px-3.5 py-2 text-sm text-gray-700
-                         hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="rounded-md border border-gray-300 dark:border-slate-600 px-3.5 py-2 text-sm text-gray-700 dark:text-slate-300
+                         hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
             >
               Cancel
             </button>

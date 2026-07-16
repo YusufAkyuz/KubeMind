@@ -18,8 +18,9 @@ import {
   IconLayers,
   IconShield,
   IconHelm,
-  Logo, IconUsers } from './Icons'
+  Logo, IconUsers, IconSun, IconMoon } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
+import { useTheme } from '../theme/useTheme'
 import type { Cluster, Namespace, Pod, PendingCluster } from '../types/k8s'
 
 type IconType = ComponentType<{ className?: string }>
@@ -93,6 +94,7 @@ interface Props {
 
 export function Sidebar({ onClose }: Props) {
   const { username, isAdmin, logout } = useAuth()
+  const { theme, toggle: toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
   const terminalPanel = useTerminalPanel()
@@ -359,11 +361,21 @@ export function Sidebar({ onClose }: Props) {
       </nav>
 
       {/* User footer */}
-      <div className="shrink-0 px-4 py-3 border-t border-slate-800">
-        <p className="text-sm font-medium text-slate-200 truncate">{username}</p>
-        <button onClick={() => { logout(); onClose?.() }}
-          className="mt-0.5 text-xs text-slate-500 hover:text-slate-300 transition-colors">
-          Sign out
+      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-t border-slate-800">
+        <div>
+          <p className="text-sm font-medium text-slate-200 truncate">{username}</p>
+          <button onClick={() => { logout(); onClose?.() }}
+            className="mt-0.5 text-xs text-slate-500 hover:text-slate-300 transition-colors">
+            Sign out
+          </button>
+        </div>
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+        >
+          {theme === 'dark' ? <IconSun className="w-4 h-4" /> : <IconMoon className="w-4 h-4" />}
         </button>
       </div>
     </aside>

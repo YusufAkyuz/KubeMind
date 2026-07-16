@@ -20,21 +20,21 @@ interface Props {
 
 export function Table({ columns, children, minWidth = '600px' }: Props) {
   return (
-    <div className="overflow-x-auto rounded-xl ring-1 ring-gray-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl ring-1 ring-gray-200 dark:ring-slate-800 bg-white dark:bg-slate-900 shadow-sm">
       <table className="w-full text-sm" style={{ minWidth }}>
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50/60">
+          <tr className="border-b border-gray-200 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${col.className ?? ''}`}
+                className={`px-4 py-3 text-left text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${col.className ?? ''}`}
               >
                 {col.label}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">{children}</tbody>
+        <tbody className="divide-y divide-gray-100 dark:divide-slate-800">{children}</tbody>
       </table>
     </div>
   )
@@ -52,7 +52,7 @@ export function Tr({ children, onClick, highlighted }: RowProps) {
       onClick={onClick}
       className={[
         onClick ? 'cursor-pointer' : '',
-        highlighted ? 'bg-blue-50' : 'hover:bg-gray-50',
+        highlighted ? 'bg-blue-50 dark:bg-blue-500/10' : 'hover:bg-gray-50 dark:hover:bg-slate-800/60',
         'transition-colors',
       ].join(' ')}
     >
@@ -63,6 +63,6 @@ export function Tr({ children, onClick, highlighted }: RowProps) {
 
 export function Td({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <td className={`px-4 py-3 text-gray-700 ${className}`}>{children}</td>
+    <td className={`px-4 py-3 text-gray-700 dark:text-slate-300 ${className}`}>{children}</td>
   )
 }

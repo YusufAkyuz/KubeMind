@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Manual dark mode: toggled via a `.dark` class on <html> (see theme/useTheme.ts),
+   not just prefers-color-scheme — Tailwind v4 defaults to media-query-only dark:,
+   this custom variant makes it respond to the class instead. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Toast enters from the top-right corner it's anchored to (see components/Toast.tsx). */
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-8px); }

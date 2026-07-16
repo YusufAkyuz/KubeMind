@@ -47,12 +47,12 @@ export function ConfirmDialog({
   return (
     <Modal open={open} title={title} onClose={handleClose}>
       <div className="space-y-4">
-        <div className="text-sm text-gray-600 leading-relaxed">{message}</div>
+        <div className="text-sm text-gray-600 dark:text-slate-300 leading-relaxed">{message}</div>
 
         {requireText && (
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">
-              Type <span className="font-mono font-medium text-gray-800">{requireText}</span> to confirm
+            <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1.5">
+              Type <span className="font-mono font-medium text-gray-800 dark:text-slate-200">{requireText}</span> to confirm
             </label>
             <input
               type="text"
@@ -60,7 +60,8 @@ export function ConfirmDialog({
               onChange={(e) => setTyped(e.target.value)}
               autoComplete="off"
               spellCheck={false}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono
+              className="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800
+                         text-gray-900 dark:text-slate-100 px-3 py-2 text-sm font-mono
                          focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
             />
           </div>
@@ -72,8 +73,8 @@ export function ConfirmDialog({
           <button
             onClick={handleClose}
             disabled={busy}
-            className="rounded-md border border-gray-300 px-3.5 py-2 text-sm text-gray-700
-                       hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            className="rounded-md border border-gray-300 dark:border-slate-600 px-3.5 py-2 text-sm text-gray-700 dark:text-slate-300
+                       hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
           >
             Cancel
           </button>

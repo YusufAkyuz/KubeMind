@@ -30,18 +30,19 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-2xl space-y-4"
+        className="w-full max-w-sm bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-2xl space-y-4"
       >
         <div className="flex items-center gap-3">
           <Logo className="w-9 h-9" />
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-gray-900">KubeMind</h1>
-            <p className="text-xs text-gray-400">AI-assisted Kubernetes dashboard</p>
+            <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-slate-100">KubeMind</h1>
+            <p className="text-xs text-gray-400 dark:text-slate-500">AI-assisted Kubernetes dashboard</p>
           </div>
         </div>
-        {error && <div className="text-sm text-red-600">{error}</div>}
+        {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
         <input
-          className="w-full border border-gray-300 rounded px-3 py-2"
+          className="w-full border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800
+                     text-gray-900 dark:text-slate-100 rounded px-3 py-2"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Username"
@@ -49,7 +50,8 @@ export function LoginPage() {
         />
         <input
           type="password"
-          className="w-full border border-gray-300 rounded px-3 py-2"
+          className="w-full border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800
+                     text-gray-900 dark:text-slate-100 rounded px-3 py-2"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"

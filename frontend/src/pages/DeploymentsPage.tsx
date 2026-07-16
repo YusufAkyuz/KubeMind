@@ -60,11 +60,11 @@ export function DeploymentsPage() {
       />
 
       {noNamespace && (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
-          <p className="text-sm text-gray-400">Select a namespace from the sidebar to view deployments.</p>
+        <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-12 text-center">
+          <p className="text-sm text-gray-400 dark:text-slate-500">Select a namespace from the sidebar to view deployments.</p>
         </div>
       )}
-      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load deployments: ${(error as Error).message}`} />}
       {!isError && streamError && <ErrorBanner message={streamError} />}
 
@@ -76,15 +76,15 @@ export function DeploymentsPage() {
               onClick={() => setSelected(d)}
               highlighted={selected?.name === d.name && selected?.namespace === d.namespace}
             >
-              <Td className="font-medium text-gray-900">{d.name}</Td>
-              {showNsColumn && <Td className="text-gray-500">{d.namespace}</Td>}
+              <Td className="font-medium text-gray-900 dark:text-slate-100">{d.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{d.namespace}</Td>}
               <Td><StatusBadge status={replicaStatus(d)} /></Td>
-              <Td className="tabular-nums text-gray-500">{d.readyReplicas}/{d.desiredReplicas}</Td>
-              <Td className="hidden md:table-cell text-xs text-gray-400">{d.strategy}</Td>
-              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 max-w-[240px] truncate">
+              <Td className="tabular-nums text-gray-500 dark:text-slate-400">{d.readyReplicas}/{d.desiredReplicas}</Td>
+              <Td className="hidden md:table-cell text-xs text-gray-400 dark:text-slate-500">{d.strategy}</Td>
+              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 dark:text-slate-500 max-w-[240px] truncate">
                 {d.image ?? '—'}
               </Td>
-              <Td className="text-gray-400 tabular-nums">{formatAge(d.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(d.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

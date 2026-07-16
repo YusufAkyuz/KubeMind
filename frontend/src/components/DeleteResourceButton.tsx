@@ -30,8 +30,8 @@ export function DeleteResourceButton({ clusterId, ns, kind, name, onDeleted }: P
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium
-                   text-red-600 hover:bg-red-50 transition-colors"
+        className="rounded-md border border-red-200 dark:border-red-500/30 px-3 py-1.5 text-xs font-medium
+                   text-red-600 dark:text-red-400 hover:bg-red-50 transition-colors"
       >
         Delete
       </button>

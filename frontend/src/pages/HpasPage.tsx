@@ -49,7 +49,7 @@ export function HpasPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="HorizontalPodAutoscaler" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('HPAs')} />}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load HPAs: ${(error as Error).message}`} />}
 
       {data && (
@@ -57,17 +57,17 @@ export function HpasPage() {
           {data.map((h) => (
             <Tr key={`${h.namespace}/${h.name}`} onClick={() => setSelected(h)}
                 highlighted={selected?.name === h.name && selected?.namespace === h.namespace}>
-              <Td className="font-medium text-gray-900">{h.name}</Td>
-              {showNsColumn && <Td className="text-gray-500">{h.namespace}</Td>}
+              <Td className="font-medium text-gray-900 dark:text-slate-100">{h.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{h.namespace}</Td>}
               <Td><StatusBadge status={status(h)} /></Td>
-              <Td className="font-mono text-xs text-gray-500">{h.targetRef}</Td>
-              <Td className="tabular-nums text-gray-500">
+              <Td className="font-mono text-xs text-gray-500 dark:text-slate-400">{h.targetRef}</Td>
+              <Td className="tabular-nums text-gray-500 dark:text-slate-400">
                 {h.currentReplicas} / {h.minReplicas}–{h.maxReplicas}
               </Td>
-              <Td className="hidden lg:table-cell tabular-nums text-gray-400">
+              <Td className="hidden lg:table-cell tabular-nums text-gray-400 dark:text-slate-500">
                 {cpuDisplay(h)}
               </Td>
-              <Td className="text-gray-400 tabular-nums">{formatAge(h.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(h.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

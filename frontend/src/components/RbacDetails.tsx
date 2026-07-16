@@ -6,10 +6,10 @@ export function RbacRules({ rules }: { rules: RbacRule[] }) {
   return (
     <>
       <DrawerSection title={`Rules (${rules.length})`} />
-      {rules.length === 0 && <p className="text-sm text-gray-400">No rules.</p>}
+      {rules.length === 0 && <p className="text-sm text-gray-400 dark:text-slate-500">No rules.</p>}
       <div className="space-y-2">
         {rules.map((r, i) => (
-          <div key={i} className="rounded-lg border border-gray-200 p-3 space-y-1 text-xs">
+          <div key={i} className="rounded-lg border border-gray-200 dark:border-slate-700 p-3 space-y-1 text-xs">
             <RuleLine label="API groups" values={r.apiGroups} fallback='""  (core)' />
             <RuleLine label="Resources" values={r.resources} />
             {r.resourceNames.length > 0 && <RuleLine label="Resource names" values={r.resourceNames} />}
@@ -26,8 +26,8 @@ function RuleLine({ label, values, fallback = '—', mono = true, accent = false
 }) {
   return (
     <div className="flex gap-2">
-      <span className="w-28 shrink-0 text-gray-400">{label}</span>
-      <span className={`break-all ${mono ? 'font-mono' : ''} ${accent ? 'text-blue-700' : 'text-gray-700'}`}>
+      <span className="w-28 shrink-0 text-gray-400 dark:text-slate-500">{label}</span>
+      <span className={`break-all ${mono ? 'font-mono' : ''} ${accent ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-slate-300'}`}>
         {values.length > 0 ? values.join(', ') : fallback}
       </span>
     </div>
@@ -41,18 +41,18 @@ export function RbacSubjects({ subjects, roleRefKind, roleRefName }: {
   return (
     <>
       <DrawerSection title="Role ref" />
-      <div className="rounded-lg border border-gray-200 p-3 text-xs">
-        <span className="text-gray-400">{roleRefKind ?? '—'}</span>{' '}
-        <span className="font-mono text-gray-800">{roleRefName ?? '—'}</span>
+      <div className="rounded-lg border border-gray-200 dark:border-slate-700 p-3 text-xs">
+        <span className="text-gray-400 dark:text-slate-500">{roleRefKind ?? '—'}</span>{' '}
+        <span className="font-mono text-gray-800 dark:text-slate-200">{roleRefName ?? '—'}</span>
       </div>
 
       <DrawerSection title={`Subjects (${subjects.length})`} />
-      {subjects.length === 0 && <p className="text-sm text-gray-400">No subjects.</p>}
+      {subjects.length === 0 && <p className="text-sm text-gray-400 dark:text-slate-500">No subjects.</p>}
       <div className="space-y-2">
         {subjects.map((s, i) => (
-          <div key={i} className="rounded-lg border border-gray-200 p-3 text-xs flex gap-2">
-            <span className="text-gray-400 shrink-0">{s.kind}</span>
-            <span className="font-mono text-gray-800 break-all">
+          <div key={i} className="rounded-lg border border-gray-200 dark:border-slate-700 p-3 text-xs flex gap-2">
+            <span className="text-gray-400 dark:text-slate-500 shrink-0">{s.kind}</span>
+            <span className="font-mono text-gray-800 dark:text-slate-200 break-all">
               {s.namespace ? `${s.namespace}/${s.name}` : s.name}
             </span>
           </div>

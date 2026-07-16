@@ -38,7 +38,7 @@ export function ServicesPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Service" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('services')} />}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load services: ${(error as Error).message}`} />}
 
       {data && (
@@ -46,12 +46,12 @@ export function ServicesPage() {
           {data.map((s) => (
             <Tr key={`${s.namespace}/${s.name}`} onClick={() => setSelected(s)}
                 highlighted={selected?.name === s.name && selected?.namespace === s.namespace}>
-              <Td className="font-medium text-gray-900">{s.name}</Td>
-              {showNsColumn && <Td className="text-gray-500">{s.namespace}</Td>}
-              <Td className="text-gray-500">{s.type}</Td>
-              <Td className="hidden md:table-cell font-mono text-xs text-gray-400">{s.clusterIP ?? '—'}</Td>
-              <Td className="font-mono text-xs text-gray-500">{s.ports.join(', ') || '—'}</Td>
-              <Td className="text-gray-400 tabular-nums">{formatAge(s.creationTimestamp)}</Td>
+              <Td className="font-medium text-gray-900 dark:text-slate-100">{s.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{s.namespace}</Td>}
+              <Td className="text-gray-500 dark:text-slate-400">{s.type}</Td>
+              <Td className="hidden md:table-cell font-mono text-xs text-gray-400 dark:text-slate-500">{s.clusterIP ?? '—'}</Td>
+              <Td className="font-mono text-xs text-gray-500 dark:text-slate-400">{s.ports.join(', ') || '—'}</Td>
+              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(s.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>
@@ -90,16 +90,16 @@ export function ServicesPage() {
 
             <DrawerSection title="Ports" />
             {selected.ports.length === 0 ? (
-              <p className="text-sm text-gray-400">No ports.</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500">No ports.</p>
             ) : selected.ports.map((p, i) => (
-              <p key={i} className="font-mono text-xs text-gray-700 py-0.5">{p}</p>
+              <p key={i} className="font-mono text-xs text-gray-700 dark:text-slate-300 py-0.5">{p}</p>
             ))}
 
             {Object.keys(selected.selector).length > 0 && (
               <>
                 <DrawerSection title="Selector" />
                 {Object.entries(selected.selector).map(([k, v]) => (
-                  <p key={k} className="font-mono text-xs text-gray-600 py-0.5">{k}={v}</p>
+                  <p key={k} className="font-mono text-xs text-gray-600 dark:text-slate-400 py-0.5">{k}={v}</p>
                 ))}
               </>
             )}

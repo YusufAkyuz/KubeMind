@@ -41,8 +41,8 @@ export function ForwardServiceButton({ clusterId, ns, name }: Props) {
       onClick={openTunnel}
       disabled={loading}
       title="Open a tunnel to this service's backing pod in a new tab"
-      className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium
-                 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-xs font-medium
+                 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
     >
       <IconTerminal className="w-3.5 h-3.5" />
       {loading ? 'Opening…' : 'Forward'}

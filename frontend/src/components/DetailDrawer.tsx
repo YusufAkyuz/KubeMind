@@ -97,7 +97,7 @@ export function DetailDrawer({ open, title, subtitle, onClose, children }: Props
         aria-modal="true"
         aria-label={title}
         style={{ '--drawer-width': `${width}px`, right: reservedRight } as React.CSSProperties}
-        className={`fixed top-0 bottom-0 w-full sm:w-[var(--drawer-width)] bg-white z-[41] shadow-xl
+        className={`fixed top-0 bottom-0 w-full sm:w-[var(--drawer-width)] bg-white dark:bg-slate-900 z-[41] shadow-xl
                     flex flex-col transform ease-in-out
                     ${resizing ? '' : 'transition-transform duration-200'}
                     ${open ? 'translate-x-0' : 'translate-x-full'}`}
@@ -113,14 +113,14 @@ export function DetailDrawer({ open, title, subtitle, onClose, children }: Props
         </div>
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-200 shrink-0">
+        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-slate-800 shrink-0">
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-gray-900 truncate">{title}</h2>
-            {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{title}</h2>
+            {subtitle && <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="shrink-0 p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="shrink-0 p-1 rounded-md text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
             aria-label="Close"
           >
             <IconX className="w-4 h-4" />
@@ -138,7 +138,7 @@ export function DetailDrawer({ open, title, subtitle, onClose, children }: Props
 
 export function DrawerSection({ title }: { title: string }) {
   return (
-    <p className="pt-4 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-widest first:pt-0">
+    <p className="pt-4 pb-1 text-[10px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-widest first:pt-0">
       {title}
     </p>
   )
@@ -146,9 +146,9 @@ export function DrawerSection({ title }: { title: string }) {
 
 export function DrawerRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex gap-3 py-1.5 border-b border-gray-50 last:border-0">
-      <span className="w-32 shrink-0 text-xs text-gray-400 pt-px">{label}</span>
-      <span className="text-sm text-gray-800 break-all min-w-0">{value ?? <span className="text-gray-300">—</span>}</span>
+    <div className="flex gap-3 py-1.5 border-b border-gray-50 dark:border-slate-800/60 last:border-0">
+      <span className="w-32 shrink-0 text-xs text-gray-400 dark:text-slate-500 pt-px">{label}</span>
+      <span className="text-sm text-gray-800 dark:text-slate-200 break-all min-w-0">{value ?? <span className="text-gray-300 dark:text-slate-600">—</span>}</span>
     </div>
   )
 }

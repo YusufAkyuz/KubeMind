@@ -162,8 +162,8 @@ export function ChatWidget() {
         aria-label="AI assistant"
         aria-hidden={!chatPanel.isOpen}
         style={{ '--chat-width': `${chatPanel.width}px` } as React.CSSProperties}
-        className={`fixed top-0 right-0 bottom-0 z-[45] w-full sm:w-[var(--chat-width)] bg-white
-                    border-l border-gray-200 shadow-2xl flex flex-col transform ease-in-out
+        className={`fixed top-0 right-0 bottom-0 z-[45] w-full sm:w-[var(--chat-width)] bg-white dark:bg-slate-900
+                    border-l border-gray-200 dark:border-slate-700 shadow-2xl flex flex-col transform ease-in-out
                     ${resizing ? '' : 'transition-transform duration-200'}
                     ${chatPanel.isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'}`}
       >
@@ -178,14 +178,14 @@ export function ChatWidget() {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-slate-700 shrink-0">
           <div className="flex items-center gap-2">
             <Logo className="w-5 h-5" />
-            <span className="text-sm font-semibold text-gray-900">KubeMind Assistant</span>
+            <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">KubeMind Assistant</span>
           </div>
           <button
             onClick={chatPanel.close}
-            className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-md text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
             aria-label="Close"
           >
             <IconX className="w-4 h-4" />
@@ -195,7 +195,7 @@ export function ChatWidget() {
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {messages.length === 0 && (
-            <div className="text-sm text-gray-400 space-y-2">
+            <div className="text-sm text-gray-400 dark:text-slate-500 space-y-2">
               <p>Ask about this cluster or Kubernetes in general.</p>
               <ul className="space-y-1 text-xs">
                 <li>• "Which pods are unhealthy right now?"</li>
@@ -210,7 +210,7 @@ export function ChatWidget() {
                 className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
                   m.role === 'user'
                     ? 'bg-blue-600 text-white whitespace-pre-wrap'
-                    : 'bg-gray-100 text-gray-800'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200'
                 }`}
               >
                 {m.role === 'assistant'
@@ -227,7 +227,7 @@ export function ChatWidget() {
         </div>
 
         {/* Composer */}
-        <div className="border-t border-gray-200 p-3 shrink-0">
+        <div className="border-t border-gray-200 dark:border-slate-700 p-3 shrink-0">
           <div className="flex items-end gap-2">
             <textarea
               value={input}
@@ -235,7 +235,7 @@ export function ChatWidget() {
               onKeyDown={onKeyDown}
               rows={1}
               placeholder="Ask anything…"
-              className="flex-1 resize-none rounded-md border border-gray-300 px-3 py-2 text-sm
+              className="flex-1 resize-none rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                          max-h-24"
             />
@@ -248,7 +248,7 @@ export function ChatWidget() {
               {streaming ? '…' : 'Send'}
             </button>
           </div>
-          <p className="mt-1.5 text-[10px] text-gray-400">AI-generated — verify before acting.</p>
+          <p className="mt-1.5 text-[10px] text-gray-400 dark:text-slate-500">AI-generated — verify before acting.</p>
         </div>
       </div>
     </>

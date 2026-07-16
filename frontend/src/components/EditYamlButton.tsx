@@ -100,20 +100,20 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
     <>
       <button
         onClick={openEditor}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700
-                   hover:bg-gray-50 transition-colors"
+        className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-300
+                   hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
       >
         Edit YAML
       </button>
 
       <Modal open={open} title={`Edit YAML — ${name}`} onClose={() => setOpen(false)} wide>
         <div className="space-y-3">
-          {loading && <p className="text-sm text-gray-400">Loading manifest…</p>}
+          {loading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading manifest…</p>}
 
           {!loading && (
             <>
               {/* AI edit bar */}
-              <div className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-50/60 to-violet-50/60 border border-gray-200 px-3 py-2">
+              <div className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-50/60 to-violet-50/60 dark:from-blue-500/10 dark:to-violet-500/10 border border-gray-200 dark:border-slate-700 px-3 py-2">
                 <input
                   type="text"
                   value={aiInstruction}
@@ -121,7 +121,8 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
                   onKeyDown={(e) => { if (e.key === 'Enter') editWithAi() }}
                   placeholder='Describe a change, e.g. "increase replicas to 5"'
                   disabled={aiEditing || applying || showDiff}
-                  className="flex-1 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs
+                  className="flex-1 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800
+                             text-gray-900 dark:text-slate-100 px-2.5 py-1.5 text-xs
                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                              disabled:opacity-60"
                 />
@@ -136,7 +137,7 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
                   {aiEditing ? 'Editing…' : 'Edit with AI'}
                 </button>
               </div>
-              {aiError && <p className="text-xs text-red-600">{aiError}</p>}
+              {aiError && <p className="text-xs text-red-600 dark:text-red-400">{aiError}</p>}
 
               {/* Editor / Diff toggle */}
               <div className="flex items-center gap-2">
@@ -144,8 +145,8 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
                   onClick={() => setShowDiff(false)}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     !showDiff
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                      ? 'bg-gray-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   Editor
@@ -156,14 +157,14 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors
                     disabled:opacity-40 disabled:cursor-not-allowed ${
                     showDiff
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                      ? 'bg-gray-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   Review changes
                   {changeCount > 0 && (
                     <span className={`ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                      showDiff ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-700'
+                      showDiff ? 'bg-blue-500 text-white' : 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'
                     }`}>
                       {changeCount}
                     </span>
@@ -186,17 +187,17 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
               )}
             </>
           )}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-400 dark:text-slate-500">
               kind / name{ns ? ' / namespace' : ''} cannot be changed; conflicts return an error — reload and retry.
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setOpen(false)}
                 disabled={applying}
-                className="rounded-md border border-gray-300 px-3.5 py-2 text-sm text-gray-700
-                           hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                className="rounded-md border border-gray-300 dark:border-slate-600 px-3.5 py-2 text-sm text-gray-700 dark:text-slate-300
+                           hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
               >
                 Cancel
               </button>

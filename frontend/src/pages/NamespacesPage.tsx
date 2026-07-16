@@ -53,16 +53,16 @@ export function NamespacesPage() {
     <Layout>
       <PageHeader title="Namespaces" count={data?.length} noun="namespace" />
 
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load namespaces: ${(error as Error).message}`} />}
 
       {data && (
         <Table columns={COLUMNS} minWidth="360px">
           {data.map((ns) => (
             <Tr key={ns.name} onClick={() => setSelected(ns)} highlighted={selected?.name === ns.name}>
-              <Td className="font-medium text-blue-600">{ns.name}</Td>
+              <Td className="font-medium text-blue-600 dark:text-blue-400">{ns.name}</Td>
               <Td><StatusBadge status={ns.phase ?? 'Unknown'} /></Td>
-              <Td className="text-gray-400 tabular-nums">{formatAge(ns.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(ns.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>
@@ -86,8 +86,8 @@ export function NamespacesPage() {
               {isAdmin && (
                 <button
                   onClick={() => setDeleteOpen(true)}
-                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium
-                             text-red-600 hover:bg-red-50 transition-colors"
+                  className="rounded-md border border-red-200 dark:border-red-500/30 px-3 py-1.5 text-xs font-medium
+                             text-red-600 dark:text-red-400 hover:bg-red-50 transition-colors"
                 >
                   Delete
                 </button>
@@ -106,7 +106,7 @@ export function NamespacesPage() {
         title={`Delete namespace ${selected?.name ?? ''}`}
         message={
           <>
-            This deletes the namespace and <span className="font-semibold text-red-600">every resource inside it</span> —
+            This deletes the namespace and <span className="font-semibold text-red-600 dark:text-red-400">every resource inside it</span> —
             pods, deployments, secrets, everything. This cannot be undone.
           </>
         }

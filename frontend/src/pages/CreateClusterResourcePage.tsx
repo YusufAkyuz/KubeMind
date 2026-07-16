@@ -89,23 +89,23 @@ export function CreateClusterResourcePage() {
 
   return (
     <Layout>
-      <nav className="flex items-center gap-1.5 text-sm text-gray-400 mb-4 flex-wrap">
+      <nav className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-slate-500 mb-4 flex-wrap">
         <span>cluster-scoped</span>
         <IconChevronRight className="w-3.5 h-3.5 shrink-0" />
-        <span className="text-gray-600 font-medium">Create resource</span>
+        <span className="text-gray-600 dark:text-slate-400 font-medium">Create resource</span>
       </nav>
 
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden max-w-3xl">
+      <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden max-w-3xl">
         {!yaml && (
-          <div className="px-4 py-3 border-b border-gray-200">
-            <p className="text-xs font-medium text-gray-500 mb-2">Start from a template</p>
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700">
+            <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-2">Start from a template</p>
             <div className="flex flex-wrap gap-1.5">
               {CLUSTER_ALLOWED_KINDS.map((kind) => (
                 <button
                   key={kind}
                   onClick={() => setYaml(CLUSTER_KIND_TEMPLATES[kind])}
-                  className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600
-                             hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                  className="rounded-full border border-gray-200 dark:border-slate-700 px-3 py-1 text-xs text-gray-600 dark:text-slate-400
+                             hover:border-blue-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
                 >
                   {kind}
                 </button>
@@ -123,10 +123,10 @@ export function CreateClusterResourcePage() {
                      resize-none focus:outline-none"
         />
 
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/60">
           <button
             onClick={() => navigate(-1)}
-            className="rounded-lg border border-gray-300 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            className="rounded-lg border border-gray-300 dark:border-slate-600 px-3.5 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
           >
             Cancel
           </button>
@@ -146,7 +146,7 @@ export function CreateClusterResourcePage() {
         title="Create cluster-scoped resource"
         message={
           <>
-            This will create <span className="font-mono font-medium text-gray-800">{preview.kind}/{preview.name}</span>,
+            This will create <span className="font-mono font-medium text-gray-800 dark:text-slate-200">{preview.kind}/{preview.name}</span>,
             cluster-wide (no namespace). The manifest is validated by the cluster before anything is persisted.
           </>
         }
