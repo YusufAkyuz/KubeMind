@@ -42,7 +42,7 @@ export function StatefulSetsPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="StatefulSet" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('statefulsets')} />}
-      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load statefulsets: ${(error as Error).message}`} />}
 
       {data && (
@@ -50,14 +50,14 @@ export function StatefulSetsPage() {
           {data.map((s) => (
             <Tr key={`${s.namespace}/${s.name}`} onClick={() => setSelected(s)}
                 highlighted={selected?.name === s.name && selected?.namespace === s.namespace}>
-              <Td className="font-medium text-gray-900 dark:text-slate-100">{s.name}</Td>
-              {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{s.namespace}</Td>}
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{s.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{s.namespace}</Td>}
               <Td><StatusBadge status={status(s)} /></Td>
-              <Td className="tabular-nums text-gray-500 dark:text-slate-400">{s.readyReplicas}/{s.desiredReplicas}</Td>
-              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 dark:text-slate-500 max-w-[240px] truncate">
+              <Td className="tabular-nums text-gray-500 dark:text-neutral-400">{s.readyReplicas}/{s.desiredReplicas}</Td>
+              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 dark:text-neutral-500 max-w-[240px] truncate">
                 {s.image ?? '—'}
               </Td>
-              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(s.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(s.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

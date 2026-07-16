@@ -55,7 +55,7 @@ export function NodesPage() {
 
       {clusterId && <ClusterInsightsPanel clusterId={clusterId} />}
 
-      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load nodes: ${(error as Error).message}`} />}
       {!isError && streamError && <ErrorBanner message={streamError} />}
 
@@ -67,21 +67,21 @@ export function NodesPage() {
               onClick={() => setSelected(node)}
               highlighted={selected?.name === node.name}
             >
-              <Td className="font-medium text-gray-900 dark:text-slate-100">{node.name}</Td>
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{node.name}</Td>
               <Td><StatusBadge status={node.status} /></Td>
-              <Td className="text-gray-500 dark:text-slate-400">{node.roles}</Td>
-              <Td className="hidden md:table-cell font-mono text-xs text-gray-400 dark:text-slate-500">{node.kubeletVersion ?? '—'}</Td>
-              <Td className="hidden lg:table-cell text-gray-500 dark:text-slate-400">
+              <Td className="text-gray-500 dark:text-neutral-400">{node.roles}</Td>
+              <Td className="hidden md:table-cell font-mono text-xs text-gray-400 dark:text-neutral-500">{node.kubeletVersion ?? '—'}</Td>
+              <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400">
                 {metricsByName.get(node.name)?.cpuUsage
                   ? `${metricsByName.get(node.name)!.cpuUsage} / ${node.cpuCapacity ?? '—'}`
                   : node.cpuCapacity ?? '—'}
               </Td>
-              <Td className="hidden lg:table-cell text-gray-500 dark:text-slate-400">
+              <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400">
                 {metricsByName.get(node.name)?.memoryUsage
                   ? `${metricsByName.get(node.name)!.memoryUsage} / ${node.memoryCapacity ?? '—'}`
                   : node.memoryCapacity ?? '—'}
               </Td>
-              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(node.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(node.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

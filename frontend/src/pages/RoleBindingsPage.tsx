@@ -41,7 +41,7 @@ export function RoleBindingsPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="RoleBinding" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('role bindings')} />}
-      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load role bindings: ${(error as Error).message}`} />}
 
       {data && (
@@ -51,11 +51,11 @@ export function RoleBindingsPage() {
             {visible.map((rb) => (
               <Tr key={`${rb.namespace}/${rb.name}`} onClick={() => setSelected(rb)}
                   highlighted={selected?.name === rb.name && selected?.namespace === rb.namespace}>
-                <Td className="font-medium text-gray-900 dark:text-slate-100">{rb.name}</Td>
-                {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{rb.namespace}</Td>}
-                <Td className="hidden md:table-cell font-mono text-xs text-gray-500 dark:text-slate-400">{rb.roleRefKind}/{rb.roleRefName}</Td>
-                <Td className="hidden lg:table-cell text-gray-500 dark:text-slate-400 tabular-nums">{rb.subjects.length}</Td>
-                <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(rb.creationTimestamp)}</Td>
+                <Td className="font-medium text-gray-900 dark:text-neutral-100">{rb.name}</Td>
+                {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{rb.namespace}</Td>}
+                <Td className="hidden md:table-cell font-mono text-xs text-gray-500 dark:text-neutral-400">{rb.roleRefKind}/{rb.roleRefName}</Td>
+                <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400 tabular-nums">{rb.subjects.length}</Td>
+                <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(rb.creationTimestamp)}</Td>
               </Tr>
             ))}
           </Table>

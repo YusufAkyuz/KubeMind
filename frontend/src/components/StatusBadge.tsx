@@ -12,8 +12,8 @@ const VARIANTS: Record<string, string> = {
   NotReady: 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 ring-red-600/20 dark:ring-red-500/30',
   Warning: 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 ring-red-600/20 dark:ring-red-500/30',
   // Gray — neutral / informational
-  Normal: 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 ring-gray-500/20 dark:ring-slate-500/30',
-  Unknown: 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400 ring-gray-400/20 dark:ring-slate-500/30',
+  Normal: 'bg-gray-100 dark:bg-neutral-700 text-gray-600 dark:text-neutral-300 ring-gray-500/20 dark:ring-neutral-500/30',
+  Unknown: 'bg-gray-100 dark:bg-neutral-700 text-gray-500 dark:text-neutral-400 ring-gray-400/20 dark:ring-neutral-500/30',
 }
 
 interface Props {
@@ -23,7 +23,7 @@ interface Props {
 
 export function StatusBadge({ status: rawStatus, className = '' }: Props) {
   const status = rawStatus === 'Unknown' ? 'Pending' : rawStatus
-  const variant = VARIANTS[status] ?? 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 ring-gray-500/20 dark:ring-slate-500/30'
+  const variant = VARIANTS[status] ?? 'bg-gray-100 dark:bg-neutral-700 text-gray-600 dark:text-neutral-300 ring-gray-500/20 dark:ring-neutral-500/30'
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${variant} ${className}`}

@@ -119,25 +119,25 @@ export function CreateResourcePage() {
   return (
     <Layout>
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-slate-500 mb-4 flex-wrap">
+      <nav className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-neutral-500 mb-4 flex-wrap">
         <span>{ns}</span>
         <IconChevronRight className="w-3.5 h-3.5 shrink-0" />
-        <span className="text-gray-600 dark:text-slate-400 font-medium">Create resource</span>
+        <span className="text-gray-600 dark:text-neutral-400 font-medium">Create resource</span>
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 items-start">
         {/* ── Editor column ─────────────────────────────────────────────── */}
-        <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm overflow-hidden">
           {/* Kind quick-start (only while the editor is empty) */}
           {!yaml && (
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700">
-              <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-2">Start from a template</p>
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700">
+              <p className="text-xs font-medium text-gray-500 dark:text-neutral-400 mb-2">Start from a template</p>
               <div className="flex flex-wrap gap-1.5">
                 {ALLOWED_KINDS.map((kind) => (
                   <button
                     key={kind}
                     onClick={() => loadTemplate(kind)}
-                    className="rounded-full border border-gray-200 dark:border-slate-700 px-3 py-1 text-xs text-gray-600 dark:text-slate-400
+                    className="rounded-full border border-gray-200 dark:border-neutral-700 px-3 py-1 text-xs text-gray-600 dark:text-neutral-400
                                hover:border-blue-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
                   >
                     {kind}
@@ -148,7 +148,7 @@ export function CreateResourcePage() {
           )}
 
           {/* AI draft prompt */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-blue-50/60 to-violet-50/60 dark:from-blue-500/10 dark:to-violet-500/10">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700 bg-gradient-to-r from-blue-50/60 to-violet-50/60 dark:from-blue-500/10 dark:to-violet-500/10">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -157,8 +157,8 @@ export function CreateResourcePage() {
                 onKeyDown={(e) => { if (e.key === 'Enter') draft() }}
                 placeholder='Describe what you want, e.g. "a deployment running nginx with 3 replicas"'
                 disabled={busy}
-                className="flex-1 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800
-                           text-gray-900 dark:text-slate-100 px-3 py-2 text-sm
+                className="flex-1 rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                           text-gray-900 dark:text-neutral-100 px-3 py-2 text-sm
                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                            disabled:opacity-60"
               />
@@ -187,12 +187,12 @@ export function CreateResourcePage() {
           />
 
           {/* Action bar */}
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/60">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60">
             <button
               onClick={analyze}
               disabled={busy || !yaml.trim()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3.5 py-2
-                         text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3.5 py-2
+                         text-sm font-medium text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50
                          disabled:cursor-not-allowed transition-colors"
             >
               <IconSparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -201,7 +201,7 @@ export function CreateResourcePage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate(-1)}
-                className="rounded-lg border border-gray-300 dark:border-slate-600 px-3.5 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                className="rounded-lg border border-gray-300 dark:border-neutral-600 px-3.5 py-2 text-sm text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
               >
                 Cancel
               </button>
@@ -218,29 +218,29 @@ export function CreateResourcePage() {
         </div>
 
         {/* ── AI assistant column ───────────────────────────────────────── */}
-        <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden lg:sticky lg:top-6">
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/60">
-            <p className="text-sm font-medium text-gray-900 dark:text-slate-100">AI Review</p>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Correctness, security, and best-practice notes</p>
+        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm overflow-hidden lg:sticky lg:top-6">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60">
+            <p className="text-sm font-medium text-gray-900 dark:text-neutral-100">AI Review</p>
+            <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">Correctness, security, and best-practice notes</p>
           </div>
           <div className="px-4 py-3 max-h-[32rem] overflow-y-auto">
             {!hasAnalyzed.current && !analyzing && (
-              <p className="text-sm text-gray-400 dark:text-slate-500">
+              <p className="text-sm text-gray-400 dark:text-neutral-500">
                 Click "Analyze with AI" to review the manifest before creating it.
               </p>
             )}
             {analyzing && !analysis && (
               <div className="space-y-2 animate-pulse py-1">
-                <div className="h-3 bg-gray-100 dark:bg-slate-700 rounded w-4/5" />
-                <div className="h-3 bg-gray-100 dark:bg-slate-700 rounded w-full" />
-                <div className="h-3 bg-gray-100 dark:bg-slate-700 rounded w-3/5" />
+                <div className="h-3 bg-gray-100 dark:bg-neutral-700 rounded w-4/5" />
+                <div className="h-3 bg-gray-100 dark:bg-neutral-700 rounded w-full" />
+                <div className="h-3 bg-gray-100 dark:bg-neutral-700 rounded w-3/5" />
               </div>
             )}
             {analyzeError && <p className="text-sm text-red-600 dark:text-red-400">{analyzeError}</p>}
             {analysis && (
               <>
                 <div className="space-y-2">{renderLiteMarkdown(analysis)}</div>
-                <p className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800 text-xs text-gray-400 dark:text-slate-500">
+                <p className="mt-3 pt-3 border-t border-gray-100 dark:border-neutral-800 text-xs text-gray-400 dark:text-neutral-500">
                   AI-generated — verify before acting.
                 </p>
               </>
@@ -254,7 +254,7 @@ export function CreateResourcePage() {
         title="Create resource"
         message={
           <>
-            This will create <span className="font-mono font-medium text-gray-800 dark:text-slate-200">{preview.kind}/{preview.name}</span> in
+            This will create <span className="font-mono font-medium text-gray-800 dark:text-neutral-200">{preview.kind}/{preview.name}</span> in
             namespace <span className="font-medium">{ns}</span>. The manifest is validated by the cluster before
             anything is persisted.
           </>

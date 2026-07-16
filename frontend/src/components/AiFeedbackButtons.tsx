@@ -39,8 +39,8 @@ export function AiFeedbackButtons({ clusterId, surface, contextHash }: Props) {
         aria-label="Mark as helpful"
         className={`p-1 rounded transition-colors ${
           voted === 'UP' ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10'
-          : voted === 'DOWN' ? 'text-gray-300 dark:text-slate-600 cursor-default'
-          : 'text-gray-400 dark:text-slate-500 hover:text-emerald-600 hover:bg-emerald-50'
+          : voted === 'DOWN' ? 'text-gray-300 dark:text-neutral-600 cursor-default'
+          : 'text-gray-400 dark:text-neutral-500 hover:text-emerald-600 hover:bg-emerald-50'
         }`}
       >
         <IconThumbUp className="w-3.5 h-3.5" />
@@ -52,8 +52,8 @@ export function AiFeedbackButtons({ clusterId, surface, contextHash }: Props) {
         aria-label="Mark as not helpful"
         className={`p-1 rounded transition-colors ${
           voted === 'DOWN' ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10'
-          : voted === 'UP' ? 'text-gray-300 dark:text-slate-600 cursor-default'
-          : 'text-gray-400 dark:text-slate-500 hover:text-red-600 hover:bg-red-50'
+          : voted === 'UP' ? 'text-gray-300 dark:text-neutral-600 cursor-default'
+          : 'text-gray-400 dark:text-neutral-500 hover:text-red-600 hover:bg-red-50'
         }`}
       >
         <IconThumbDown className="w-3.5 h-3.5" />

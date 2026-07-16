@@ -63,12 +63,12 @@ export function RunbooksPage() {
         noun="runbook"
       />
 
-      <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 mb-4 space-y-3">
+      <div className="rounded-lg border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 mb-4 space-y-3">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title, e.g. Restarting the payments worker"
-          className="w-full rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm
+          className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <textarea
@@ -76,7 +76,7 @@ export function RunbooksPage() {
           onChange={(e) => setContent(e.target.value)}
           rows={4}
           placeholder="Steps, context, gotchas — anything your AI should know when it sees a related problem in this cluster."
-          className="w-full resize-y rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm
+          className="w-full resize-y rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         {create.isError && (
@@ -94,23 +94,23 @@ export function RunbooksPage() {
         </div>
       </div>
 
-      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load runbooks: ${(error as Error).message}`} />}
 
       {data && data.length === 0 && (
-        <div className="rounded-lg border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-12 text-center">
-          <p className="text-sm text-gray-400 dark:text-slate-500">No runbooks yet for this cluster.</p>
+        <div className="rounded-lg border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
+          <p className="text-sm text-gray-400 dark:text-neutral-500">No runbooks yet for this cluster.</p>
         </div>
       )}
 
       {data && data.length > 0 && (
         <div className="space-y-3">
           {data.map((r) => (
-            <div key={r.id} className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+            <div key={r.id} className="rounded-lg border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{r.title}</p>
-                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                  <p className="text-sm font-medium text-gray-900 dark:text-neutral-100">{r.title}</p>
+                  <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">
                     {r.createdBy} · {formatAge(r.createdAt)} ago
                   </p>
                 </div>
@@ -122,7 +122,7 @@ export function RunbooksPage() {
                   Delete
                 </button>
               </div>
-              <p className="mt-2 text-sm text-gray-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">{r.content}</p>
+              <p className="mt-2 text-sm text-gray-600 dark:text-neutral-400 whitespace-pre-wrap leading-relaxed">{r.content}</p>
             </div>
           ))}
         </div>

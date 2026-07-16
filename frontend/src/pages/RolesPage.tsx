@@ -40,7 +40,7 @@ export function RolesPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Role" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('roles')} />}
-      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load roles: ${(error as Error).message}`} />}
 
       {data && (
@@ -50,10 +50,10 @@ export function RolesPage() {
             {visible.map((r) => (
               <Tr key={`${r.namespace}/${r.name}`} onClick={() => setSelected(r)}
                   highlighted={selected?.name === r.name && selected?.namespace === r.namespace}>
-                <Td className="font-medium text-gray-900 dark:text-slate-100">{r.name}</Td>
-                {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{r.namespace}</Td>}
-                <Td className="hidden md:table-cell text-gray-500 dark:text-slate-400 tabular-nums">{r.rules.length}</Td>
-                <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(r.creationTimestamp)}</Td>
+                <Td className="font-medium text-gray-900 dark:text-neutral-100">{r.name}</Td>
+                {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{r.namespace}</Td>}
+                <Td className="hidden md:table-cell text-gray-500 dark:text-neutral-400 tabular-nums">{r.rules.length}</Td>
+                <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(r.creationTimestamp)}</Td>
               </Tr>
             ))}
           </Table>

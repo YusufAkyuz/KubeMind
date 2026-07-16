@@ -177,20 +177,20 @@ export function Sidebar({ onClose }: Props) {
     [
       'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
       isActive ? 'bg-blue-500/15 text-blue-300 font-medium'
-        : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
+        : 'text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100',
     ].join(' ')
 
   const subLinkClass = ({ isActive }: { isActive: boolean }) =>
     [
       'flex items-center justify-between pl-11 pr-3 py-1.5 rounded-lg text-[13px] transition-colors',
       isActive ? 'bg-blue-500/15 text-blue-300 font-medium'
-        : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
+        : 'text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100',
     ].join(' ')
 
   const selectClass =
-    'w-full text-sm border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-800 text-slate-200 ' +
+    'w-full text-sm border border-neutral-700 rounded-lg px-2.5 py-1.5 bg-neutral-800 text-neutral-200 ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-  const label = 'block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5'
+  const label = 'block text-[10px] font-semibold text-neutral-500 uppercase tracking-widest mb-1.5'
 
   // Scrollbar only appears while actively scrolling (see .sidebar-scroll in index.css),
   // then fades back to invisible ~600ms after the last scroll event.
@@ -204,15 +204,15 @@ export function Sidebar({ onClose }: Props) {
   useEffect(() => () => { if (scrollTimeout.current) clearTimeout(scrollTimeout.current) }, [])
 
   return (
-    <aside className="flex flex-col h-full w-64 bg-slate-900 select-none">
+    <aside className="flex flex-col h-full w-64 bg-neutral-900 select-none">
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-5 h-14 border-b border-slate-800 shrink-0">
+      <div className="flex items-center gap-2.5 px-5 h-14 border-b border-neutral-800 shrink-0">
         <Logo className="w-7 h-7" />
         <span className="text-[15px] font-semibold tracking-tight text-white">KubeMind</span>
       </div>
 
       {/* Cluster + namespace selectors */}
-      <div className="px-4 py-3 border-b border-slate-800 shrink-0 space-y-3">
+      <div className="px-4 py-3 border-b border-neutral-800 shrink-0 space-y-3">
         <div>
           <label className={label}>Cluster</label>
           <div className="flex items-center gap-2">
@@ -228,7 +228,7 @@ export function Sidebar({ onClose }: Props) {
               <span
                 title={currentCluster.lastCheckOk === false ? 'Unreachable' : 'Healthy'}
                 className={`shrink-0 w-2 h-2 rounded-full ${currentCluster.lastCheckOk === false ? 'bg-red-500'
-                  : currentCluster.lastCheckOk === true ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                  : currentCluster.lastCheckOk === true ? 'bg-emerald-500' : 'bg-neutral-600'}`}
               />
             )}
           </div>
@@ -282,15 +282,15 @@ export function Sidebar({ onClose }: Props) {
             <div key={key}>
               <button
                 onClick={() => toggleGroup(key)}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300
-                           hover:bg-slate-800/70 transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-300
+                           hover:bg-neutral-800/70 transition-colors"
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="flex-1 text-left">{groupLabel}</span>
                 {showGroupAlert && (
                   <span className="flex h-2 w-2 rounded-full bg-red-500 shrink-0 mr-1" title={`${alertPodCount} pod alerts`} />
                 )}
-                <IconChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${expanded ? '' : '-rotate-90'}`} />
+                <IconChevronDown className={`w-3.5 h-3.5 text-neutral-500 transition-transform ${expanded ? '' : '-rotate-90'}`} />
               </button>
               {expanded && (
                 <div className="mt-0.5 space-y-0.5">
@@ -324,7 +324,7 @@ export function Sidebar({ onClose }: Props) {
           )
         })}
 
-        <div className="my-2 border-t border-slate-800" />
+        <div className="my-2 border-t border-neutral-800" />
         <NavLink to="/settings/clusters" className={linkClass} onClick={onClose}>
           <IconServer className="w-4 h-4 shrink-0" /> Clusters
           {isAdmin && pendingClusterCount > 0 && (
@@ -352,7 +352,7 @@ export function Sidebar({ onClose }: Props) {
             <button
               onClick={() => { terminalPanel.openClusterTerminal(clusterId); onClose?.() }}
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm w-full text-left
-                         text-slate-400 hover:bg-slate-800/70 hover:text-slate-100 transition-colors"
+                         text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100 transition-colors"
             >
               <IconTerminal className="w-4 h-4 shrink-0" /> Cluster Terminal
             </button>
@@ -361,11 +361,11 @@ export function Sidebar({ onClose }: Props) {
       </nav>
 
       {/* User footer */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-t border-slate-800">
+      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-t border-neutral-800">
         <div>
-          <p className="text-sm font-medium text-slate-200 truncate">{username}</p>
+          <p className="text-sm font-medium text-neutral-200 truncate">{username}</p>
           <button onClick={() => { logout(); onClose?.() }}
-            className="mt-0.5 text-xs text-slate-500 hover:text-slate-300 transition-colors">
+            className="mt-0.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
             Sign out
           </button>
         </div>
@@ -373,7 +373,7 @@ export function Sidebar({ onClose }: Props) {
           onClick={toggleTheme}
           title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+          className="shrink-0 p-1.5 rounded-md text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
         >
           {theme === 'dark' ? <IconSun className="w-4 h-4" /> : <IconMoon className="w-4 h-4" />}
         </button>

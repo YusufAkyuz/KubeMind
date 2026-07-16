@@ -16,7 +16,7 @@ export function Layout({ children }: Props) {
   const rightReserve = useRightReserve()
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-neutral-50 dark:bg-neutral-950 overflow-hidden">
       {/* ── Desktop sidebar ───────────────────────────────────────────────── */}
       <div className="hidden lg:block shrink-0">
         <Sidebar />
@@ -41,10 +41,10 @@ export function Layout({ children }: Props) {
       {/* ── Content area ──────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center gap-3 h-14 px-4 bg-slate-900 shrink-0">
+        <header className="lg:hidden flex items-center gap-3 h-14 px-4 bg-neutral-900 shrink-0">
           <button
             onClick={() => setOpen(true)}
-            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+            className="p-1.5 rounded-lg text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 transition-colors"
             aria-label="Open navigation"
           >
             <IconMenu />

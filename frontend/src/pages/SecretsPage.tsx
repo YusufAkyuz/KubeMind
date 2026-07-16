@@ -49,7 +49,7 @@ export function SecretsPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Secret" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('secrets')} />}
-      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load secrets: ${(error as Error).message}`} />}
 
       {data && (
@@ -57,11 +57,11 @@ export function SecretsPage() {
           {data.map((s) => (
             <Tr key={`${s.namespace}/${s.name}`} onClick={() => select(s)}
                 highlighted={selected?.name === s.name && selected?.namespace === s.namespace}>
-              <Td className="font-medium text-gray-900 dark:text-slate-100">{s.name}</Td>
-              {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{s.namespace}</Td>}
-              <Td className="font-mono text-xs text-gray-500 dark:text-slate-400">{s.type}</Td>
-              <Td className="text-gray-500 dark:text-slate-400 tabular-nums">{s.keys.length}</Td>
-              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(s.creationTimestamp)}</Td>
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{s.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{s.namespace}</Td>}
+              <Td className="font-mono text-xs text-gray-500 dark:text-neutral-400">{s.type}</Td>
+              <Td className="text-gray-500 dark:text-neutral-400 tabular-nums">{s.keys.length}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(s.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>
@@ -99,8 +99,8 @@ export function SecretsPage() {
             <DrawerSection title={`Data (${selected.keys.length})`} />
             {selected.keys.map((key) => (
               <div key={key} className="flex items-center justify-between gap-3 py-1.5 border-b border-gray-50 last:border-0">
-                <span className="font-mono text-xs font-medium text-gray-700 dark:text-slate-300 truncate">{key}</span>
-                <span className="font-mono text-xs text-gray-400 dark:text-slate-500 break-all text-right">
+                <span className="font-mono text-xs font-medium text-gray-700 dark:text-neutral-300 truncate">{key}</span>
+                <span className="font-mono text-xs text-gray-400 dark:text-neutral-500 break-all text-right">
                   {reveal.data ? (reveal.data[key] ?? '—') : '••••••••'}
                 </span>
               </div>
@@ -116,7 +116,7 @@ export function SecretsPage() {
                 >
                   {reveal.isPending ? 'Revealing…' : 'Reveal values'}
                 </button>
-                <p className="mt-1.5 text-[11px] text-gray-400 dark:text-slate-500">
+                <p className="mt-1.5 text-[11px] text-gray-400 dark:text-neutral-500">
                   Revealing is recorded in the audit log.
                 </p>
               </div>
@@ -127,8 +127,8 @@ export function SecretsPage() {
             {reveal.data && (
               <button
                 onClick={() => reveal.reset()}
-                className="mt-3 rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-xs text-gray-600 dark:text-slate-400
-                           hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                className="mt-3 rounded-lg border border-gray-300 dark:border-neutral-600 px-3 py-1.5 text-xs text-gray-600 dark:text-neutral-400
+                           hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
               >
                 Hide values
               </button>

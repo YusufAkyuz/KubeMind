@@ -112,9 +112,9 @@ export function HelmChartsPage() {
       <PageHeader title="Helm Charts" subtitle="search repos and install" />
 
       {/* Repos */}
-      <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 mb-4">
+      <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 mb-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">Repositories</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-neutral-100">Repositories</p>
           {isAdmin && (
             <button
               onClick={() => setAddRepoOpen(true)}
@@ -124,19 +124,19 @@ export function HelmChartsPage() {
             </button>
           )}
         </div>
-        {reposLoading && <p className="text-xs text-gray-400 dark:text-slate-500">Loading…</p>}
+        {reposLoading && <p className="text-xs text-gray-400 dark:text-neutral-500">Loading…</p>}
         {repos && repos.length === 0 && (
-          <p className="text-xs text-gray-400 dark:text-slate-500">No repos added yet — add one to search for charts.</p>
+          <p className="text-xs text-gray-400 dark:text-neutral-500">No repos added yet — add one to search for charts.</p>
         )}
         {repos && repos.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {repos.map((r) => (
-              <span key={r.name} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-slate-700
-                                             bg-gray-50 dark:bg-slate-800/60 px-2.5 py-1 text-xs text-gray-600 dark:text-slate-400">
+              <span key={r.name} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-neutral-700
+                                             bg-gray-50 dark:bg-neutral-800/60 px-2.5 py-1 text-xs text-gray-600 dark:text-neutral-400">
                 <span className="font-medium">{r.name}</span>
-                <span className="text-gray-400 dark:text-slate-500">{r.url}</span>
+                <span className="text-gray-400 dark:text-neutral-500">{r.url}</span>
                 {isAdmin && (
-                  <button onClick={() => removeRepo(r.name)} className="text-gray-400 dark:text-slate-500 hover:text-red-600 transition-colors">
+                  <button onClick={() => removeRepo(r.name)} className="text-gray-400 dark:text-neutral-500 hover:text-red-600 transition-colors">
                     <IconX className="w-3 h-3" />
                   </button>
                 )}
@@ -149,14 +149,14 @@ export function HelmChartsPage() {
       {/* Search */}
       <div className="flex items-center gap-2 mb-4">
         <div className="relative flex-1 max-w-md">
-          <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
+          <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-neutral-500" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') setSearchTerm(query.trim()) }}
             placeholder="Search charts, e.g. nginx"
-            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 pl-9 pr-3 py-2 text-sm
+            className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 pl-9 pr-3 py-2 text-sm
                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -172,13 +172,13 @@ export function HelmChartsPage() {
         <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">Select a namespace from the sidebar to install charts into.</p>
       )}
       {(repos?.length ?? 0) === 0 && !reposLoading && (
-        <p className="text-sm text-gray-400 dark:text-slate-500">Add a chart repository above to start searching.</p>
+        <p className="text-sm text-gray-400 dark:text-neutral-500">Add a chart repository above to start searching.</p>
       )}
-      {chartsLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Searching…</p>}
+      {chartsLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Searching…</p>}
       {isError && <ErrorBanner message={`Search failed: ${(error as Error).message}`} />}
 
       {charts && charts.length === 0 && !chartsLoading && (repos?.length ?? 0) > 0 && (
-        <p className="text-sm text-gray-400 dark:text-slate-500">No charts found{searchTerm ? ` for "${searchTerm}"` : ''}.</p>
+        <p className="text-sm text-gray-400 dark:text-neutral-500">No charts found{searchTerm ? ` for "${searchTerm}"` : ''}.</p>
       )}
 
       {charts && charts.length > 0 && (
@@ -191,10 +191,10 @@ export function HelmChartsPage() {
         ]}>
           {charts.map((c) => (
             <Tr key={c.name + c.version}>
-              <Td className="font-medium text-gray-900 dark:text-slate-100 font-mono text-xs">{c.name}</Td>
-              <Td className="text-gray-500 dark:text-slate-400 tabular-nums">{c.version}</Td>
-              <Td className="hidden md:table-cell text-gray-500 dark:text-slate-400">{c.appVersion || '—'}</Td>
-              <Td className="hidden lg:table-cell text-gray-500 dark:text-slate-400 max-w-md truncate">{c.description}</Td>
+              <Td className="font-medium text-gray-900 dark:text-neutral-100 font-mono text-xs">{c.name}</Td>
+              <Td className="text-gray-500 dark:text-neutral-400 tabular-nums">{c.version}</Td>
+              <Td className="hidden md:table-cell text-gray-500 dark:text-neutral-400">{c.appVersion || '—'}</Td>
+              <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400 max-w-md truncate">{c.description}</Td>
               <Td>
                 {isAdmin && (
                   <button
@@ -216,26 +216,26 @@ export function HelmChartsPage() {
       <Modal open={addRepoOpen} title="Add chart repository" onClose={() => setAddRepoOpen(false)}>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Name</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1">Name</label>
             <input
               type="text" value={repoName} onChange={(e) => setRepoName(e.target.value)}
               placeholder="bitnami"
-              className="w-full rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">URL</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1">URL</label>
             <input
               type="text" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)}
               placeholder="https://charts.bitnami.com/bitnami"
-              className="w-full rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={() => setAddRepoOpen(false)}
-                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                    className="rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-1.5 text-sm text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors">
               Cancel
             </button>
             <button onClick={addRepo} disabled={!repoName.trim() || !repoUrl.trim()}
@@ -251,17 +251,17 @@ export function HelmChartsPage() {
       <Modal open={!!installing} title={`Install ${installing?.name ?? ''}`} onClose={() => setInstalling(null)} wide>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Release name</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1">Release name</label>
             <input
               type="text" value={releaseName} onChange={(e) => setReleaseName(e.target.value)}
-              className="w-full rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          <p className="text-xs text-gray-400 dark:text-slate-500">Namespace: <span className="font-medium text-gray-600 dark:text-slate-400">{ns}</span></p>
+          <p className="text-xs text-gray-400 dark:text-neutral-500">Namespace: <span className="font-medium text-gray-600 dark:text-neutral-400">{ns}</span></p>
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">
-              Values (YAML) {valuesLoading && <span className="text-gray-400 dark:text-slate-500 font-normal">— downloading chart defaults…</span>}
+            <label className="block text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1">
+              Values (YAML) {valuesLoading && <span className="text-gray-400 dark:text-neutral-500 font-normal">— downloading chart defaults…</span>}
             </label>
             <textarea
               value={valuesYaml} onChange={(e) => setValuesYaml(e.target.value)}
@@ -271,13 +271,13 @@ export function HelmChartsPage() {
                          leading-5 p-3 resize-none focus:outline-none disabled:opacity-60"
             />
           </div>
-          <p className="text-[10px] text-gray-400 dark:text-slate-500">
+          <p className="text-[10px] text-gray-400 dark:text-neutral-500">
             Runs <code className="font-mono">helm upgrade --install</code> on the backend — creates the release if it
             doesn't exist yet, upgrades it in place if it does.
           </p>
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={() => setInstalling(null)}
-                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                    className="rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-1.5 text-sm text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors">
               Cancel
             </button>
             <button onClick={install} disabled={installBusy || !releaseName.trim()}

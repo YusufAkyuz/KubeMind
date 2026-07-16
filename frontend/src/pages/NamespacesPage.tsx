@@ -53,7 +53,7 @@ export function NamespacesPage() {
     <Layout>
       <PageHeader title="Namespaces" count={data?.length} noun="namespace" />
 
-      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load namespaces: ${(error as Error).message}`} />}
 
       {data && (
@@ -62,7 +62,7 @@ export function NamespacesPage() {
             <Tr key={ns.name} onClick={() => setSelected(ns)} highlighted={selected?.name === ns.name}>
               <Td className="font-medium text-blue-600 dark:text-blue-400">{ns.name}</Td>
               <Td><StatusBadge status={ns.phase ?? 'Unknown'} /></Td>
-              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(ns.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(ns.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

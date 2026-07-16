@@ -85,11 +85,11 @@ export function PodsPage() {
       />
 
       {noNamespace && (
-        <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-12 text-center">
-          <p className="text-sm text-gray-400 dark:text-slate-500">Select a namespace from the sidebar to view pods.</p>
+        <div className="rounded-xl border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
+          <p className="text-sm text-gray-400 dark:text-neutral-500">Select a namespace from the sidebar to view pods.</p>
         </div>
       )}
-      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load pods: ${(error as Error).message}`} />}
       {!isError && streamError && <ErrorBanner message={streamError} />}
 
@@ -105,8 +105,8 @@ export function PodsPage() {
                 onClick={() => setSelected(pod)}
                 highlighted={selected?.name === pod.name && selected?.namespace === pod.namespace}
               >
-                <Td className="font-medium text-gray-900 dark:text-slate-100">{pod.name}</Td>
-                {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{pod.namespace}</Td>}
+                <Td className="font-medium text-gray-900 dark:text-neutral-100">{pod.name}</Td>
+                {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{pod.namespace}</Td>}
                 <Td>
                   <div className="flex items-center gap-1.5">
                     <StatusBadge status={pod.phase} />
@@ -117,17 +117,17 @@ export function PodsPage() {
                     )}
                   </div>
                 </Td>
-                <Td className="tabular-nums text-gray-500 dark:text-slate-400">{readyCount}/{pod.containers.length}</Td>
+                <Td className="tabular-nums text-gray-500 dark:text-neutral-400">{readyCount}/{pod.containers.length}</Td>
                 <Td>
-                  <span className={!isHealthy && pod.restartCount > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-slate-400 tabular-nums'}>
+                  <span className={!isHealthy && pod.restartCount > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-neutral-400 tabular-nums'}>
                     {pod.restartCount}
                   </span>
                 </Td>
-                <Td className="hidden lg:table-cell text-gray-500 dark:text-slate-400">{metricsByName.get(pod.name)?.cpuUsage ?? '—'}</Td>
-                <Td className="hidden lg:table-cell text-gray-500 dark:text-slate-400">{metricsByName.get(pod.name)?.memoryUsage ?? '—'}</Td>
-                <Td className="hidden lg:table-cell text-gray-400 dark:text-slate-500 text-xs">{pod.nodeName ?? '—'}</Td>
-                <Td className="hidden xl:table-cell font-mono text-xs text-gray-400 dark:text-slate-500">{pod.podIP ?? '—'}</Td>
-                <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(pod.creationTimestamp)}</Td>
+                <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400">{metricsByName.get(pod.name)?.cpuUsage ?? '—'}</Td>
+                <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400">{metricsByName.get(pod.name)?.memoryUsage ?? '—'}</Td>
+                <Td className="hidden lg:table-cell text-gray-400 dark:text-neutral-500 text-xs">{pod.nodeName ?? '—'}</Td>
+                <Td className="hidden xl:table-cell font-mono text-xs text-gray-400 dark:text-neutral-500">{pod.podIP ?? '—'}</Td>
+                <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(pod.creationTimestamp)}</Td>
               </Tr>
             )
           })}
@@ -196,9 +196,9 @@ export function PodsPage() {
                   <>
                     <DrawerSection title="Containers" />
                     {selected.containers.map((c) => (
-                      <div key={c.name} className="rounded-lg border border-gray-200 dark:border-slate-700 p-3 space-y-1.5">
+                      <div key={c.name} className="rounded-lg border border-gray-200 dark:border-neutral-700 p-3 space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">{c.name}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-neutral-100 truncate">{c.name}</span>
                           <div className="flex items-center gap-2 shrink-0">
                             <StatusBadge status={c.ready ? 'Ready' : 'NotReady'} />
                             <button
@@ -231,9 +231,9 @@ export function PodsPage() {
                             </button>
                           </div>
                         </div>
-                        <p className="font-mono text-xs text-gray-400 dark:text-slate-500 break-all">{c.image}</p>
+                        <p className="font-mono text-xs text-gray-400 dark:text-neutral-500 break-all">{c.image}</p>
                         <div className="flex items-center gap-4 text-xs">
-                          <span className={!isSelectedHealthy && c.restartCount > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-slate-500'}>
+                          <span className={!isSelectedHealthy && c.restartCount > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-neutral-500'}>
                             Restarts: {c.restartCount}
                           </span>
                           {!isSelectedHealthy && c.lastTerminatedReason && c.lastTerminatedReason !== selected.lastTerminatedReason && (

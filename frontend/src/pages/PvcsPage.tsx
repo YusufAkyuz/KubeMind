@@ -42,7 +42,7 @@ export function PvcsPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="PersistentVolumeClaim" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('persistent volume claims')} />}
-      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load claims: ${(error as Error).message}`} />}
 
       {data && (
@@ -50,12 +50,12 @@ export function PvcsPage() {
           {data.map((pvc) => (
             <Tr key={`${pvc.namespace}/${pvc.name}`} onClick={() => setSelected(pvc)}
                 highlighted={selected?.name === pvc.name && selected?.namespace === pvc.namespace}>
-              <Td className="font-medium text-gray-900 dark:text-slate-100">{pvc.name}</Td>
-              {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{pvc.namespace}</Td>}
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{pvc.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{pvc.namespace}</Td>}
               <Td><StatusBadge status={PHASE[pvc.status] ?? 'Unknown'} /></Td>
-              <Td className="text-gray-600 dark:text-slate-400 tabular-nums">{pvc.capacity ?? '—'}</Td>
-              <Td className="hidden md:table-cell text-gray-500 dark:text-slate-400">{pvc.storageClass ?? '—'}</Td>
-              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(pvc.creationTimestamp)}</Td>
+              <Td className="text-gray-600 dark:text-neutral-400 tabular-nums">{pvc.capacity ?? '—'}</Td>
+              <Td className="hidden md:table-cell text-gray-500 dark:text-neutral-400">{pvc.storageClass ?? '—'}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(pvc.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

@@ -12,8 +12,8 @@ export function ErrorBanner({ message }: Props) {
 
 export function EmptyState({ message }: Props) {
   return (
-    <div className="rounded-lg border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-12 text-center">
-      <p className="text-sm text-gray-400 dark:text-slate-500">{message}</p>
+    <div className="rounded-lg border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
+      <p className="text-sm text-gray-400 dark:text-neutral-500">{message}</p>
     </div>
   )
 }

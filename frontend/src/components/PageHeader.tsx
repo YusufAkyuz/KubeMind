@@ -12,12 +12,12 @@ export function PageHeader({ title, subtitle, count, noun, actions }: Props) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-slate-100">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-sm text-gray-500 dark:text-slate-400">{subtitle}</p>}
+        <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-neutral-100">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-sm text-gray-500 dark:text-neutral-400">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-3">
         {count !== undefined && noun && (
-          <span className="text-sm text-gray-400 dark:text-slate-500">
+          <span className="text-sm text-gray-400 dark:text-neutral-500">
             {count} {count === 1 ? noun : noun + 's'}
           </span>
         )}

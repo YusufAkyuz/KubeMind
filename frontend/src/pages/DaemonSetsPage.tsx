@@ -42,7 +42,7 @@ export function DaemonSetsPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="DaemonSet" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('daemonsets')} />}
-      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load daemonsets: ${(error as Error).message}`} />}
 
       {data && (
@@ -50,14 +50,14 @@ export function DaemonSetsPage() {
           {data.map((d) => (
             <Tr key={`${d.namespace}/${d.name}`} onClick={() => setSelected(d)}
                 highlighted={selected?.name === d.name && selected?.namespace === d.namespace}>
-              <Td className="font-medium text-gray-900 dark:text-slate-100">{d.name}</Td>
-              {showNsColumn && <Td className="text-gray-500 dark:text-slate-400">{d.namespace}</Td>}
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{d.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{d.namespace}</Td>}
               <Td><StatusBadge status={status(d)} /></Td>
-              <Td className="tabular-nums text-gray-500 dark:text-slate-400">{d.ready}/{d.desired}</Td>
-              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 dark:text-slate-500 max-w-[240px] truncate">
+              <Td className="tabular-nums text-gray-500 dark:text-neutral-400">{d.ready}/{d.desired}</Td>
+              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 dark:text-neutral-500 max-w-[240px] truncate">
                 {d.image ?? '—'}
               </Td>
-              <Td className="text-gray-400 dark:text-slate-500 tabular-nums">{formatAge(d.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(d.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

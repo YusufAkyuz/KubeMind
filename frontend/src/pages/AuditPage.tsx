@@ -53,12 +53,12 @@ export function AuditPage() {
         noun="entry"
       />
 
-      {isLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load audit log: ${(error as Error).message}`} />}
 
       {data && data.entries.length === 0 && (
-        <div className="rounded-lg border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-12 text-center">
-          <p className="text-sm text-gray-400 dark:text-slate-500">No write actions recorded yet.</p>
+        <div className="rounded-lg border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
+          <p className="text-sm text-gray-400 dark:text-neutral-500">No write actions recorded yet.</p>
         </div>
       )}
 
@@ -67,14 +67,14 @@ export function AuditPage() {
           <Table columns={COLUMNS}>
             {data.entries.map((e) => (
               <Tr key={e.id}>
-                <Td className="text-gray-400 dark:text-slate-500 tabular-nums whitespace-nowrap">
+                <Td className="text-gray-400 dark:text-neutral-500 tabular-nums whitespace-nowrap">
                   {formatAge(e.createdAt)} ago
                 </Td>
-                <Td className="font-medium text-gray-900 dark:text-slate-100">{e.username}</Td>
+                <Td className="font-medium text-gray-900 dark:text-neutral-100">{e.username}</Td>
                 <Td>
-                  <span className="font-mono text-xs text-gray-600 dark:text-slate-400">{e.action}</span>
+                  <span className="font-mono text-xs text-gray-600 dark:text-neutral-400">{e.action}</span>
                 </Td>
-                <Td className="font-mono text-xs text-gray-500 dark:text-slate-400">{e.resourceRef}</Td>
+                <Td className="font-mono text-xs text-gray-500 dark:text-neutral-400">{e.resourceRef}</Td>
                 <Td>
                   {e.result === 'SUCCESS' ? (
                     <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">SUCCESS</span>
@@ -93,19 +93,19 @@ export function AuditPage() {
               <button
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={page === 0}
-                className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-xs text-gray-600 dark:text-slate-400
-                           hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors"
+                className="rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-1.5 text-xs text-gray-600 dark:text-neutral-400
+                           hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-40 transition-colors"
               >
                 Previous
               </button>
-              <span className="text-xs text-gray-400 dark:text-slate-500">
+              <span className="text-xs text-gray-400 dark:text-neutral-500">
                 Page {data.page + 1} of {data.totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={data.page + 1 >= data.totalPages}
-                className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-xs text-gray-600 dark:text-slate-400
-                           hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors"
+                className="rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-1.5 text-xs text-gray-600 dark:text-neutral-400
+                           hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-40 transition-colors"
               >
                 Next
               </button>

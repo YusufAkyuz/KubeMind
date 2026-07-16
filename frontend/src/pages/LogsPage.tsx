@@ -147,20 +147,20 @@ export function LogsPage() {
   return (
     <Layout>
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-slate-500 mb-4 flex-wrap">
-        <Link to={`/clusters/${clusterId}/namespaces/${ns}/pods`} className="hover:text-gray-700 dark:hover:text-slate-300 transition-colors">
+      <nav className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-neutral-500 mb-4 flex-wrap">
+        <Link to={`/clusters/${clusterId}/namespaces/${ns}/pods`} className="hover:text-gray-700 dark:hover:text-neutral-300 transition-colors">
           {ns}
         </Link>
         <IconChevronRight className="w-3.5 h-3.5 shrink-0" />
-        <Link to={`/clusters/${clusterId}/namespaces/${ns}/pods`} className="hover:text-gray-700 dark:hover:text-slate-300 transition-colors">
+        <Link to={`/clusters/${clusterId}/namespaces/${ns}/pods`} className="hover:text-gray-700 dark:hover:text-neutral-300 transition-colors">
           {pod}
         </Link>
         <IconChevronRight className="w-3.5 h-3.5 shrink-0" />
-        <span className="text-gray-600 dark:text-slate-400 font-medium">Logs</span>
+        <span className="text-gray-600 dark:text-neutral-400 font-medium">Logs</span>
       </nav>
 
       {/* Terminal card — deliberately always-dark chrome, matches EditYamlButton/DiffViewer's editor styling */}
-      <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-950 overflow-hidden shadow-lg flex flex-col"
+      <div className="rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-950 overflow-hidden shadow-lg flex flex-col"
            style={{ height: 'calc(100vh - 11rem)' }}>
 
         {/* Toolbar */}
