@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { Logo } from '../components/Icons'
+import { LoginBackground } from './LoginBackground'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -27,10 +28,11 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-950 px-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-neutral-950 px-4 overflow-hidden">
+      <LoginBackground />
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm bg-white dark:bg-neutral-900 p-8 rounded-2xl shadow-2xl space-y-4"
+        className="relative w-full max-w-sm bg-white dark:bg-neutral-900 p-8 rounded-2xl shadow-2xl space-y-4"
       >
         <div className="flex items-center gap-3">
           <Logo className="w-9 h-9" />
