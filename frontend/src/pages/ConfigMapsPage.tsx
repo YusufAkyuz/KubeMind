@@ -35,7 +35,7 @@ export function ConfigMapsPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="ConfigMap" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('configmaps')} />}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load configmaps: ${(error as Error).message}`} />}
 
       {data && (
@@ -43,13 +43,13 @@ export function ConfigMapsPage() {
           {data.map((cm) => (
             <Tr key={`${cm.namespace}/${cm.name}`} onClick={() => setSelected(cm)}
                 highlighted={selected?.name === cm.name && selected?.namespace === cm.namespace}>
-              <Td className="font-medium text-gray-900">{cm.name}</Td>
-              {showNsColumn && <Td className="text-gray-500">{cm.namespace}</Td>}
-              <Td className="text-gray-500 tabular-nums">
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{cm.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{cm.namespace}</Td>}
+              <Td className="text-gray-500 dark:text-neutral-400 tabular-nums">
                 {Object.keys(cm.data).length}
-                {cm.binaryDataCount > 0 && <span className="text-gray-400"> (+{cm.binaryDataCount} binary)</span>}
+                {cm.binaryDataCount > 0 && <span className="text-gray-400 dark:text-neutral-500"> (+{cm.binaryDataCount} binary)</span>}
               </Td>
-              <Td className="text-gray-400 tabular-nums">{formatAge(cm.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(cm.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>
@@ -85,14 +85,14 @@ export function ConfigMapsPage() {
 
             <DrawerSection title={`Data (${Object.keys(selected.data).length})`} />
             {Object.keys(selected.data).length === 0 && (
-              <p className="text-sm text-gray-400">No text data.</p>
+              <p className="text-sm text-gray-400 dark:text-neutral-500">No text data.</p>
             )}
             {Object.entries(selected.data).map(([key, value]) => (
-              <div key={key} className="rounded-lg border border-gray-200 overflow-hidden">
-                <p className="px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-xs font-mono font-medium text-gray-700">
+              <div key={key} className="rounded-lg border border-gray-200 dark:border-neutral-700 overflow-hidden">
+                <p className="px-3 py-1.5 bg-gray-50 dark:bg-neutral-800/60 border-b border-gray-200 dark:border-neutral-700 text-xs font-mono font-medium text-gray-700 dark:text-neutral-300">
                   {key}
                 </p>
-                <pre className="px-3 py-2 text-xs font-mono text-gray-600 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                <pre className="px-3 py-2 text-xs font-mono text-gray-600 dark:text-neutral-400 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
                   {value}
                 </pre>
               </div>

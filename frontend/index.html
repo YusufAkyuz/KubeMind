@@ -3,7 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>KubeMind</title>
+    <script>
+      // Runs before first paint so there's no light-mode flash for dark-mode
+      // users. Kept in sync with the storage key/logic in theme/useTheme.ts.
+      (function () {
+        var stored = localStorage.getItem('kubemind.theme')
+        var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (dark) document.documentElement.classList.add('dark')
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

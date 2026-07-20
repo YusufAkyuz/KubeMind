@@ -45,39 +45,39 @@ export function ScaleButton({ endpoint, resourceName, currentReplicas, readyRepl
     <>
       <button
         onClick={openModal}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700
-                   hover:bg-gray-50 transition-colors"
+        className="rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-neutral-300
+                   hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
       >
         Scale
       </button>
 
       <Modal open={open} title={`Scale ${resourceName}`} onClose={() => setOpen(false)}>
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-neutral-400">
             Currently <span className="font-medium">{readyReplicas}/{currentReplicas}</span> replicas ready.
           </p>
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">Desired replicas</label>
+            <label className="block text-xs text-gray-500 dark:text-neutral-400 mb-1.5">Desired replicas</label>
             <input
               type="number"
               min={0}
               max={500}
               value={replicas}
               onChange={(e) => setReplicas(Math.max(0, Math.min(500, Number(e.target.value) || 0)))}
-              className="w-28 rounded-md border border-gray-300 px-3 py-2 text-sm tabular-nums
+              className="w-28 rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm tabular-nums
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           {replicas === 0 && (
-            <p className="text-xs text-amber-600">Scaling to 0 stops all its pods.</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">Scaling to 0 stops all its pods.</p>
           )}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setOpen(false)}
               disabled={busy}
-              className="rounded-md border border-gray-300 px-3.5 py-2 text-sm text-gray-700
-                         hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="rounded-md border border-gray-300 dark:border-neutral-600 px-3.5 py-2 text-sm text-gray-700 dark:text-neutral-300
+                         hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
             >
               Cancel
             </button>

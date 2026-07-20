@@ -39,7 +39,7 @@ export function CronJobsPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="CronJob" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('cronjobs')} />}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load cronjobs: ${(error as Error).message}`} />}
 
       {data && (
@@ -47,15 +47,15 @@ export function CronJobsPage() {
           {data.map((c) => (
             <Tr key={`${c.namespace}/${c.name}`} onClick={() => setSelected(c)}
                 highlighted={selected?.name === c.name && selected?.namespace === c.namespace}>
-              <Td className="font-medium text-gray-900">{c.name}</Td>
-              {showNsColumn && <Td className="text-gray-500">{c.namespace}</Td>}
-              <Td className="font-mono text-xs text-gray-500">{c.schedule ?? '—'}</Td>
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{c.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{c.namespace}</Td>}
+              <Td className="font-mono text-xs text-gray-500 dark:text-neutral-400">{c.schedule ?? '—'}</Td>
               <Td><StatusBadge status={c.suspended ? 'Pending' : 'Ready'} /></Td>
-              <Td className="tabular-nums text-gray-500">{c.activeJobs}</Td>
-              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 max-w-[240px] truncate">
+              <Td className="tabular-nums text-gray-500 dark:text-neutral-400">{c.activeJobs}</Td>
+              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 dark:text-neutral-500 max-w-[240px] truncate">
                 {c.image ?? '—'}
               </Td>
-              <Td className="text-gray-400 tabular-nums">{formatAge(c.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(c.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

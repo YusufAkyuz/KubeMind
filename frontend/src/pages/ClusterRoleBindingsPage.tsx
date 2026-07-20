@@ -44,7 +44,7 @@ export function ClusterRoleBindingsPage() {
       <PageHeader title="Cluster Role Bindings" subtitle="cluster-scoped" count={visible.length} noun="cluster role binding"
                   actions={<CreateClusterResourceButton clusterId={clusterId} kind="ClusterRoleBinding" />} />
 
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load cluster role bindings: ${(error as Error).message}`} />}
 
       {data && (
@@ -53,10 +53,10 @@ export function ClusterRoleBindingsPage() {
           <Table columns={COLUMNS}>
             {visible.map((crb) => (
               <Tr key={crb.name} onClick={() => setSelected(crb)} highlighted={selected?.name === crb.name}>
-                <Td className="font-medium text-gray-900">{crb.name}</Td>
-                <Td className="hidden md:table-cell font-mono text-xs text-gray-500">{crb.roleRefKind}/{crb.roleRefName}</Td>
-                <Td className="hidden lg:table-cell text-gray-500 tabular-nums">{crb.subjects.length}</Td>
-                <Td className="text-gray-400 tabular-nums">{formatAge(crb.creationTimestamp)}</Td>
+                <Td className="font-medium text-gray-900 dark:text-neutral-100">{crb.name}</Td>
+                <Td className="hidden md:table-cell font-mono text-xs text-gray-500 dark:text-neutral-400">{crb.roleRefKind}/{crb.roleRefName}</Td>
+                <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400 tabular-nums">{crb.subjects.length}</Td>
+                <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(crb.creationTimestamp)}</Td>
               </Tr>
             ))}
           </Table>

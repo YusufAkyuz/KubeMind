@@ -7,10 +7,10 @@ export function renderInline(text: string) {
   const segments = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean)
   return segments.map((seg, i) => {
     if (seg.startsWith('**') && seg.endsWith('**')) {
-      return <strong key={i} className="font-semibold text-gray-900">{seg.slice(2, -2)}</strong>
+      return <strong key={i} className="font-semibold text-gray-900 dark:text-neutral-100">{seg.slice(2, -2)}</strong>
     }
     if (seg.startsWith('`') && seg.endsWith('`')) {
-      return <code key={i} className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[0.85em]">{seg.slice(1, -1)}</code>
+      return <code key={i} className="rounded bg-gray-100 dark:bg-neutral-700 px-1 py-0.5 font-mono text-[0.85em]">{seg.slice(1, -1)}</code>
     }
     return seg
   })
@@ -39,21 +39,21 @@ export function renderLiteMarkdown(text: string) {
           if (!trimmed) return null
           if (/^[-*•]\s/.test(trimmed)) {
             return (
-              <p key={j} className="text-sm text-gray-700 leading-relaxed pl-4 relative">
-                <span className="absolute left-1 text-gray-400">•</span>
+              <p key={j} className="text-sm text-gray-700 dark:text-neutral-300 leading-relaxed pl-4 relative">
+                <span className="absolute left-1 text-gray-400 dark:text-neutral-500">•</span>
                 {renderInline(trimmed.replace(/^[-*•]\s/, ''))}
               </p>
             )
           }
           if (/^#{1,4}\s/.test(trimmed)) {
             return (
-              <p key={j} className="text-sm font-semibold text-gray-900 pt-1">
+              <p key={j} className="text-sm font-semibold text-gray-900 dark:text-neutral-100 pt-1">
                 {renderInline(trimmed.replace(/^#{1,4}\s/, ''))}
               </p>
             )
           }
           return (
-            <p key={j} className="text-sm text-gray-700 leading-relaxed">
+            <p key={j} className="text-sm text-gray-700 dark:text-neutral-300 leading-relaxed">
               {renderInline(trimmed)}
             </p>
           )

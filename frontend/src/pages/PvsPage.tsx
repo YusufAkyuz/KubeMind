@@ -41,18 +41,18 @@ export function PvsPage() {
       <PageHeader title="Persistent Volumes" subtitle="cluster-scoped"
                   count={data?.length} noun="volume" />
 
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load volumes: ${(error as Error).message}`} />}
 
       {data && (
         <Table columns={COLUMNS}>
           {data.map((pv) => (
             <Tr key={pv.name} onClick={() => setSelected(pv)} highlighted={selected?.name === pv.name}>
-              <Td className="font-medium text-gray-900">{pv.name}</Td>
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{pv.name}</Td>
               <Td><StatusBadge status={PHASE[pv.status] ?? 'Unknown'} /></Td>
-              <Td className="text-gray-600 tabular-nums">{pv.capacity ?? '—'}</Td>
-              <Td className="hidden md:table-cell font-mono text-xs text-gray-400">{pv.claimRef ?? '—'}</Td>
-              <Td className="text-gray-400 tabular-nums">{formatAge(pv.creationTimestamp)}</Td>
+              <Td className="text-gray-600 dark:text-neutral-400 tabular-nums">{pv.capacity ?? '—'}</Td>
+              <Td className="hidden md:table-cell font-mono text-xs text-gray-400 dark:text-neutral-500">{pv.claimRef ?? '—'}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(pv.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

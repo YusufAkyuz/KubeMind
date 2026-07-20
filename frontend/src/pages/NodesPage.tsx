@@ -55,7 +55,7 @@ export function NodesPage() {
 
       {clusterId && <ClusterInsightsPanel clusterId={clusterId} />}
 
-      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && !isError && !streamError && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load nodes: ${(error as Error).message}`} />}
       {!isError && streamError && <ErrorBanner message={streamError} />}
 
@@ -67,21 +67,21 @@ export function NodesPage() {
               onClick={() => setSelected(node)}
               highlighted={selected?.name === node.name}
             >
-              <Td className="font-medium text-gray-900">{node.name}</Td>
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{node.name}</Td>
               <Td><StatusBadge status={node.status} /></Td>
-              <Td className="text-gray-500">{node.roles}</Td>
-              <Td className="hidden md:table-cell font-mono text-xs text-gray-400">{node.kubeletVersion ?? '—'}</Td>
-              <Td className="hidden lg:table-cell text-gray-500">
+              <Td className="text-gray-500 dark:text-neutral-400">{node.roles}</Td>
+              <Td className="hidden md:table-cell font-mono text-xs text-gray-400 dark:text-neutral-500">{node.kubeletVersion ?? '—'}</Td>
+              <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400">
                 {metricsByName.get(node.name)?.cpuUsage
                   ? `${metricsByName.get(node.name)!.cpuUsage} / ${node.cpuCapacity ?? '—'}`
                   : node.cpuCapacity ?? '—'}
               </Td>
-              <Td className="hidden lg:table-cell text-gray-500">
+              <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400">
                 {metricsByName.get(node.name)?.memoryUsage
                   ? `${metricsByName.get(node.name)!.memoryUsage} / ${node.memoryCapacity ?? '—'}`
                   : node.memoryCapacity ?? '—'}
               </Td>
-              <Td className="text-gray-400 tabular-nums">{formatAge(node.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(node.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>
@@ -101,7 +101,7 @@ export function NodesPage() {
             <div className="pb-3">
               <button
                 onClick={() => terminalPanel.openNodeExec(clusterId!, selected.name)}
-                className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium
+                className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 text-xs font-medium
                            text-amber-800 hover:bg-amber-100 transition-colors"
               >
                 Node shell

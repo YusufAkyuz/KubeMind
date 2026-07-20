@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Manual dark mode: toggled via a `.dark` class on <html> (see theme/useTheme.ts),
+   not just prefers-color-scheme — Tailwind v4 defaults to media-query-only dark:,
+   this custom variant makes it respond to the class instead. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Toast enters from the top-right corner it's anchored to (see components/Toast.tsx). */
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-8px); }
@@ -9,7 +14,7 @@
   animation: toast-in 0.2s ease-out;
 }
 
-/* Sidebar nav scrollbar: invisible at rest (blends with the slate-900 sidebar
+/* Sidebar nav scrollbar: invisible at rest (blends with the neutral-900 sidebar
    background), fades in only while actively scrolling, fades back out ~1s after
    the last scroll event (see the .is-scrolling toggle in components/Sidebar.tsx). */
 .sidebar-scroll {
@@ -17,7 +22,7 @@
   scrollbar-color: transparent transparent;
 }
 .sidebar-scroll.is-scrolling {
-  scrollbar-color: rgb(71 85 105) transparent; /* slate-600 thumb */
+  scrollbar-color: rgb(82 82 82) transparent; /* neutral-600 thumb */
 }
 .sidebar-scroll::-webkit-scrollbar {
   width: 6px;
@@ -31,5 +36,5 @@
   transition: background-color 0.4s ease;
 }
 .sidebar-scroll.is-scrolling::-webkit-scrollbar-thumb {
-  background-color: rgb(71 85 105); /* slate-600 */
+  background-color: rgb(82 82 82); /* neutral-600 */
 }

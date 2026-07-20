@@ -43,7 +43,7 @@ export function ClusterRolesPage() {
       <PageHeader title="Cluster Roles" subtitle="cluster-scoped" count={visible.length} noun="cluster role"
                   actions={<CreateClusterResourceButton clusterId={clusterId} kind="ClusterRole" />} />
 
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load cluster roles: ${(error as Error).message}`} />}
 
       {data && (
@@ -52,9 +52,9 @@ export function ClusterRolesPage() {
           <Table columns={COLUMNS}>
             {visible.map((cr) => (
               <Tr key={cr.name} onClick={() => setSelected(cr)} highlighted={selected?.name === cr.name}>
-                <Td className="font-medium text-gray-900">{cr.name}</Td>
-                <Td className="hidden md:table-cell text-gray-500 tabular-nums">{cr.rules.length}</Td>
-                <Td className="text-gray-400 tabular-nums">{formatAge(cr.creationTimestamp)}</Td>
+                <Td className="font-medium text-gray-900 dark:text-neutral-100">{cr.name}</Td>
+                <Td className="hidden md:table-cell text-gray-500 dark:text-neutral-400 tabular-nums">{cr.rules.length}</Td>
+                <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(cr.creationTimestamp)}</Td>
               </Tr>
             ))}
           </Table>

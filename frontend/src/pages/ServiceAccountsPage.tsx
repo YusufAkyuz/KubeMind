@@ -40,7 +40,7 @@ export function ServiceAccountsPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="ServiceAccount" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('service accounts')} />}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load service accounts: ${(error as Error).message}`} />}
 
       {data && (
@@ -50,13 +50,13 @@ export function ServiceAccountsPage() {
             {visible.map((sa) => (
               <Tr key={`${sa.namespace}/${sa.name}`} onClick={() => setSelected(sa)}
                   highlighted={selected?.name === sa.name && selected?.namespace === sa.namespace}>
-                <Td className="font-medium text-gray-900">{sa.name}</Td>
-                {showNsColumn && <Td className="text-gray-500">{sa.namespace}</Td>}
-                <Td className="hidden md:table-cell text-gray-500 tabular-nums">
+                <Td className="font-medium text-gray-900 dark:text-neutral-100">{sa.name}</Td>
+                {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{sa.namespace}</Td>}
+                <Td className="hidden md:table-cell text-gray-500 dark:text-neutral-400 tabular-nums">
                   {sa.secretCount}{sa.imagePullSecretCount > 0 && ` (+${sa.imagePullSecretCount} pull)`}
                 </Td>
-                <Td className="hidden lg:table-cell text-gray-500">{sa.automountToken === false ? 'Disabled' : 'Enabled'}</Td>
-                <Td className="text-gray-400 tabular-nums">{formatAge(sa.creationTimestamp)}</Td>
+                <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400">{sa.automountToken === false ? 'Disabled' : 'Enabled'}</Td>
+                <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(sa.creationTimestamp)}</Td>
               </Tr>
             ))}
           </Table>

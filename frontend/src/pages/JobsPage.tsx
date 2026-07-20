@@ -38,7 +38,7 @@ export function JobsPage() {
                   actions={<CreateResourceButton clusterId={clusterId} ns={ns} kind="Job" />} />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('jobs')} />}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load jobs: ${(error as Error).message}`} />}
 
       {data && (
@@ -46,17 +46,17 @@ export function JobsPage() {
           {data.map((j) => (
             <Tr key={`${j.namespace}/${j.name}`} onClick={() => setSelected(j)}
                 highlighted={selected?.name === j.name && selected?.namespace === j.namespace}>
-              <Td className="font-medium text-gray-900">{j.name}</Td>
-              {showNsColumn && <Td className="text-gray-500">{j.namespace}</Td>}
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{j.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{j.namespace}</Td>}
               <Td><StatusBadge status={j.status} /></Td>
-              <Td className="tabular-nums text-gray-500">
+              <Td className="tabular-nums text-gray-500 dark:text-neutral-400">
                 {j.succeeded}/{j.completions ?? '—'}
-                {j.failed > 0 && <span className="text-red-600 ml-1">({j.failed} failed)</span>}
+                {j.failed > 0 && <span className="text-red-600 dark:text-red-400 ml-1">({j.failed} failed)</span>}
               </Td>
-              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 max-w-[240px] truncate">
+              <Td className="hidden lg:table-cell font-mono text-xs text-gray-400 dark:text-neutral-500 max-w-[240px] truncate">
                 {j.image ?? '—'}
               </Td>
-              <Td className="text-gray-400 tabular-nums">{formatAge(j.creationTimestamp)}</Td>
+              <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(j.creationTimestamp)}</Td>
             </Tr>
           ))}
         </Table>

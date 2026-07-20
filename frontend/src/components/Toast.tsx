@@ -42,8 +42,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             role="status"
             className={`rounded-lg px-4 py-3 text-sm shadow-lg border animate-toast-in
                         ${t.kind === 'success'
-                          ? 'bg-white border-emerald-200 text-emerald-800'
-                          : 'bg-white border-red-200 text-red-700'}`}
+                          ? 'bg-white dark:bg-neutral-800 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-400'
+                          : 'bg-white dark:bg-neutral-800 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400'}`}
           >
             {t.message}
           </div>

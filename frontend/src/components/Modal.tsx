@@ -27,14 +27,14 @@ export function Modal({ open, title, onClose, children, wide }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`relative bg-white rounded-xl shadow-xl w-full ${wide ? 'max-w-3xl' : 'max-w-md'}
+        className={`relative bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full ${wide ? 'max-w-3xl' : 'max-w-md'}
                     max-h-[85vh] flex flex-col`}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-neutral-800 shrink-0">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-neutral-100">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-md text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
             aria-label="Close"
           >
             <IconX className="w-4 h-4" />

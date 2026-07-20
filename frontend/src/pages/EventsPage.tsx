@@ -50,16 +50,16 @@ export function EventsPage() {
       />
 
       {noNamespace && (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
-          <p className="text-sm text-gray-400">Select a namespace from the sidebar to view events.</p>
+        <div className="rounded-xl border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
+          <p className="text-sm text-gray-400 dark:text-neutral-500">Select a namespace from the sidebar to view events.</p>
         </div>
       )}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load events: ${(error as Error).message}`} />}
 
       {data && data.length === 0 && (
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
-          <p className="text-sm text-gray-400">No events in this namespace.</p>
+        <div className="rounded-lg border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
+          <p className="text-sm text-gray-400 dark:text-neutral-500">No events in this namespace.</p>
         </div>
       )}
 
@@ -73,17 +73,17 @@ export function EventsPage() {
                 highlighted={selected?.name === ev.name}
               >
                 <Td>
-                  <span className={`text-xs font-semibold ${ev.type === 'Warning' ? 'text-red-600' : 'text-gray-400'}`}>
+                  <span className={`text-xs font-semibold ${ev.type === 'Warning' ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-neutral-500'}`}>
                     {ev.type}
                   </span>
                 </Td>
-                <Td className="text-gray-700 whitespace-nowrap">{ev.reason ?? '—'}</Td>
-                <Td className="text-xs text-gray-400 whitespace-nowrap">
+                <Td className="text-gray-700 dark:text-neutral-300 whitespace-nowrap">{ev.reason ?? '—'}</Td>
+                <Td className="text-xs text-gray-400 dark:text-neutral-500 whitespace-nowrap">
                   {ev.involvedObjectKind}/{ev.involvedObjectName}
                 </Td>
-                <Td className="text-gray-600 max-w-xs truncate">{ev.message ?? '—'}</Td>
-                <Td className="text-right tabular-nums text-gray-400">{ev.count}</Td>
-                <Td className="text-gray-400 tabular-nums whitespace-nowrap">{formatAge(ev.lastTimestamp)}</Td>
+                <Td className="text-gray-600 dark:text-neutral-400 max-w-xs truncate">{ev.message ?? '—'}</Td>
+                <Td className="text-right tabular-nums text-gray-400 dark:text-neutral-500">{ev.count}</Td>
+                <Td className="text-gray-400 dark:text-neutral-500 tabular-nums whitespace-nowrap">{formatAge(ev.lastTimestamp)}</Td>
               </Tr>
             ))}
           </Table>
@@ -93,17 +93,17 @@ export function EventsPage() {
               <button
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={safePage === 0}
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600
-                           hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                className="rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-1.5 text-xs text-gray-600 dark:text-neutral-400
+                           hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-40 transition-colors"
               >
                 Previous
               </button>
-              <span className="text-xs text-gray-400">Page {safePage + 1} of {totalPages}</span>
+              <span className="text-xs text-gray-400 dark:text-neutral-500">Page {safePage + 1} of {totalPages}</span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                 disabled={safePage + 1 >= totalPages}
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600
-                           hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                className="rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-1.5 text-xs text-gray-600 dark:text-neutral-400
+                           hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-40 transition-colors"
               >
                 Next
               </button>
@@ -122,7 +122,7 @@ export function EventsPage() {
           <>
             <DrawerSection title="Event" />
             <DrawerRow label="Type" value={
-              <span className={selected.type === 'Warning' ? 'font-semibold text-red-600' : 'text-gray-600'}>
+              <span className={selected.type === 'Warning' ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-neutral-400'}>
                 {selected.type}
               </span>
             } />
@@ -136,8 +136,8 @@ export function EventsPage() {
             <DrawerRow label="Name" value={selected.involvedObjectName} />
 
             <DrawerSection title="Message" />
-            <div className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2.5">
-              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+            <div className="rounded-md bg-gray-50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 px-3 py-2.5">
+              <p className="text-sm text-gray-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed">
                 {selected.message ?? '—'}
               </p>
             </div>

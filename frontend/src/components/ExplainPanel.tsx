@@ -37,13 +37,13 @@ export function ExplainPanel({ clusterId, namespace, kind, name }: Props) {
     : null
 
   return (
-    <div className="rounded-lg border border-gray-200 overflow-hidden">
+    <div className="rounded-lg border border-gray-200 dark:border-neutral-700 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-neutral-800/60 border-b border-gray-200 dark:border-neutral-700">
         <div>
-          <p className="text-sm font-medium text-gray-900">AI Diagnosis</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-neutral-100">AI Diagnosis</p>
           {mutation.data && (
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">
               {mutation.data.model}
               {mutation.data.cached && ` · cached ${formatAge(mutation.data.createdAt)} ago`}
             </p>
@@ -62,28 +62,28 @@ export function ExplainPanel({ clusterId, namespace, kind, name }: Props) {
       {/* Body */}
       <div className="px-4 py-3">
         {!mutation.data && !mutation.isPending && !mutation.isError && (
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-400 dark:text-neutral-500">
             Ask the AI to analyze this {kind.toLowerCase()}'s state{kind === 'Pod' ? ', events, and recent logs' : ' and recent events'}.
           </p>
         )}
 
         {mutation.isPending && (
           <div className="space-y-2 animate-pulse py-1">
-            <div className="h-3 bg-gray-100 rounded w-4/5" />
-            <div className="h-3 bg-gray-100 rounded w-full" />
-            <div className="h-3 bg-gray-100 rounded w-3/5" />
+            <div className="h-3 bg-gray-100 dark:bg-neutral-700 rounded w-4/5" />
+            <div className="h-3 bg-gray-100 dark:bg-neutral-700 rounded w-full" />
+            <div className="h-3 bg-gray-100 dark:bg-neutral-700 rounded w-3/5" />
           </div>
         )}
 
         {errorMessage && (
-          <p className="text-sm text-red-600">{errorMessage}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
         )}
 
         {mutation.data && (
           <>
             <div className="space-y-2">{renderLiteMarkdown(mutation.data.explanation)}</div>
-            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-xs text-gray-400">AI-generated — verify before acting.</p>
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-neutral-800 flex items-center justify-between">
+              <p className="text-xs text-gray-400 dark:text-neutral-500">AI-generated — verify before acting.</p>
               <AiFeedbackButtons clusterId={clusterId} surface="EXPLAIN" contextHash={mutation.data.stateHash} />
             </div>
           </>

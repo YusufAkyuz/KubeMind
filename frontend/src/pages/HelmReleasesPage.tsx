@@ -127,12 +127,12 @@ export function HelmReleasesPage() {
                   count={data?.length} noun="release" />
 
       {noNamespace && <EmptyState message={noNamespaceMessage('helm releases')} />}
-      {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
       {isError && <ErrorBanner message={`Could not load releases: ${(error as Error).message}`} />}
 
       {data && data.length === 0 && !isLoading && (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
-          <p className="text-sm text-gray-400">No Helm releases in this namespace.</p>
+        <div className="rounded-xl border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
+          <p className="text-sm text-gray-400 dark:text-neutral-500">No Helm releases in this namespace.</p>
         </div>
       )}
 
@@ -141,13 +141,13 @@ export function HelmReleasesPage() {
           {data.map((r) => (
             <Tr key={`${r.namespace}/${r.name}`} onClick={() => { setSelected(r); setTab('values') }}
                 highlighted={selected?.name === r.name && selected?.namespace === r.namespace}>
-              <Td className="font-medium text-gray-900">{r.name}</Td>
-              {showNsColumn && <Td className="text-gray-500">{r.namespace}</Td>}
+              <Td className="font-medium text-gray-900 dark:text-neutral-100">{r.name}</Td>
+              {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{r.namespace}</Td>}
               <Td><StatusBadge status={STATUS_MAP[r.status] ?? r.status} /></Td>
-              <Td className="text-gray-500">{r.chart}</Td>
-              <Td className="hidden md:table-cell text-gray-500">{r.appVersion || '—'}</Td>
-              <Td className="hidden lg:table-cell text-gray-400 tabular-nums">{r.revision}</Td>
-              <Td className="hidden lg:table-cell text-gray-400 text-xs">{r.updated}</Td>
+              <Td className="text-gray-500 dark:text-neutral-400">{r.chart}</Td>
+              <Td className="hidden md:table-cell text-gray-500 dark:text-neutral-400">{r.appVersion || '—'}</Td>
+              <Td className="hidden lg:table-cell text-gray-400 dark:text-neutral-500 tabular-nums">{r.revision}</Td>
+              <Td className="hidden lg:table-cell text-gray-400 dark:text-neutral-500 text-xs">{r.updated}</Td>
             </Tr>
           ))}
         </Table>
@@ -161,8 +161,8 @@ export function HelmReleasesPage() {
               <div className="pb-3 flex flex-wrap gap-2">
                 <button
                   onClick={() => setUninstallOpen(true)}
-                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium
-                             text-red-600 hover:bg-red-50 transition-colors"
+                  className="rounded-md border border-red-200 dark:border-red-500/30 px-3 py-1.5 text-xs font-medium
+                             text-red-600 dark:text-red-400 hover:bg-red-50 transition-colors"
                 >
                   Uninstall
                 </button>
@@ -183,19 +183,19 @@ export function HelmReleasesPage() {
                   key={t}
                   onClick={() => setTab(t)}
                   className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
-                    tab === t ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                    tab === t ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-700'}`}
                 >
                   {t}
                 </button>
               ))}
             </div>
-            {detailLoading && <p className="text-sm text-gray-400">Loading…</p>}
+            {detailLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
 
             {detail && tab === 'values' && (
               <>
                 {isAdmin && !detail.chartRef && (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 mb-1.5">
-                    <p className="text-[11px] text-amber-700 mb-1.5">
+                  <div className="rounded-md border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-2 mb-1.5">
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 mb-1.5">
                       Couldn't auto-detect this release's chart — either its name doesn't match any added repo, or it
                       matches more than one, so editing is disabled until you pick the right one below.
                     </p>
@@ -203,7 +203,7 @@ export function HelmReleasesPage() {
                       <select
                         value={linkRepo}
                         onChange={(e) => { setLinkRepo(e.target.value); setLinkChartRef('') }}
-                        className="flex-1 rounded border border-amber-300 bg-white px-2 py-1 text-xs
+                        className="flex-1 rounded border border-amber-300 bg-white dark:bg-neutral-900 px-2 py-1 text-xs
                                    focus:outline-none focus:ring-1 focus:ring-amber-500"
                       >
                         <option value="">Repo…</option>
@@ -213,7 +213,7 @@ export function HelmReleasesPage() {
                         value={linkChartRef}
                         onChange={(e) => setLinkChartRef(e.target.value)}
                         disabled={!linkRepo}
-                        className="flex-1 rounded border border-amber-300 bg-white px-2 py-1 text-xs
+                        className="flex-1 rounded border border-amber-300 bg-white dark:bg-neutral-900 px-2 py-1 text-xs
                                    focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-50"
                       >
                         <option value="">Chart…</option>
@@ -229,7 +229,7 @@ export function HelmReleasesPage() {
                       </button>
                     </div>
                     {repos && repos.length === 0 && (
-                      <p className="text-[10px] text-amber-600 mt-1">No repos added yet — add one on the Charts page first.</p>
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">No repos added yet — add one on the Charts page first.</p>
                     )}
                   </div>
                 )}
@@ -247,7 +247,7 @@ export function HelmReleasesPage() {
                     <button
                       onClick={() => setEditedValues(detail.values)}
                       disabled={!dirty || upgrading}
-                      className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="text-xs text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       Revert changes
                     </button>
@@ -279,7 +279,7 @@ export function HelmReleasesPage() {
         title={`Uninstall ${selected?.name ?? ''}`}
         message={
           <>
-            This will remove the Helm release <span className="font-mono font-medium text-gray-800">{selected?.name}</span> and
+            This will remove the Helm release <span className="font-mono font-medium text-gray-800 dark:text-neutral-200">{selected?.name}</span> and
             everything it deployed from namespace <span className="font-medium">{selected?.namespace}</span>.
           </>
         }
