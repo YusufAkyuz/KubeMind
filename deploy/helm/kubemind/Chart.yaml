@@ -12,4 +12,15 @@ keywords:
   - kubernetes
   - dashboard
   - ai
-home: https://github.com/kubemind/kubemind
+home: https://github.com/YusufAkyuz/KubeMind
+icon: https://raw.githubusercontent.com/YusufAkyuz/KubeMind/main/frontend/public/favicon.svg
+sources:
+  - https://github.com/YusufAkyuz/KubeMind
+maintainers:
+  - name: Yusuf Akyüz
+    url: https://github.com/YusufAkyuz
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: Repository
+      url: https://github.com/YusufAkyuz/KubeMind
