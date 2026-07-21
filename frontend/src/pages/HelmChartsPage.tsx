@@ -132,7 +132,7 @@ export function HelmChartsPage() {
           <div className="flex flex-wrap gap-1.5">
             {repos.map((r) => (
               <span key={r.name} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-neutral-700
-                                             bg-gray-50 dark:bg-neutral-800/60 px-2.5 py-1 text-xs text-gray-600 dark:text-neutral-400">
+                                             bg-gray-50 dark:bg-neutral-800/60 px-2.5 py-1 text-xs text-neutral-600 dark:text-neutral-400">
                 <span className="font-medium">{r.name}</span>
                 <span className="text-gray-400 dark:text-neutral-500">{r.url}</span>
                 {isAdmin && (
@@ -192,9 +192,9 @@ export function HelmChartsPage() {
           {charts.map((c) => (
             <Tr key={c.name + c.version}>
               <Td className="font-medium text-gray-900 dark:text-neutral-100 font-mono text-xs">{c.name}</Td>
-              <Td className="text-gray-500 dark:text-neutral-400 tabular-nums">{c.version}</Td>
-              <Td className="hidden md:table-cell text-gray-500 dark:text-neutral-400">{c.appVersion || '—'}</Td>
-              <Td className="hidden lg:table-cell text-gray-500 dark:text-neutral-400 max-w-md truncate">{c.description}</Td>
+              <Td className="text-neutral-500 dark:text-neutral-400 tabular-nums">{c.version}</Td>
+              <Td className="hidden md:table-cell text-neutral-500 dark:text-neutral-400">{c.appVersion || '—'}</Td>
+              <Td className="hidden lg:table-cell text-neutral-500 dark:text-neutral-400 max-w-md truncate">{c.description}</Td>
               <Td>
                 {isAdmin && (
                   <button
@@ -216,7 +216,7 @@ export function HelmChartsPage() {
       <Modal open={addRepoOpen} title="Add chart repository" onClose={() => setAddRepoOpen(false)}>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1">Name</label>
+            <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">Name</label>
             <input
               type="text" value={repoName} onChange={(e) => setRepoName(e.target.value)}
               placeholder="bitnami"
@@ -225,7 +225,7 @@ export function HelmChartsPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1">URL</label>
+            <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">URL</label>
             <input
               type="text" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)}
               placeholder="https://charts.bitnami.com/bitnami"
@@ -251,23 +251,23 @@ export function HelmChartsPage() {
       <Modal open={!!installing} title={`Install ${installing?.name ?? ''}`} onClose={() => setInstalling(null)} wide>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1">Release name</label>
+            <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">Release name</label>
             <input
               type="text" value={releaseName} onChange={(e) => setReleaseName(e.target.value)}
               className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          <p className="text-xs text-gray-400 dark:text-neutral-500">Namespace: <span className="font-medium text-gray-600 dark:text-neutral-400">{ns}</span></p>
+          <p className="text-xs text-gray-400 dark:text-neutral-500">Namespace: <span className="font-medium text-neutral-600 dark:text-neutral-400">{ns}</span></p>
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1">
+            <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
               Values (YAML) {valuesLoading && <span className="text-gray-400 dark:text-neutral-500 font-normal">— downloading chart defaults…</span>}
             </label>
             <textarea
               value={valuesYaml} onChange={(e) => setValuesYaml(e.target.value)}
               rows={16} spellCheck={false} disabled={valuesLoading}
               placeholder={valuesLoading ? '' : "# this chart defines no values"}
-              className="w-full rounded-md border border-gray-300 bg-gray-950 text-gray-100 font-mono text-xs
+              className="w-full rounded-md border border-neutral-800 bg-neutral-950 text-neutral-100 font-mono text-xs
                          leading-5 p-3 resize-none focus:outline-none disabled:opacity-60"
             />
           </div>

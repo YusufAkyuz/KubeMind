@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { Layout } from '../components/Layout'
@@ -35,7 +35,7 @@ export function PodsPage() {
   const { clusterId, ns } = useParams<{ clusterId: string; ns: string }>()
   const navigate = useNavigate()
   const terminalPanel = useTerminalPanel()
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const toast = useToast()
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Pod | null>(null)
@@ -179,7 +179,7 @@ export function PodsPage() {
                 <DrawerRow label="Memory (usage)" value={metricsByName.get(selected.name)?.memoryUsage ?? '—'} />
                 <DrawerRow label="Age" value={formatAge(selected.creationTimestamp)} />
 
-                {isAdmin && (
+                {canWrite && (
                   <>
                     <DrawerSection title="Actions" />
                     <button

@@ -91,7 +91,7 @@ function PendingRequests() {
         {data.map((p) => (
           <Tr key={p.id}>
             <Td className="font-medium text-gray-900 dark:text-neutral-100">{p.name}</Td>
-            <Td className="text-gray-500 dark:text-neutral-400">{p.createdBy}</Td>
+            <Td className="text-neutral-500 dark:text-neutral-400">{p.createdBy}</Td>
             <Td className="text-gray-400 dark:text-neutral-500 tabular-nums">{formatAge(p.createdAt)} ago</Td>
             <Td>
               <div className="flex justify-end gap-2">
@@ -208,7 +208,7 @@ export function ClustersPage() {
 
       {data && data.length === 0 && (
         <div className="rounded-md border border-dashed border-gray-300 dark:border-neutral-600 px-4 py-8 text-center">
-          <p className="text-sm text-gray-500 dark:text-neutral-400">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
             No clusters yet. Add one with your own kubeconfig to get started.
           </p>
         </div>
@@ -221,7 +221,7 @@ export function ClustersPage() {
               <Td className="font-medium text-gray-900 dark:text-neutral-100">
                 {c.name}
                 {c.builtIn && (
-                  <span className="ml-2 rounded-full bg-gray-100 dark:bg-neutral-700 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:text-neutral-400 ring-1 ring-inset ring-gray-500 dark:ring-neutral-500/20">
+                  <span className="ml-2 rounded-full bg-gray-100 dark:bg-neutral-700 px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:text-neutral-400 ring-1 ring-inset ring-gray-500 dark:ring-neutral-500/20">
                     built-in
                   </span>
                 )}
@@ -261,7 +261,7 @@ export function ClustersPage() {
                       <button
                         onClick={() => testMutation.mutate(c.id)}
                         disabled={testMutation.isPending}
-                        className="rounded-md border border-gray-300 dark:border-neutral-600 px-2.5 py-1 text-xs text-gray-600 dark:text-neutral-400
+                        className="rounded-md border border-gray-300 dark:border-neutral-600 px-2.5 py-1 text-xs text-neutral-600 dark:text-neutral-400
                                    hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
                       >
                         Test
@@ -286,7 +286,7 @@ export function ClustersPage() {
       <Modal open={addOpen} title="Add cluster" onClose={() => setAddOpen(false)} wide>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-gray-500 dark:text-neutral-400 mb-1.5">Cluster name</label>
+            <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1.5">Cluster name</label>
             <input
               type="text"
               value={name}
@@ -299,13 +299,13 @@ export function ClustersPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 dark:text-neutral-400 mb-1.5">Kubeconfig</label>
+            <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1.5">Kubeconfig</label>
             <textarea
               value={kubeconfig}
               onChange={(e) => setKubeconfig(e.target.value)}
               spellCheck={false}
               placeholder="Paste the kubeconfig YAML here…"
-              className="w-full h-64 rounded-md border border-gray-300 bg-gray-950 text-gray-100
+              className="w-full h-64 rounded-md border border-neutral-800 bg-neutral-950 text-neutral-100
                          font-mono text-xs leading-5 p-3 resize-none
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />

@@ -10,7 +10,7 @@ import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDraw
 import { ErrorBanner } from '../components/ErrorBanner'
 import { useSSE } from '../hooks/useSSE'
 import { formatAge } from '../utils/format'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { DeploymentActions } from '../components/DeploymentActions'
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
@@ -34,7 +34,7 @@ function replicaStatus(d: Deployment): string {
 
 export function DeploymentsPage() {
   const { clusterId, ns } = useParams<{ clusterId: string; ns: string }>()
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<Deployment | null>(null)
   const queryKey = ['deployments', clusterId, ns]
 
@@ -108,7 +108,7 @@ export function DeploymentsPage() {
               />
             </div>
 
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3">
                 <DeploymentActions
                   key={`${clusterId}/${selected.namespace}/${selected.name}`}

@@ -11,7 +11,7 @@ import { EditYamlButton } from '../components/EditYamlButton'
 import { ForwardServiceButton } from '../components/ForwardServiceButton'
 import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { ServiceResource } from '../types/k8s'
 
@@ -25,7 +25,7 @@ const COLUMNS = [
 
 export function ServicesPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<ServiceResource>('services')
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<ServiceResource | null>(null)
   const queryClient = useQueryClient()
   const showNsColumn = ns === 'all'
@@ -71,7 +71,7 @@ export function ServicesPage() {
               />
             </div>
 
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
                 <ForwardServiceButton clusterId={clusterId!} ns={selected.namespace} name={selected.name} />
                 <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="Service" name={selected.name} />

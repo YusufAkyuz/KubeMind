@@ -64,7 +64,7 @@ export function TerminalPanel() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 lg:left-64 right-0 z-40 flex flex-col bg-gray-950 border-t border-gray-800 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]"
+      className="fixed bottom-0 left-0 lg:left-64 right-0 z-40 flex flex-col bg-neutral-950 border-t border-neutral-800 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]"
       style={{ height: isMinimized ? 40 : height }}
     >
       {!isMinimized && (
@@ -76,24 +76,24 @@ export function TerminalPanel() {
       )}
 
       {/* Tab strip */}
-      <div className="flex items-stretch h-10 border-b border-gray-800 bg-gray-900 shrink-0 overflow-x-auto">
+      <div className="flex items-stretch h-10 border-b border-neutral-800 bg-neutral-900 shrink-0 overflow-x-auto">
         {sessions.map((s) => (
           <button
             key={s.id}
             onClick={() => activate(s.id)}
-            className={`group flex items-center gap-2 px-3 border-r border-gray-800 text-xs shrink-0 max-w-[180px] transition-colors ${
-              s.id === activeSession.id ? 'bg-gray-950 text-gray-200' : 'text-gray-500 hover:bg-gray-800/60 hover:text-gray-300'
+            className={`group flex items-center gap-2 px-3 border-r border-neutral-800 text-xs shrink-0 max-w-[180px] transition-colors ${
+              s.id === activeSession.id ? 'bg-neutral-950 text-neutral-200' : 'text-neutral-500 hover:bg-neutral-800/60 hover:text-neutral-300'
             }`}
           >
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
               connStates[s.id] === 'connected' ? 'bg-emerald-400'
-              : connStates[s.id] === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-gray-600'}`} />
+              : connStates[s.id] === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-neutral-600'}`} />
             <span className="truncate">{tabLabel(s)}</span>
             <span
               role="button"
               tabIndex={-1}
               onClick={(e) => { e.stopPropagation(); closeSession(s.id) }}
-              className="shrink-0 p-0.5 rounded text-gray-600 opacity-0 group-hover:opacity-100 hover:text-gray-200 hover:bg-gray-700 transition-opacity"
+              className="shrink-0 p-0.5 rounded text-neutral-600 opacity-0 group-hover:opacity-100 hover:text-neutral-200 hover:bg-neutral-700 transition-opacity"
               title="Close"
             >
               <IconX className="w-3 h-3" />
@@ -103,14 +103,14 @@ export function TerminalPanel() {
 
         <div className="ml-auto flex items-center gap-3 px-3 shrink-0">
           {activeConnState && (
-            <span className="text-[10px] text-gray-500 uppercase tracking-wide">
+            <span className="text-[10px] text-neutral-500 uppercase tracking-wide">
               {activeConnState === 'connected' ? 'Connected' : activeConnState === 'connecting' ? 'Connecting…' : 'Closed'}
             </span>
           )}
           <button
             onClick={toggleMinimize}
             title={isMinimized ? 'Restore' : 'Minimize'}
-            className="p-1 rounded text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+            className="p-1 rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
           >
             <IconChevronDown className={`w-3.5 h-3.5 transition-transform ${isMinimized ? 'rotate-180' : ''}`} />
           </button>
@@ -176,13 +176,13 @@ function TerminalSessionView({ session, active, setConnStates, setContainer }: {
   return (
     <div className={active ? 'flex-1 min-h-0 flex flex-col' : 'hidden'}>
       {session.type === 'pod' && session.containers.length > 1 && (
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-800 bg-gray-900 shrink-0">
-          <IconTerminal className="w-3 h-3 text-gray-600 shrink-0" />
-          <span className="text-[11px] text-gray-500">{session.ns}/{session.pod}</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-neutral-800 bg-neutral-900 shrink-0">
+          <IconTerminal className="w-3 h-3 text-neutral-600 shrink-0" />
+          <span className="text-[11px] text-neutral-500">{session.ns}/{session.pod}</span>
           <select
             value={session.container}
             onChange={(e) => setContainer(session.id, e.target.value)}
-            className="ml-auto h-6 rounded-md border border-gray-700 bg-gray-800 px-1.5 text-xs text-gray-200
+            className="ml-auto h-6 rounded-md border border-neutral-700 bg-neutral-800 px-1.5 text-xs text-neutral-200
                        focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             {session.containers.map((c) => <option key={c} value={c}>{c}</option>)}

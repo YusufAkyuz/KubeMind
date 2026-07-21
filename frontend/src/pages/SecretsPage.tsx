@@ -12,6 +12,7 @@ import { EditYamlButton } from '../components/EditYamlButton'
 import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
 import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { Secret } from '../types/k8s'
 
@@ -25,6 +26,7 @@ const COLUMNS = [
 export function SecretsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<Secret>('secrets')
   const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<Secret | null>(null)
   const queryClient = useQueryClient()
 
@@ -81,7 +83,7 @@ export function SecretsPage() {
               />
             </div>
 
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
                 <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="Secret" name={selected.name} />
                 <DeleteResourceButton

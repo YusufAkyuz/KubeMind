@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { IconPlus } from './Icons'
 
 interface Props {
@@ -8,10 +8,11 @@ interface Props {
   kind: string
 }
 
-/** "+ Create" entry point shown on resource list pages, ADMIN-only. */
+/** "+ Create" entry point shown on resource list pages — ADMIN, or a USER on
+ *  a cluster they registered themselves (see useCanWrite). */
 export function CreateResourceButton({ clusterId, ns, kind }: Props) {
-  const { isAdmin } = useAuth()
-  if (!isAdmin || !clusterId || !ns || ns === '_' || ns === 'all') return null
+  const canWrite = useCanWrite(clusterId)
+  if (!canWrite || !clusterId || !ns || ns === '_' || ns === 'all') return null
 
   return (
     <Link

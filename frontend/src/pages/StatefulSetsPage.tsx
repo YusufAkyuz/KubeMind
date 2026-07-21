@@ -9,7 +9,7 @@ import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedLis
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import { StatefulSetActions } from '../components/StatefulSetActions'
 import { ExplainPanel } from '../components/ExplainPanel'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { StatefulSet } from '../types/k8s'
 
@@ -30,7 +30,7 @@ function status(s: StatefulSet): string {
 
 export function StatefulSetsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<StatefulSet>('statefulsets')
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<StatefulSet | null>(null)
   const showNsColumn = ns === 'all'
 
@@ -77,7 +77,7 @@ export function StatefulSetsPage() {
               />
             </div>
 
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3">
                 <StatefulSetActions
                   key={`actions-${clusterId}/${selected.namespace}/${selected.name}`}

@@ -10,10 +10,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Generic view/edit YAML for cluster-scoped kinds (currently just Namespace). ADMIN-only, audited. */
+/**
+ * Generic view/edit YAML for cluster-scoped kinds (currently just Namespace).
+ * Viewing is open to any authenticated user; applying an edit requires ADMIN
+ * or ownership of the cluster (see ClusterAccessService). Audited.
+ */
 @RestController
 @RequestMapping("/api/clusters/{clusterId}/resources/{kind}/{name}/yaml")
-@PreAuthorize("hasRole('ADMIN')")
 public class ClusterScopedResourceController {
 
     private final ResourceEditService resourceEditService;
@@ -28,6 +31,7 @@ public class ClusterScopedResourceController {
     }
 
     @PutMapping(consumes = {MediaType.TEXT_PLAIN_VALUE, "application/yaml"})
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
     public ResourceCreationService.CreatedResourceDto applyYaml(
         @PathVariable long clusterId, @PathVariable String kind, @PathVariable String name,
         @RequestBody String yaml, Authentication auth

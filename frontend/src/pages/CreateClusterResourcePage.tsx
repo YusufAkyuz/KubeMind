@@ -92,19 +92,19 @@ export function CreateClusterResourcePage() {
       <nav className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-neutral-500 mb-4 flex-wrap">
         <span>cluster-scoped</span>
         <IconChevronRight className="w-3.5 h-3.5 shrink-0" />
-        <span className="text-gray-600 dark:text-neutral-400 font-medium">Create resource</span>
+        <span className="text-neutral-600 dark:text-neutral-400 font-medium">Create resource</span>
       </nav>
 
       <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm overflow-hidden max-w-3xl">
         {!yaml && (
           <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700">
-            <p className="text-xs font-medium text-gray-500 dark:text-neutral-400 mb-2">Start from a template</p>
+            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">Start from a template</p>
             <div className="flex flex-wrap gap-1.5">
               {CLUSTER_ALLOWED_KINDS.map((kind) => (
                 <button
                   key={kind}
                   onClick={() => setYaml(CLUSTER_KIND_TEMPLATES[kind])}
-                  className="rounded-full border border-gray-200 dark:border-neutral-700 px-3 py-1 text-xs text-gray-600 dark:text-neutral-400
+                  className="rounded-full border border-gray-200 dark:border-neutral-700 px-3 py-1 text-xs text-neutral-600 dark:text-neutral-400
                              hover:border-blue-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
                 >
                   {kind}
@@ -119,7 +119,7 @@ export function CreateClusterResourcePage() {
           onChange={(e) => setYaml(e.target.value)}
           spellCheck={false}
           placeholder="Pick a template above…"
-          className="w-full h-[28rem] bg-gray-950 text-gray-100 font-mono text-xs leading-5 p-4
+          className="w-full h-[28rem] bg-neutral-950 text-neutral-100 font-mono text-xs leading-5 p-4
                      resize-none focus:outline-none"
         />
 

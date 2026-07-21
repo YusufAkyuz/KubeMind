@@ -142,10 +142,10 @@ export function HelmReleasesPage() {
             <Tr key={`${r.namespace}/${r.name}`} onClick={() => { setSelected(r); setTab('values') }}
                 highlighted={selected?.name === r.name && selected?.namespace === r.namespace}>
               <Td className="font-medium text-gray-900 dark:text-neutral-100">{r.name}</Td>
-              {showNsColumn && <Td className="text-gray-500 dark:text-neutral-400">{r.namespace}</Td>}
+              {showNsColumn && <Td className="text-neutral-500 dark:text-neutral-400">{r.namespace}</Td>}
               <Td><StatusBadge status={STATUS_MAP[r.status] ?? r.status} /></Td>
-              <Td className="text-gray-500 dark:text-neutral-400">{r.chart}</Td>
-              <Td className="hidden md:table-cell text-gray-500 dark:text-neutral-400">{r.appVersion || '—'}</Td>
+              <Td className="text-neutral-500 dark:text-neutral-400">{r.chart}</Td>
+              <Td className="hidden md:table-cell text-neutral-500 dark:text-neutral-400">{r.appVersion || '—'}</Td>
               <Td className="hidden lg:table-cell text-gray-400 dark:text-neutral-500 tabular-nums">{r.revision}</Td>
               <Td className="hidden lg:table-cell text-gray-400 dark:text-neutral-500 text-xs">{r.updated}</Td>
             </Tr>
@@ -183,7 +183,7 @@ export function HelmReleasesPage() {
                   key={t}
                   onClick={() => setTab(t)}
                   className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
-                    tab === t ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-700'}`}
+                    tab === t ? 'bg-blue-600 text-white' : 'text-neutral-600 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-700'}`}
                 >
                   {t}
                 </button>
@@ -239,7 +239,7 @@ export function HelmReleasesPage() {
                   readOnly={!isAdmin || !detail.chartRef}
                   spellCheck={false}
                   rows={16}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-950 text-gray-100 font-mono text-xs
+                  className="w-full rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 font-mono text-xs
                              leading-5 p-3 resize-none focus:outline-none disabled:opacity-60"
                 />
                 {isAdmin && detail.chartRef && (
@@ -247,7 +247,7 @@ export function HelmReleasesPage() {
                     <button
                       onClick={() => setEditedValues(detail.values)}
                       disabled={!dirty || upgrading}
-                      className="text-xs text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="text-xs text-neutral-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       Revert changes
                     </button>
@@ -265,7 +265,7 @@ export function HelmReleasesPage() {
             )}
 
             {detail && tab !== 'values' && (
-              <pre className="rounded-lg border border-gray-200 bg-gray-950 text-gray-100 font-mono text-xs
+              <pre className="rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 font-mono text-xs
                                leading-5 p-3 whitespace-pre-wrap break-all max-h-96 overflow-y-auto">
                 {detail[tab] || `(no ${tab})`}
               </pre>

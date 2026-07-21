@@ -9,7 +9,7 @@ import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedLis
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import { DaemonSetActions } from '../components/DaemonSetActions'
 import { ExplainPanel } from '../components/ExplainPanel'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { DaemonSet } from '../types/k8s'
 
@@ -30,7 +30,7 @@ function status(d: DaemonSet): string {
 
 export function DaemonSetsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<DaemonSet>('daemonsets')
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<DaemonSet | null>(null)
   const showNsColumn = ns === 'all'
 
@@ -77,7 +77,7 @@ export function DaemonSetsPage() {
               />
             </div>
 
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3">
                 <DaemonSetActions
                   key={`actions-${clusterId}/${selected.namespace}/${selected.name}`}

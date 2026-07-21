@@ -22,7 +22,7 @@ export function useWsTerminal(wsUrl: string | null, enabled: boolean) {
       cursorBlink: true,
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 13,
-      theme: { background: '#030712', foreground: '#e5e7eb' },
+      theme: { background: '#0a0a0a', foreground: '#e5e5e5' },
     })
     const fit = new FitAddon()
     term.loadAddon(fit)

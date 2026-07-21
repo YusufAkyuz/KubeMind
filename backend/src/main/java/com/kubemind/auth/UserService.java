@@ -14,12 +14,13 @@ import java.util.Set;
 /**
  * Local user management (ADMIN-only, enforced at the controller).
  *
- * Authorization model note: KubeMind users are an app-level concept. Every
- * Kubernetes call still runs under KubeMind's own credentials (in-cluster SA or
- * a registered kubeconfig) regardless of which user is logged in — a USER role
- * is therefore "read-only through the UI" (all write endpoints and terminals
- * are ADMIN-gated), not a Kubernetes RBAC identity. Per-user Kubernetes
- * authorization (impersonation) is a documented future step, not this.
+ * Authorization model note: ADMIN can write anywhere and manage users/terminals.
+ * A USER can write only on clusters they registered themselves — those already
+ * run under that user's own kubeconfig (see ClusterClientFactory), so real
+ * Kubernetes RBAC on that kubeconfig is the actual ceiling, not an app-level
+ * check (see ClusterAccessService). The built-in shared cluster (id 0) stays
+ * ADMIN-only for writes since it's one identity shared by everyone, not a
+ * per-user credential.
  */
 @Service
 public class UserService {
@@ -89,5 +90,29 @@ public class UserService {
         target.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(target);
         auditService.record(actor, null, "RESET_USER_PASSWORD", ref, null, true, null);
+    }
+
+    @Transactional
+    public UserDto changeRole(String actor, long id, String newRole) {
+        User target = userRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        String ref = "User/" + target.getUsername();
+        try {
+            if (!VALID_ROLES.contains(newRole)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role must be ADMIN or USER");
+            }
+            if ("ADMIN".equals(target.getRole()) && !"ADMIN".equals(newRole)
+                && userRepository.countByRole("ADMIN") <= 1) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cannot demote the last ADMIN — the app would become unmanageable");
+            }
+            target.setRole(newRole);
+            userRepository.save(target);
+            auditService.record(actor, null, "CHANGE_USER_ROLE", ref, Map.of("role", newRole), true, null);
+            return UserDto.from(target);
+        } catch (ResponseStatusException e) {
+            auditService.record(actor, null, "CHANGE_USER_ROLE", ref, Map.of("role", newRole), false, e.getReason());
+            throw e;
+        }
     }
 }

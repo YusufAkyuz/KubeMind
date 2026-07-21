@@ -14,13 +14,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Cluster write actions (Phase 4). Every endpoint is ADMIN-only and audited
- * inside {@link KubernetesWriteService}. Generic YAML create/edit lives in
- * {@link ResourceCreationController} / {@link ResourceEditController}.
+ * Cluster write actions (Phase 4). ADMIN can act on any cluster; a USER only
+ * on a cluster they registered themselves (see ClusterAccessService). Every
+ * call is audited inside {@link KubernetesWriteService}. Generic YAML
+ * create/edit lives in {@link ResourceCreationController} / {@link ResourceEditController}.
  */
 @RestController
 @RequestMapping("/api/clusters/{clusterId}")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
 public class WriteActionsController {
 
     private final KubernetesWriteService writeService;

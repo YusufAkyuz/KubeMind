@@ -11,7 +11,7 @@ import { CreateResourceButton } from '../components/CreateResourceButton'
 import { EditYamlButton } from '../components/EditYamlButton'
 import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { Pvc } from '../types/k8s'
 
@@ -29,7 +29,7 @@ const PHASE: Record<string, string> = { Bound: 'Ready', Pending: 'Pending', Lost
 export function PvcsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } =
     useNamespacedList<Pvc>('persistentvolumeclaims')
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<Pvc | null>(null)
   const queryClient = useQueryClient()
   const showNsColumn = ns === 'all'
@@ -75,7 +75,7 @@ export function PvcsPage() {
               />
             </div>
 
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
                 <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="PersistentVolumeClaim" name={selected.name} />
                 <DeleteResourceButton

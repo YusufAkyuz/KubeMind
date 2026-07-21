@@ -11,7 +11,7 @@ import { EditYamlButton } from '../components/EditYamlButton'
 import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { RbacRules } from '../components/RbacDetails'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { Role } from '../types/k8s'
 
@@ -23,7 +23,7 @@ const COLUMNS = [
 
 export function RolesPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<Role>('roles')
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Role | null>(null)
   const [showSystem, setShowSystem] = useState(false)
@@ -64,7 +64,7 @@ export function RolesPage() {
                     onClose={() => setSelected(null)}>
         {selected && (
           <>
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
                 <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="Role" name={selected.name} />
                 <DeleteResourceButton
