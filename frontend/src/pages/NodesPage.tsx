@@ -101,8 +101,8 @@ export function NodesPage() {
             <div className="pb-3">
               <button
                 onClick={() => terminalPanel.openNodeExec(clusterId!, selected.name)}
-                className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 text-xs font-medium
-                           text-amber-800 hover:bg-amber-100 transition-colors"
+                className="rounded-md border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 text-xs font-medium
+                           text-amber-800 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
               >
                 Node shell
               </button>

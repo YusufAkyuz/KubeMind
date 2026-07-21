@@ -11,7 +11,7 @@ import { SystemManagedToggle } from '../components/SystemManagedToggle'
 import { CreateClusterResourceButton } from '../components/CreateClusterResourceButton'
 import { EditYamlButton } from '../components/EditYamlButton'
 import { RbacRules } from '../components/RbacDetails'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { ClusterRole } from '../types/k8s'
 
@@ -24,7 +24,7 @@ const COLUMNS = [
 // Cluster-scoped, so this page doesn't use the namespaced-list hook.
 export function ClusterRolesPage() {
   const { clusterId } = useParams<{ clusterId: string }>()
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<ClusterRole | null>(null)
   const [showSystem, setShowSystem] = useState(false)
 
@@ -64,7 +64,7 @@ export function ClusterRolesPage() {
       <DetailDrawer open={!!selected} title={selected?.name ?? ''} subtitle="ClusterRole" onClose={() => setSelected(null)}>
         {selected && (
           <>
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
                 <EditYamlButton clusterId={clusterId!} kind="ClusterRole" name={selected.name} />
               </div>

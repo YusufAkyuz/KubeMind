@@ -23,7 +23,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
  */
 @RestController
 @RequestMapping("/api/clusters/{clusterId}/resources")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
 public class AiYamlEditController {
 
     private static final Logger log = LoggerFactory.getLogger(AiYamlEditController.class);

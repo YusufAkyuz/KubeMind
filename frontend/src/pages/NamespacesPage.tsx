@@ -10,7 +10,7 @@ import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDraw
 import { ErrorBanner } from '../components/ErrorBanner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { EditYamlButton } from '../components/EditYamlButton'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { Namespace } from '../types/k8s'
 
@@ -24,7 +24,7 @@ export function NamespacesPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { clusterId } = useParams<{ clusterId: string }>()
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<Namespace | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -80,10 +80,10 @@ export function NamespacesPage() {
               >
                 View pods
               </button>
-              {isAdmin && (
+              {canWrite && (
                 <EditYamlButton clusterId={clusterId!} kind="Namespace" name={selected.name} onApplied={refresh} />
               )}
-              {isAdmin && (
+              {canWrite && (
                 <button
                   onClick={() => setDeleteOpen(true)}
                   className="rounded-md border border-red-200 dark:border-red-500/30 px-3 py-1.5 text-xs font-medium

@@ -15,7 +15,7 @@ function lineClass(type: DiffLine['type']): string {
     case 'remove':
       return 'bg-red-500/15 text-red-300'
     default:
-      return 'text-gray-400'
+      return 'text-neutral-400'
   }
 }
 
@@ -26,7 +26,7 @@ function lineNoClass(type: DiffLine['type']): string {
     case 'remove':
       return 'text-red-500/50'
     default:
-      return 'text-gray-600'
+      return 'text-neutral-600'
   }
 }
 
@@ -49,14 +49,14 @@ export function DiffViewer({ oldText, newText }: Props) {
   if (changes === 0) {
     return (
       <div className="flex items-center justify-center h-[45vh] rounded-md border border-gray-300
-                      bg-gray-950 text-gray-500 text-sm">
+                      bg-neutral-950 text-neutral-500 text-sm">
         No changes detected
       </div>
     )
   }
 
   return (
-    <div className="h-[45vh] overflow-auto rounded-md border border-gray-300 bg-gray-950
+    <div className="h-[45vh] overflow-auto rounded-md border border-neutral-800 bg-neutral-950
                     font-mono text-xs leading-5">
       <table className="w-full border-collapse">
         <tbody>
@@ -72,7 +72,7 @@ export function DiffViewer({ oldText, newText }: Props) {
               </td>
               {/* Prefix (+/-/space) */}
               <td className={`w-5 shrink-0 text-center select-none ${
-                line.type === 'add' ? 'text-emerald-400' : line.type === 'remove' ? 'text-red-400' : 'text-gray-600'
+                line.type === 'add' ? 'text-emerald-400' : line.type === 'remove' ? 'text-red-400' : 'text-neutral-600'
               }`}>
                 {prefix(line.type)}
               </td>

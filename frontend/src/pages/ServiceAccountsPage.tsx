@@ -10,7 +10,7 @@ import { CreateResourceButton } from '../components/CreateResourceButton'
 import { EditYamlButton } from '../components/EditYamlButton'
 import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { ServiceAccount } from '../types/k8s'
 
@@ -23,7 +23,7 @@ const COLUMNS = [
 
 export function ServiceAccountsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<ServiceAccount>('serviceaccounts')
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<ServiceAccount | null>(null)
   const [showSystem, setShowSystem] = useState(false)
@@ -67,7 +67,7 @@ export function ServiceAccountsPage() {
                     onClose={() => setSelected(null)}>
         {selected && (
           <>
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
                 <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="ServiceAccount" name={selected.name} />
                 <DeleteResourceButton

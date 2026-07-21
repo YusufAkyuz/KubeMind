@@ -11,7 +11,7 @@ import { CreateResourceButton } from '../components/CreateResourceButton'
 import { EditYamlButton } from '../components/EditYamlButton'
 import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { CronJob } from '../types/k8s'
 
@@ -26,7 +26,7 @@ const COLUMNS = [
 
 export function CronJobsPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<CronJob>('cronjobs')
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<CronJob | null>(null)
   const queryClient = useQueryClient()
   const showNsColumn = ns === 'all'
@@ -75,7 +75,7 @@ export function CronJobsPage() {
               />
             </div>
 
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
                 <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="CronJob" name={selected.name} />
                 <DeleteResourceButton

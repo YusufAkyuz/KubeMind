@@ -145,8 +145,8 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
                   onClick={() => setShowDiff(false)}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     !showDiff
-                      ? 'bg-gray-900 dark:bg-neutral-100 text-white dark:text-neutral-900'
-                      : 'text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800'
+                      ? 'bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800'
                   }`}
                 >
                   Editor
@@ -157,8 +157,8 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors
                     disabled:opacity-40 disabled:cursor-not-allowed ${
                     showDiff
-                      ? 'bg-gray-900 dark:bg-neutral-100 text-white dark:text-neutral-900'
-                      : 'text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800'
+                      ? 'bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800'
                   }`}
                 >
                   Review changes
@@ -180,7 +180,7 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
                   value={yaml}
                   onChange={(e) => setYaml(e.target.value)}
                   spellCheck={false}
-                  className="w-full h-[45vh] rounded-md border border-gray-300 bg-gray-950 text-gray-100
+                  className="w-full h-[45vh] rounded-md border border-neutral-800 bg-neutral-950 text-neutral-100
                              font-mono text-xs leading-5 p-3 resize-none
                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />

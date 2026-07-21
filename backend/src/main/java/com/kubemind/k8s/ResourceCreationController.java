@@ -15,10 +15,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Direct object creation (Phase: Create Resource). ADMIN-only, allowlisted kinds, audited. */
+/**
+ * Direct object creation (Phase: Create Resource). Allowlisted kinds, audited.
+ * ADMIN can create anywhere; a USER only on a cluster they registered
+ * themselves (see ClusterAccessService).
+ */
 @RestController
 @RequestMapping("/api/clusters/{clusterId}/namespaces/{ns}/resources")
-@PreAuthorize("hasRole('ADMIN')")
 public class ResourceCreationController {
 
     private final ResourceCreationService resourceCreationService;
@@ -35,6 +38,7 @@ public class ResourceCreationController {
     }
 
     @PostMapping
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
     public ResponseEntity<ResourceCreationService.CreatedResourceDto> create(
         @PathVariable long clusterId, @PathVariable String ns,
         @Valid @RequestBody CreateRequest request, Authentication auth

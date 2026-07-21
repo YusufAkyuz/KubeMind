@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { IconPlus } from './Icons'
 
 interface Props {
@@ -7,11 +7,12 @@ interface Props {
   kind: string
 }
 
-/** "+ Create" entry point for cluster-scoped kinds (ClusterRole/ClusterRoleBinding),
- *  ADMIN-only — see CreateResourceButton for the namespaced equivalent. */
+/** "+ Create" entry point for cluster-scoped kinds (ClusterRole/ClusterRoleBinding) —
+ *  ADMIN, or a USER on a cluster they registered themselves. See
+ *  CreateResourceButton for the namespaced equivalent. */
 export function CreateClusterResourceButton({ clusterId, kind }: Props) {
-  const { isAdmin } = useAuth()
-  if (!isAdmin || !clusterId) return null
+  const canWrite = useCanWrite(clusterId)
+  if (!canWrite || !clusterId) return null
 
   return (
     <Link

@@ -8,10 +8,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Generic delete for any {@link ResourceEditService#EDITABLE_KINDS} kind. ADMIN-only, audited. */
+/**
+ * Generic delete for any {@link ResourceEditService#EDITABLE_KINDS} kind.
+ * ADMIN can delete anywhere; a USER only on a cluster they registered
+ * themselves (see ClusterAccessService). Audited either way.
+ */
 @RestController
 @RequestMapping("/api/clusters/{clusterId}/namespaces/{ns}/resources/{kind}/{name}")
-@PreAuthorize("hasRole('ADMIN')")
 public class ResourceDeleteController {
 
     private final ResourceEditService resourceEditService;
@@ -21,6 +24,7 @@ public class ResourceDeleteController {
     }
 
     @DeleteMapping
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
     public ResponseEntity<Void> delete(@PathVariable long clusterId, @PathVariable String ns,
                                        @PathVariable String kind, @PathVariable String name,
                                        Authentication auth) {

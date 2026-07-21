@@ -23,10 +23,11 @@ export function UsersPage() {
   const { username: currentUsername } = useAuth()
   const [addOpen, setAddOpen] = useState(false)
   const [deleting, setDeleting] = useState<AppUser | null>(null)
-  const [resetting, setResetting] = useState<AppUser | null>(null)
+  const [managing, setManaging] = useState<AppUser | null>(null)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'USER' | 'ADMIN'>('USER')
+  const [editRole, setEditRole] = useState<'USER' | 'ADMIN'>('USER')
   const [newPassword, setNewPassword] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -54,16 +55,29 @@ export function UsersPage() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      if (!resetting) return
-      await api.put(`/users/${resetting.id}/password`, { password: newPassword })
+      if (!managing) return
+      await api.put(`/users/${managing.id}/password`, { password: newPassword })
     },
     onSuccess: () => {
-      toast.success(`Password reset for ${resetting?.username}`)
-      setResetting(null)
+      toast.success(`Password reset for ${managing?.username}`)
       setNewPassword('')
       setFormError(null)
     },
     onError: (e) => setFormError(apiErrorMessage(e, 'Could not reset password')),
+  })
+
+  const roleMutation = useMutation({
+    mutationFn: async () => {
+      if (!managing) return
+      return (await api.put<AppUser>(`/users/${managing.id}/role`, { role: editRole })).data
+    },
+    onSuccess: (updated) => {
+      if (!updated) return
+      toast.success(`${updated.username} is now ${updated.role}`)
+      setFormError(null)
+      invalidate()
+    },
+    onError: (e) => setFormError(apiErrorMessage(e, 'Could not change role')),
   })
 
   const deleteUser = async () => {
@@ -82,7 +96,7 @@ export function UsersPage() {
     <Layout>
       <PageHeader
         title="Users"
-        subtitle="KubeMind logins. USER accounts are read-only: all write actions and terminals require ADMIN. Every cluster call runs under KubeMind's own credentials — per-user Kubernetes RBAC is on the roadmap."
+        subtitle="KubeMind logins. ADMIN can write anywhere and manage users/terminals. USER is limited to that cluster's own kubeconfig permissions — KubeMind never grants more than the cluster itself allows."
         count={data?.length}
         noun="user"
         actions={
@@ -123,11 +137,16 @@ export function UsersPage() {
               <Td>
                 <div className="flex justify-end gap-2">
                   <button
-                    onClick={() => { setFormError(null); setNewPassword(''); setResetting(u) }}
+                    onClick={() => {
+                      setFormError(null)
+                      setNewPassword('')
+                      setEditRole(u.role as 'USER' | 'ADMIN')
+                      setManaging(u)
+                    }}
                     className="rounded-md border border-gray-300 dark:border-neutral-600 px-2.5 py-1 text-xs text-gray-600 dark:text-neutral-400
                                hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
                   >
-                    Reset password
+                    Manage
                   </button>
                   {u.username !== currentUsername && (
                     <button
@@ -157,7 +176,8 @@ export function UsersPage() {
               placeholder="jane.doe"
               maxLength={64}
               autoComplete="off"
-              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                         text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -170,7 +190,8 @@ export function UsersPage() {
               placeholder="Min 8 characters"
               maxLength={128}
               autoComplete="new-password"
-              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                         text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -182,7 +203,7 @@ export function UsersPage() {
               className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm bg-white dark:bg-neutral-900
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="USER">USER — read-only</option>
+              <option value="USER">USER — limited to that cluster's own kubeconfig permissions</option>
               <option value="ADMIN">ADMIN — full access (effectively cluster-admin)</option>
             </select>
             {role === 'ADMIN' && (
@@ -214,14 +235,50 @@ export function UsersPage() {
         </div>
       </Modal>
 
-      {/* ── Reset password ───────────────────────────────────────────────── */}
+      {/* ── Manage user (role + password) ───────────────────────────────── */}
       <Modal
-        open={!!resetting}
-        title={`Reset password for ${resetting?.username ?? ''}`}
-        onClose={() => setResetting(null)}
+        open={!!managing}
+        title={`Manage ${managing?.username ?? ''}`}
+        onClose={() => setManaging(null)}
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
+            <label className="block text-xs text-gray-500 dark:text-neutral-400 mb-1.5">Role</label>
+            <select
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value as 'USER' | 'ADMIN')}
+              disabled={managing?.username === currentUsername}
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm bg-white dark:bg-neutral-900
+                         text-gray-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                         disabled:opacity-50"
+            >
+              <option value="USER">USER — limited to that cluster's own kubeconfig permissions</option>
+              <option value="ADMIN">ADMIN — full access (effectively cluster-admin)</option>
+            </select>
+            {managing?.username === currentUsername ? (
+              <p className="mt-1.5 text-xs text-gray-400 dark:text-neutral-500">
+                You cannot change your own role.
+              </p>
+            ) : editRole === 'ADMIN' && (
+              <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                ADMINs can use the terminals and every write action — treat this like handing
+                out cluster-admin.
+              </p>
+            )}
+            <div className="mt-2 flex justify-end">
+              <button
+                onClick={() => roleMutation.mutate()}
+                disabled={roleMutation.isPending || !managing || editRole === managing.role
+                  || managing.username === currentUsername}
+                className="rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white
+                           hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {roleMutation.isPending ? 'Saving…' : 'Save role'}
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 dark:border-neutral-800 pt-4">
             <label className="block text-xs text-gray-500 dark:text-neutral-400 mb-1.5">New password</label>
             <input
               type="password"
@@ -230,27 +287,30 @@ export function UsersPage() {
               placeholder="Min 8 characters"
               maxLength={128}
               autoComplete="new-password"
-              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                         text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+            <div className="mt-2 flex justify-end">
+              <button
+                onClick={() => resetMutation.mutate()}
+                disabled={resetMutation.isPending || newPassword.length < 8}
+                className="rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white
+                           hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {resetMutation.isPending ? 'Saving…' : 'Reset password'}
+              </button>
+            </div>
           </div>
+
           {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end border-t border-gray-100 dark:border-neutral-800 pt-4">
             <button
-              onClick={() => setResetting(null)}
-              disabled={resetMutation.isPending}
+              onClick={() => setManaging(null)}
               className="rounded-md border border-gray-300 dark:border-neutral-600 px-3.5 py-2 text-sm text-gray-700 dark:text-neutral-300
-                         hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+                         hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
             >
-              Cancel
-            </button>
-            <button
-              onClick={() => resetMutation.mutate()}
-              disabled={resetMutation.isPending || newPassword.length < 8}
-              className="rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white
-                         hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {resetMutation.isPending ? 'Saving…' : 'Reset password'}
+              Close
             </button>
           </div>
         </div>

@@ -9,7 +9,7 @@ import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedLis
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import { HpaActions } from '../components/HpaActions'
 import { ExplainPanel } from '../components/ExplainPanel'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { Hpa } from '../types/k8s'
 
@@ -37,7 +37,7 @@ function cpuDisplay(h: Hpa): string {
 
 export function HpasPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<Hpa>('hpas')
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<Hpa | null>(null)
   const showNsColumn = ns === 'all'
 
@@ -87,7 +87,7 @@ export function HpasPage() {
               />
             </div>
 
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3">
                 <HpaActions
                   key={`actions-${clusterId}/${selected.namespace}/${selected.name}`}

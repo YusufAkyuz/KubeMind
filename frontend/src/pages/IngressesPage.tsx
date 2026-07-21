@@ -10,7 +10,7 @@ import { CreateResourceButton } from '../components/CreateResourceButton'
 import { EditYamlButton } from '../components/EditYamlButton'
 import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
-import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
 import type { Ingress } from '../types/k8s'
 
@@ -23,7 +23,7 @@ const COLUMNS = [
 
 export function IngressesPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<Ingress>('ingresses')
-  const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const [selected, setSelected] = useState<Ingress | null>(null)
   const queryClient = useQueryClient()
   const showNsColumn = ns === 'all'
@@ -71,7 +71,7 @@ export function IngressesPage() {
               />
             </div>
 
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
                 <EditYamlButton clusterId={clusterId!} ns={selected.namespace} kind="Ingress" name={selected.name} />
                 <DeleteResourceButton

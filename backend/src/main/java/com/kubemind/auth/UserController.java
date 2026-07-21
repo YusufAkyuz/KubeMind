@@ -44,6 +44,8 @@ public class UserController {
         String password
     ) {}
 
+    public record ChangeRoleRequest(@NotBlank String role) {}
+
     @GetMapping
     public List<UserDto> list() {
         return userService.list();
@@ -67,5 +69,11 @@ public class UserController {
                                               Authentication auth) {
         userService.resetPassword(auth.getName(), id, request.password());
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/role")
+    public UserDto changeRole(@PathVariable long id, @Valid @RequestBody ChangeRoleRequest request,
+                              Authentication auth) {
+        return userService.changeRole(auth.getName(), id, request.role());
     }
 }
