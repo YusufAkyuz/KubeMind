@@ -1,0 +1,33 @@
+apiVersion: v1
+entries:
+  kubemind:
+  - annotations:
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Repository
+          url: https://github.com/YusufAkyuz/KubeMind
+    apiVersion: v2
+    appVersion: 0.1.0
+    created: "2026-07-21T21:12:15.251837204Z"
+    description: KubeMind — web-based, AI-assisted Kubernetes dashboard. Deploys the
+      backend (Spring Boot) and frontend (nginx) plus, optionally, a pgvector-enabled
+      PostgreSQL and an Ollama instance so a bare `helm install` yields a fully working
+      system.
+    digest: 8f6bad437bed441f917031721a2f21372e6d72e3db4e23467f46c4edf643bc66
+    home: https://github.com/YusufAkyuz/KubeMind
+    icon: https://raw.githubusercontent.com/YusufAkyuz/KubeMind/main/frontend/public/favicon.svg
+    keywords:
+    - kubernetes
+    - dashboard
+    - ai
+    maintainers:
+    - name: Yusuf Akyüz
+      url: https://github.com/YusufAkyuz
+    name: kubemind
+    sources:
+    - https://github.com/YusufAkyuz/KubeMind
+    type: application
+    urls:
+    - https://YusufAkyuz.github.io/KubeMind/kubemind-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-07-21T21:12:15.250995629Z"
