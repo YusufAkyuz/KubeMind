@@ -146,10 +146,17 @@ Install once onto a management cluster. That cluster becomes the built-in "local
 encrypted kubeconfig.
 
 ```bash
-helm install kubemind deploy/helm/kubemind -n kubemind --create-namespace \
+helm repo add kubemind https://yusufakyuz.github.io/KubeMind
+helm repo update
+
+helm install kubemind kubemind/kubemind -n kubemind --create-namespace \
   --set auth.adminPassword=... \
   --set postgresql.password=...
 ```
+
+No local clone needed — the chart is published from this repo (see [`deploy/helm/kubemind/README.md`](./deploy/helm/kubemind/README.md)
+for the full values reference). To install straight from source instead, swap the first
+three lines for `helm install kubemind deploy/helm/kubemind ...`.
 
 The chart bundles optional PostgreSQL (pgvector) and Ollama (both toggleable). It binds the
 backend ServiceAccount to **cluster-admin** — a deliberate, loudly documented choice; see
@@ -174,8 +181,8 @@ docker build -f deploy/docker/backend.Dockerfile  -t kubemind/backend:0.1.0 .
 docker build -f deploy/docker/frontend.Dockerfile -t kubemind/frontend:0.1.0 .
 ```
 
-> Published images and a one-line Helm install from a chart repository are on the roadmap —
-> see [the release plan](#release-plan) below.
+> Published images and a one-line Helm install from a chart repository are both live — see
+> the [release plan](#release-plan) below.
 
 ## Security model
 
@@ -188,9 +195,12 @@ credentials never leave it. A few things you must understand before deploying:
   terminal, node shell, and RBAC-creation features. Anyone who can log in as an **ADMIN**
   effectively holds cluster-admin on the install cluster. If that's more power than you want,
   use the standalone Docker Compose mode with least-privilege kubeconfigs instead.
-- **Roles.** `ADMIN` can do everything; `USER` is read-only for KubeMind's own write actions.
-  Registered clusters are per-user and private to whoever added them; a USER's cluster
-  registration stays **pending until an ADMIN approves it**.
+- **Roles.** `ADMIN` can write anywhere and manage users/terminals. `USER` can write only on
+  clusters they registered themselves — that cluster runs under their own kubeconfig, so real
+  Kubernetes RBAC on it is the actual ceiling, not an app-level permission. Registered clusters
+  are per-user and private to whoever added them; a USER's cluster registration stays
+  **pending until an ADMIN approves it**. The built-in shared "local" cluster stays
+  ADMIN-only for writes, since it's one identity shared by everyone, not a per-user credential.
 - **Two disclosed privilege exceptions.** The **node shell** schedules a privileged,
   host-mounted debug pod; the **cluster terminal** provisions its own cluster-admin
   ServiceAccount for the session. Both require an explicit "I understand the risk" click, and
@@ -223,8 +233,9 @@ Found a vulnerability? Please follow [SECURITY.md](./SECURITY.md) — don't open
   `kubemind/backend:0.1.0` and `kubemind/frontend:0.1.0` (plus `:latest`), amd64 + arm64. Once
   a release is out, `helm install` works straight from this repo's chart with no local
   `docker build` step.
-- Publish the Helm chart to a chart repository so users can `helm repo add` + `helm install`
-  without cloning this repo at all.
+- ✅ **Helm chart is published as a repository.** `helm repo add kubemind
+  https://yusufakyuz.github.io/KubeMind` works with no clone required, and the chart is
+  listed on [Artifact Hub](https://artifacthub.io/packages/helm/kubemind/kubemind).
 - Branch protection on `main` (required CI, required review) — see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Contributing
