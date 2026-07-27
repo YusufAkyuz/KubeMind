@@ -63,10 +63,17 @@ Two things make it different from the alternatives:
 
 ## Screenshots
 
-<!-- TODO(before public launch): add screenshots/GIFs of the Nodes dashboard, an "Explain
-     this" AI diagnosis, and the Helm release view. AI-assisted dashboards sell on visuals. -->
+**Cluster Insights** — AI-generated, cluster-wide diagnosis on the Nodes dashboard.
 
-_Coming soon._
+![Cluster Insights](docs/screenshots/cluster-insights.png)
+
+**Explain** — per-resource AI troubleshooting, right in the detail drawer.
+
+![AI Explain](docs/screenshots/ai-explain.png)
+
+**Users** — simple team access: ADMIN and USER roles, scoped per cluster.
+
+![Users](docs/screenshots/users.png)
 
 ## Architecture
 
