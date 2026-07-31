@@ -5,15 +5,20 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
 /**
- * Write-access check used by @PreAuthorize on cluster-scoped write endpoints.
+ * Who may reach which cluster.
  *
- * ADMIN can write anywhere. A USER can write only to clusters they registered
- * themselves — those already run under that user's own kubeconfig (see
- * ClusterClientFactory), so real Kubernetes RBAC on that kubeconfig is the
- * actual ceiling, not this check. The built-in cluster (id 0) has no owner
- * row in the DB, so it never matches here — writes to it stay ADMIN-only
- * because it's a single shared identity, not a per-user credential (see
- * ClusterClientFactory.getClient).
+ * Self-service, like a desktop Kubernetes client: you bring your own kubeconfig
+ * and you work through it. A user reaches exactly the clusters they registered
+ * themselves, and what they can do there is decided by that kubeconfig's own
+ * RBAC — not by an app-level role. Hand someone a read-only ServiceAccount
+ * kubeconfig and KubeMind physically cannot write with it.
+ *
+ * This class only answers "is this door yours"; the cluster answers "what may
+ * you do inside".
+ *
+ * The built-in cluster (id 0) is ADMIN-only. It has no owner row because it
+ * isn't anyone's kubeconfig — it's the single identity this installation runs
+ * as, usually bound to cluster-admin.
  */
 @Service
 public class ClusterAccessService {
@@ -24,13 +29,27 @@ public class ClusterAccessService {
         this.repository = repository;
     }
 
-    public boolean canWrite(Authentication auth, long clusterId) {
+    /** May this user reach the cluster at all (read included)? */
+    public boolean canRead(Authentication auth, long clusterId) {
         if (isAdmin(auth)) {
             return true;
+        }
+        if (clusterId == ClusterClientFactory.DEFAULT_CLUSTER_ID) {
+            return false; // shared installation identity, never per-user
         }
         return repository.findById(clusterId)
             .map(c -> c.getCreatedBy().equals(auth.getName()) && "APPROVED".equals(c.getStatus()))
             .orElse(false);
+    }
+
+    /**
+     * May this user write here? Same door as {@link #canRead} — the difference
+     * between reading and writing is enforced by the cluster's own RBAC, which
+     * is the whole point of scoping people to a kubeconfig rather than to an
+     * app-level role.
+     */
+    public boolean canWrite(Authentication auth, long clusterId) {
+        return canRead(auth, clusterId);
     }
 
     private boolean isAdmin(Authentication auth) {

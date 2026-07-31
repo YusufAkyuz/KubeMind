@@ -33,12 +33,11 @@ public class ClusterController {
         @NotBlank String kubeconfig
     ) {}
 
-    /** Self-service: everyone only ever sees the clusters they themselves
-     *  registered, plus the built-in cluster (open to all — see ClusterService's
-     *  javadoc for why that one's not scoped per-user). */
+    /** Self-service: everyone sees exactly the clusters they registered
+     *  themselves. The built-in cluster is ADMIN-only — see ClusterService#list. */
     @GetMapping
     public List<ClusterDto> list(Authentication auth) {
-        return clusterService.list(auth.getName());
+        return clusterService.list(auth.getName(), isAdmin(auth));
     }
 
     /** ADMIN-only, minimal view of requests awaiting a decision — see

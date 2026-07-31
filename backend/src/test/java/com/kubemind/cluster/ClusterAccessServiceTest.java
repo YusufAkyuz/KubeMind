@@ -14,8 +14,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Guards the write-authorization rule every cluster-scoped write endpoint hangs
- * off via @PreAuthorize("@clusterAccessService.canWrite(...)").
+ * Guards which door opens for whom: you reach the clusters you registered
+ * yourself, and nothing else. Every cluster-scoped route runs through this via
+ * ClusterAccessInterceptor (reads) and @PreAuthorize (writes).
  */
 class ClusterAccessServiceTest {
 
@@ -38,62 +39,62 @@ class ClusterAccessServiceTest {
     }
 
     @Test
-    void adminCanWriteAnywhere() {
+    void adminReachesAnyCluster() {
         when(repository.findById(7L)).thenReturn(Optional.of(cluster("someone-else", "APPROVED")));
 
+        assertThat(service.canRead(auth("admin", "ADMIN"), 7L)).isTrue();
         assertThat(service.canWrite(auth("admin", "ADMIN"), 7L)).isTrue();
     }
 
-    /** An ADMIN is not blocked by a cluster row that doesn't exist at all. */
     @Test
-    void adminCanWriteWithoutTouchingTheRepository() {
-        assertThat(service.canWrite(auth("admin", "ADMIN"), 999L)).isTrue();
-    }
-
-    @Test
-    void userCanWriteOnTheirOwnApprovedCluster() {
+    void userReachesTheirOwnApprovedCluster() {
         when(repository.findById(7L)).thenReturn(Optional.of(cluster("bob", "APPROVED")));
 
-        assertThat(service.canWrite(auth("bob", "USER"), 7L)).isTrue();
+        assertThat(service.canRead(auth("bob", "USER"), 7L)).isTrue();
     }
 
     @Test
-    void userCannotWriteOnSomeoneElsesCluster() {
+    void userCannotReachSomeoneElsesCluster() {
         when(repository.findById(7L)).thenReturn(Optional.of(cluster("alice", "APPROVED")));
 
+        assertThat(service.canRead(auth("bob", "USER"), 7L)).isFalse();
         assertThat(service.canWrite(auth("bob", "USER"), 7L)).isFalse();
     }
 
-    /** Registered-but-unreviewed clusters are unusable until an ADMIN approves them. */
+    /** Registered-but-unreviewed clusters stay unusable until an ADMIN approves. */
     @Test
-    void userCannotWriteOnTheirOwnPendingCluster() {
+    void userCannotReachTheirOwnPendingCluster() {
         when(repository.findById(7L)).thenReturn(Optional.of(cluster("bob", "PENDING")));
 
-        assertThat(service.canWrite(auth("bob", "USER"), 7L)).isFalse();
+        assertThat(service.canRead(auth("bob", "USER"), 7L)).isFalse();
     }
 
     @Test
-    void userCannotWriteOnRejectedCluster() {
+    void userCannotReachRejectedCluster() {
         when(repository.findById(7L)).thenReturn(Optional.of(cluster("bob", "REJECTED")));
 
-        assertThat(service.canWrite(auth("bob", "USER"), 7L)).isFalse();
+        assertThat(service.canRead(auth("bob", "USER"), 7L)).isFalse();
     }
 
     /**
-     * Cluster 0 is the built-in "local" cluster — one identity shared by everyone,
-     * not a per-user credential, so it has no owner row and stays ADMIN-only for writes.
+     * The built-in cluster is the installation's own identity — usually
+     * cluster-admin — so it is never handed to a non-ADMIN.
      */
     @Test
-    void userCannotWriteOnTheBuiltInLocalCluster() {
-        when(repository.findById(ClusterClientFactory.DEFAULT_CLUSTER_ID)).thenReturn(Optional.empty());
-
+    void userNeverReachesTheBuiltInLocalCluster() {
+        assertThat(service.canRead(auth("bob", "USER"), ClusterClientFactory.DEFAULT_CLUSTER_ID)).isFalse();
         assertThat(service.canWrite(auth("bob", "USER"), ClusterClientFactory.DEFAULT_CLUSTER_ID)).isFalse();
     }
 
     @Test
-    void userCannotWriteOnAClusterThatDoesNotExist() {
+    void adminStillReachesTheBuiltInLocalCluster() {
+        assertThat(service.canRead(auth("admin", "ADMIN"), ClusterClientFactory.DEFAULT_CLUSTER_ID)).isTrue();
+    }
+
+    @Test
+    void nobodyReachesAClusterThatDoesNotExist() {
         when(repository.findById(404L)).thenReturn(Optional.empty());
 
-        assertThat(service.canWrite(auth("bob", "USER"), 404L)).isFalse();
+        assertThat(service.canRead(auth("bob", "USER"), 404L)).isFalse();
     }
 }
