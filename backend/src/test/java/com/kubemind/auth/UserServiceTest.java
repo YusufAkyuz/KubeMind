@@ -124,4 +124,67 @@ class UserServiceTest {
             .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND));
     }
+
+    // ── changeRole ───────────────────────────────────────────────────────────
+
+    @Test
+    void changeRolePromotesAndAudits() {
+        User bob = new User("bob", "hash", "USER");
+        when(userRepository.findById(3L)).thenReturn(Optional.of(bob));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UserDto dto = userService.changeRole("admin", 3L, "ADMIN");
+
+        assertThat(dto.role()).isEqualTo("ADMIN");
+        assertThat(bob.getRole()).isEqualTo("ADMIN");
+        verify(auditService).record(eq("admin"), eq(null), eq("CHANGE_USER_ROLE"), eq("User/bob"),
+            any(), eq(true), eq(null));
+    }
+
+    @Test
+    void changeRoleRejectsUnknownRole() {
+        when(userRepository.findById(3L)).thenReturn(Optional.of(new User("bob", "hash", "USER")));
+
+        assertThatThrownBy(() -> userService.changeRole("admin", 3L, "SUPERUSER"))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST));
+        verify(userRepository, never()).save(any());
+    }
+
+    /** Demoting the only ADMIN would lock everyone out of user management. */
+    @Test
+    void changeRoleRejectsDemotingLastAdmin() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(new User("root", "hash", "ADMIN")));
+        when(userRepository.countByRole("ADMIN")).thenReturn(1L);
+
+        assertThatThrownBy(() -> userService.changeRole("admin", 1L, "USER"))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void changeRoleAllowsDemotingWhenAnotherAdminRemains() {
+        User other = new User("other-admin", "hash", "ADMIN");
+        when(userRepository.findById(2L)).thenReturn(Optional.of(other));
+        when(userRepository.countByRole("ADMIN")).thenReturn(2L);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        userService.changeRole("admin", 2L, "USER");
+
+        assertThat(other.getRole()).isEqualTo("USER");
+    }
+
+    @Test
+    void changeRoleAuditsFailures() {
+        when(userRepository.findById(3L)).thenReturn(Optional.of(new User("bob", "hash", "USER")));
+
+        assertThatThrownBy(() -> userService.changeRole("admin", 3L, "SUPERUSER"))
+            .isInstanceOf(ResponseStatusException.class);
+
+        verify(auditService).record(eq("admin"), eq(null), eq("CHANGE_USER_ROLE"), eq("User/bob"),
+            any(), eq(false), any());
+    }
 }
