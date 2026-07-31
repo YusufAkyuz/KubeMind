@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiErrorMessage } from '../api/client'
 import { useAuth } from './AuthContext'
 import { Logo } from '../components/Icons'
 import { LoginBackground } from './LoginBackground'
@@ -8,8 +9,8 @@ import { LoginBackground } from './LoginBackground'
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('admin')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -20,8 +21,11 @@ export function LoginPage() {
     try {
       await login(username, password)
       navigate('/')
-    } catch {
-      setError('Invalid username or password')
+    } catch (e) {
+      // Show what the server actually said. Blanket-labelling every failure
+      // "Invalid username or password" sent people off resetting a password
+      // when the real cause was server-side (see ApiExceptionHandler's 503).
+      setError(apiErrorMessage(e, 'Could not sign in — is the server reachable?'))
     } finally {
       setSubmitting(false)
     }

@@ -177,8 +177,8 @@ KUBEMIND_ADMIN_PASSWORD=... KUBEMIND_DB_PASSWORD=... \
 Building the images locally:
 
 ```bash
-docker build -f deploy/docker/backend.Dockerfile  -t kubemind/backend:0.1.0 .
-docker build -f deploy/docker/frontend.Dockerfile -t kubemind/frontend:0.1.0 .
+docker build -f deploy/docker/backend.Dockerfile  -t kubemind/backend:0.2.0 .
+docker build -f deploy/docker/frontend.Dockerfile -t kubemind/frontend:0.2.0 .
 ```
 
 > Published images and a one-line Helm install from a chart repository are both live — see
@@ -228,9 +228,9 @@ Found a vulnerability? Please follow [SECURITY.md](./SECURITY.md) — don't open
 
 ## Release plan
 
-- ✅ **Tagged releases publish images to Docker Hub.** Pushing a tag like `v0.1.0` triggers
+- ✅ **Tagged releases publish images to Docker Hub.** Pushing a tag like `v0.2.0` triggers
   [`.github/workflows/release.yml`](./.github/workflows/release.yml), which builds and pushes
-  `kubemind/backend:0.1.0` and `kubemind/frontend:0.1.0` (plus `:latest`), amd64 + arm64. Once
+  `kubemind/backend:0.2.0` and `kubemind/frontend:0.2.0` (plus `:latest`), amd64 + arm64. Once
   a release is out, `helm install` works straight from this repo's chart with no local
   `docker build` step.
 - ✅ **Helm chart is published as a repository.** `helm repo add kubemind

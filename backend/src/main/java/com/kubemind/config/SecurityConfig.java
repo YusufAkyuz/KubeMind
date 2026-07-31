@@ -1,5 +1,6 @@
 package com.kubemind.config;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,6 +51,15 @@ public class SecurityConfig {
                 .ignoringRequestMatchers("/api/port-forward/**"))
             .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
+                // Every SSE/streaming endpoint (watches, log tail, AI streams) finishes as an
+                // ASYNC dispatch back through this chain. Spring Security re-authorizes those
+                // by default, and when it denies one the response is already committed — which
+                // surfaced as a stack trace pair in the logs: "AuthorizationDeniedException:
+                // Access Denied" followed by "response is already committed". The initial
+                // REQUEST dispatch was already fully authorized; ASYNC/ERROR are the container
+                // resuming or erroring out that same request, not new entry points (a client
+                // hitting /error directly is a REQUEST dispatch and still authenticated).
+                .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 // Cluster Terminal provisions its own ServiceAccount bound to

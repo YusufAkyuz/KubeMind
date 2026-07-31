@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,6 +25,30 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(Map.of("error", "Invalid username or password"));
+    }
+
+    /**
+     * The login path failed for a reason that is NOT "wrong password":
+     * DaoAuthenticationProvider wraps anything thrown out of the UserDetailsService
+     * (a dropped DB connection, for instance) in this exception. Without this mapping
+     * it fell through to the generic handler as an opaque 500, which the UI then
+     * rendered as "Invalid username or password" — sending the user off to reset a
+     * password that was never the problem. Log it loudly and say it's us, not them.
+     */
+    @ExceptionHandler(InternalAuthenticationServiceException.class)
+    public ResponseEntity<Map<String, String>> handleAuthInfrastructureFailure(
+        InternalAuthenticationServiceException ex) {
+        log.error("Authentication could not be completed (infrastructure failure)", ex);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(Map.of("error", "Sign-in is temporarily unavailable. This is a server-side "
+                + "problem, not your password — check the server logs."));
+    }
+
+    /** Any other authentication failure (disabled/locked account, ...). */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Map<String, String>> handleAuthentication(AuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(Map.of("error", "Authentication failed"));
     }
 
     @ExceptionHandler(KubernetesClientException.class)
