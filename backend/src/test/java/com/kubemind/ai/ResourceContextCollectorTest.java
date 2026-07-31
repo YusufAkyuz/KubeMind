@@ -30,7 +30,7 @@ class ResourceContextCollectorTest {
     void setUp() {
         var factory = mock(ClusterClientFactory.class);
         when(factory.getClient(0L)).thenReturn(client);
-        var editService = new ResourceEditService(factory, mock(com.kubemind.audit.AuditService.class));
+        var editService = new ResourceEditService(factory, mock(com.kubemind.audit.AuditService.class), new com.kubemind.config.PrivilegedFeatures(true));
         collector = new ResourceContextCollector(factory, editService);
     }
 
