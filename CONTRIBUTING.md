@@ -161,14 +161,33 @@ These are non-negotiable:
 - Keep the model behind Spring AI's `ChatClient` so a hosted provider can be swapped in
   without touching callers.
 
+## Branching model
+
+`main` is always releasable; `develop` is where work integrates.
+
+| Branch | Cut from | Merges into | Use for |
+|---|---|---|---|
+| `main` | — | — | Released code. Version tags (`v*.*.*`) are pushed here and drive the image + chart release workflows. |
+| `develop` | `main` | `main` (at release time) | Integration branch — the default target for everyday work. |
+| `feature/…` | `develop` | `develop` | New functionality. |
+| `fix/…` | `develop` | `develop` | Bug fixes that can wait for the next release. |
+| `hotfix/…` | `main` | `main`, then back into `develop` | Urgent production fixes that can't wait for `develop` to be released. |
+
+After a hotfix lands on `main`, merge `main` back into `develop` right away so the fix
+isn't lost on the next release.
+
+Both `main` and `develop` run CI (backend tests + frontend build/tests) on pushes and on
+incoming pull requests.
+
 ## Pull request process
 
-1. **Branch** off `main` (`feat/…`, `fix/…`, `docs/…`). Don't commit directly to `main`.
+1. **Branch** off `develop` (`feature/…`, `fix/…`, `docs/…`) — or off `main` for a
+   `hotfix/…`. Don't commit directly to `main` or `develop`.
 2. **Keep it focused.** One logical change per PR. Refactors separate from behavior changes.
 3. **Write/adjust tests** for the change. Backend and frontend suites must stay green.
 4. **Commit messages** in imperative mood (`feat: add cluster approval workflow`,
    `fix: scope cluster name uniqueness per owner`). Conventional-commit prefixes preferred.
-5. **Open the PR** against `main`. CI (backend tests + frontend build/tests) must pass —
+5. **Open the PR** against `develop` (or `main` for a hotfix/release). CI must pass —
    `main` is protected and requires it.
 6. **Describe the security impact** if the change touches auth, write allowlists, the AI
    redaction path, or the terminals' privilege model.
