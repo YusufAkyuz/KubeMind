@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { api, apiErrorMessage } from '../api/client'
 import { useToast } from './Toast'
 import { ConfirmDialog } from './ConfirmDialog'
+import { usePrivilegedFeatures } from '../hooks/useAppConfig'
+import { isRbacKind } from '../utils/resourceKinds'
 
 interface Props {
   clusterId: string
@@ -15,6 +17,7 @@ interface Props {
 export function DeleteResourceButton({ clusterId, ns, kind, name, onDeleted }: Props) {
   const [open, setOpen] = useState(false)
   const toast = useToast()
+  const privilegedFeatures = usePrivilegedFeatures()
 
   const handleDelete = async () => {
     try {
@@ -25,6 +28,10 @@ export function DeleteResourceButton({ clusterId, ns, kind, name, onDeleted }: P
       throw new Error(apiErrorMessage(e, 'Delete failed'))
     }
   }
+
+  // Deployments without cluster-admin refuse RBAC writes server-side — don't
+  // offer a button whose only outcome would be a 403.
+  if (isRbacKind(kind) && !privilegedFeatures) return null
 
   return (
     <>

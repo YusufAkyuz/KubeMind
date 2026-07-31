@@ -6,7 +6,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { streamText } from '../utils/streamFetch'
 import { renderLiteMarkdown } from '../utils/markdownLite'
-import { ALLOWED_KINDS, KIND_ROUTES, KIND_TEMPLATES, type AllowedKind } from '../utils/resourceKinds'
+import { ALLOWED_KINDS, KIND_ROUTES, KIND_TEMPLATES, isRbacKind, type AllowedKind } from '../utils/resourceKinds'
+import { usePrivilegedFeatures } from '../hooks/useAppConfig'
 import { stripLeadingFence, stripTrailingFence } from '../utils/yamlFence'
 import { IconSparkles, IconChevronRight } from '../components/Icons'
 
@@ -38,6 +39,13 @@ export function CreateResourcePage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const busy = drafting || analyzing
+
+  // Deployments without cluster-admin refuse RBAC writes, so don't offer those
+  // templates — the backend's /allowed-kinds reflects the same filtering.
+  const privilegedFeatures = usePrivilegedFeatures()
+  const selectableKinds = privilegedFeatures
+    ? ALLOWED_KINDS
+    : ALLOWED_KINDS.filter((k) => !isRbacKind(k))
 
   // Prefill a starter template from the ?kind= hint (from a "+ Create" button elsewhere).
   useEffect(() => {
@@ -133,7 +141,7 @@ export function CreateResourcePage() {
             <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700">
               <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">Start from a template</p>
               <div className="flex flex-wrap gap-1.5">
-                {ALLOWED_KINDS.map((kind) => (
+                {selectableKinds.map((kind) => (
                   <button
                     key={kind}
                     onClick={() => loadTemplate(kind)}

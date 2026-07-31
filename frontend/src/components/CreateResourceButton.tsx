@@ -11,7 +11,7 @@ interface Props {
 /** "+ Create" entry point shown on resource list pages — ADMIN, or a USER on
  *  a cluster they registered themselves (see useCanWrite). */
 export function CreateResourceButton({ clusterId, ns, kind }: Props) {
-  const canWrite = useCanWrite(clusterId)
+  const canWrite = useCanWrite(clusterId, kind)
   if (!canWrite || !clusterId || !ns || ns === '_' || ns === 'all') return null
 
   return (

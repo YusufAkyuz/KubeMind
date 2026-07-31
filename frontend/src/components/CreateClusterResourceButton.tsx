@@ -11,7 +11,7 @@ interface Props {
  *  ADMIN, or a USER on a cluster they registered themselves. See
  *  CreateResourceButton for the namespaced equivalent. */
 export function CreateClusterResourceButton({ clusterId, kind }: Props) {
-  const canWrite = useCanWrite(clusterId)
+  const canWrite = useCanWrite(clusterId, kind)
   if (!canWrite || !clusterId) return null
 
   return (

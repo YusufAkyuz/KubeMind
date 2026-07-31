@@ -14,9 +14,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -36,9 +39,22 @@ import java.util.function.Supplier;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    /** Denies unconditionally — used to close a route off entirely. */
+    private static final AuthorizationManager<RequestAuthorizationContext> DENY =
+        (authentication, context) -> new AuthorizationDecision(false);
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    PrivilegedFeatures privilegedFeatures) throws Exception {
+        // Built outside the authorizeHttpRequests lambda on purpose: these depend on
+        // an install-level flag, and inlining them there would shadow its parameter.
+        var clusterTerminalRule = privilegedFeatures.isEnabled()
+            ? AuthorityAuthorizationManager.<RequestAuthorizationContext>hasRole("ADMIN")
+            : DENY;
+        var nodeShellRule = privilegedFeatures.isEnabled()
+            ? AuthenticatedAuthorizationManager.<RequestAuthorizationContext>authenticated()
+            : DENY;
+
         http
             // SPA CSRF setup (Spring Security 6 reference recipe): the token lives in a
             // readable XSRF-TOKEN cookie, axios echoes it back as X-XSRF-TOKEN on every
@@ -73,14 +89,8 @@ public class SecurityConfig {
                 // Neither can work — or be safely offered — on a deployment that
                 // isn't cluster-admin, so both are closed off entirely there
                 // rather than left to fail somewhere deeper with a confusing error.
-                .requestMatchers("/ws/exec-cluster")
-                    .access(privilegedFeatures.isEnabled()
-                        ? AuthorityAuthorizationManager.hasRole("ADMIN")
-                        : (auth, ctx) -> new AuthorizationDecision(false))
-                .requestMatchers("/ws/exec-node")
-                    .access(privilegedFeatures.isEnabled()
-                        ? (auth, ctx) -> new AuthorizationDecision(auth.get().isAuthenticated())
-                        : (auth, ctx) -> new AuthorizationDecision(false))
+                .requestMatchers("/ws/exec-cluster").access(clusterTerminalRule)
+                .requestMatchers("/ws/exec-node").access(nodeShellRule)
                 // Pod exec just uses the target cluster's own kubeconfig — real
                 // Kubernetes RBAC decides what it can do, same as every other
                 // action against a registered cluster. No extra gate here
