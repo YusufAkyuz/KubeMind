@@ -1,0 +1,118 @@
+{{- if not .Values.rbac.clusterAdmin }}
+# Restricted mode: KubeMind runs WITHOUT cluster-admin.
+#
+# This role is deliberately not "cluster-admin minus a few verbs". It grants
+# read across what the UI displays, plus write on the workload and config kinds
+# the app allowlists — and stops there. Notably absent:
+#
+#   * writing RBAC objects (Role/RoleBinding/ClusterRole/ClusterRoleBinding/
+#     ServiceAccount). Whoever can create a binding can grant themselves
+#     cluster-admin, so allowing it would make "restricted" meaningless. The
+#     backend refuses these too (KUBEMIND_PRIVILEGED_FEATURES=false), so the
+#     two sides agree.
+#   * anything the Cluster Terminal or Node Shell would need — those are off.
+#
+# Two grants here deserve a conscious decision rather than a glance:
+#   * secrets read — the Secrets page and Helm (which stores releases as
+#     Secrets) both need it. Anyone who can read Secrets cluster-wide can often
+#     reach credentials stored in them; scope this chart to fewer namespaces, or
+#     drop the rule, if that is unacceptable in your environment.
+#   * pods/exec — the pod terminal. It is a normal developer tool, but it does
+#     mean reaching into any running container.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kubemind.fullname" . }}-restricted
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+rules:
+  # ── Read: everything the dashboard renders ────────────────────────────────
+  # "watch" is not optional — the live views are informer/watch driven.
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - namespaces
+      - pods
+      - pods/log
+      - services
+      - endpoints
+      - configmaps
+      - secrets
+      - events
+      - persistentvolumes
+      - persistentvolumeclaims
+      - serviceaccounts
+      - replicationcontrollers
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+  # RBAC is readable so the Access Control pages still inform, never writable.
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    verbs: ["get", "list", "watch"]
+  # Lets the UI grey out controls this ServiceAccount would be refused for,
+  # instead of the user finding out through a 403.
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews", "selfsubjectaccessreviews"]
+    verbs: ["create"]
+
+  # ── Write: the allowlisted kinds, minus anything RBAC ─────────────────────
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets", "persistentvolumeclaims", "namespaces"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["create", "update", "patch", "delete"]
+  # Scale is a subresource; without it the Scale action fails even though
+  # updating the object itself is allowed.
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale", "statefulsets/scale"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["create", "update", "patch", "delete"]
+
+  # ── Interactive features that survive restricted mode ─────────────────────
+  # Pod exec terminal and Service port-forwarding. The Node Shell and Cluster
+  # Terminal are switched off and are not represented here.
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/portforward"]
+    verbs: ["create", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kubemind.fullname" . }}-restricted
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "kubemind.fullname" . }}-restricted
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kubemind.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

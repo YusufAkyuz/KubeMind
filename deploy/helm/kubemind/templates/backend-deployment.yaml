@@ -65,6 +65,12 @@ spec:
               value: {{ .Values.ollama.chatModel | quote }}
             - name: OLLAMA_EMBEDDING_MODEL
               value: {{ .Values.ollama.embeddingModel | quote }}
+            # Kept in step with the RBAC the chart actually binds: without
+            # cluster-admin the Cluster Terminal, Node Shell and RBAC writes
+            # cannot work, so the app switches them off rather than offering
+            # controls that would fail against the API server.
+            - name: KUBEMIND_PRIVILEGED_FEATURES
+              value: {{ .Values.rbac.clusterAdmin | quote }}
             - name: KUBEMIND_ADMIN_USERNAME
               value: {{ .Values.auth.adminUsername | quote }}
             - name: KUBEMIND_ADMIN_PASSWORD
