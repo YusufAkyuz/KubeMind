@@ -56,6 +56,10 @@ logging:
 # Phase 0 local admin seeding. Set KUBEMIND_ADMIN_PASSWORD in backend/.env (loaded via spring-dotenv).
 # If the password is empty, NO admin user is created -> non-local deployments have no default credential.
 kubemind:
+  # Filled in at build time from pom.xml (spring-boot-starter-parent filters
+  # application*.yml with @...@). ${application.version} would only resolve from
+  # a packaged jar's manifest, so it comes out blank under `mvn spring-boot:run`.
+  version: @project.version@
   admin:
     username: ${KUBEMIND_ADMIN_USERNAME:admin}
     password: ${KUBEMIND_ADMIN_PASSWORD:}
