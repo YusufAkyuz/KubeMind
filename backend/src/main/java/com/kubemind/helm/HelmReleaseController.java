@@ -15,7 +15,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Installed Helm releases — see HelmCliService for the trust model (same tier as Cluster Terminal). */
+/**
+ * Installed Helm releases. Uninstalling is gated like any other write on the
+ * cluster: whoever may delete a Deployment by hand may do it through Helm too,
+ * and either way the stored kubeconfig's RBAC is what actually decides. See
+ * HelmCliService for how the CLI is invoked.
+ */
 @RestController
 @RequestMapping("/api/clusters/{clusterId}")
 public class HelmReleaseController {
@@ -37,7 +42,7 @@ public class HelmReleaseController {
     }
 
     @DeleteMapping("/namespaces/{ns}/helm/releases/{name}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
     public ResponseEntity<Void> uninstall(@PathVariable long clusterId, @PathVariable String ns, @PathVariable String name,
                                           Authentication auth) {
         service.uninstall(auth.getName(), clusterId, ns, name);
@@ -48,7 +53,7 @@ public class HelmReleaseController {
 
     /** Unlocks values editing for a release installed outside KubeMind — see HelmReleaseService.linkChartRef. */
     @PostMapping("/namespaces/{ns}/helm/releases/{name}/chart-ref")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
     public ResponseEntity<Void> linkChartRef(@PathVariable long clusterId, @PathVariable String ns, @PathVariable String name,
                                              @Valid @RequestBody LinkChartRefRequest request, Authentication auth) {
         service.linkChartRef(auth.getName(), clusterId, ns, name, request.chartRef());
