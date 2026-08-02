@@ -37,8 +37,9 @@ public class NodeExecWebSocketHandler extends AbstractEphemeralExecHandler {
 
     public NodeExecWebSocketHandler(ClusterClientFactory clientFactory,
                                     AuditService auditService,
-                                    ObjectMapper objectMapper) {
-        super(objectMapper);
+                                    ObjectMapper objectMapper,
+                                    ExecClusterAccessGuard accessGuard) {
+        super(objectMapper, accessGuard);
         this.clientFactory = clientFactory;
         this.auditService = auditService;
     }
