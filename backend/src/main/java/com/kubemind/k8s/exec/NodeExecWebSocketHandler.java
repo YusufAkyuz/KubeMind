@@ -68,7 +68,7 @@ public class NodeExecWebSocketHandler extends AbstractEphemeralExecHandler {
                 .withName(podName)
                 .withNamespace(DEBUG_NAMESPACE)
                 .addToLabels("app.kubernetes.io/managed-by", "kubemind")
-                .addToLabels("kubemind.io/purpose", "node-debug")
+                .addToLabels(EphemeralSessionReaper.PURPOSE_LABEL, EphemeralSessionReaper.PURPOSE_NODE_DEBUG)
             .endMetadata()
             .withNewSpec()
                 .withNodeName(node)

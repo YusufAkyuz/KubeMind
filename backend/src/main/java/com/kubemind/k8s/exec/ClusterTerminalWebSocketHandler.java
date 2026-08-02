@@ -60,15 +60,20 @@ public class ClusterTerminalWebSocketHandler extends AbstractEphemeralExecHandle
         String suffix = randomSuffix();
         String name = "kubemind-term-" + suffix;
 
+        // The purpose label is what EphemeralSessionReaper selects on. It is
+        // deliberately more specific than managed-by=kubemind: a sweep that
+        // deletes things needs a selector that cannot match anything else.
         var serviceAccount = new ServiceAccountBuilder()
             .withNewMetadata().withName(name).withNamespace(TERMINAL_NAMESPACE)
                 .addToLabels("app.kubernetes.io/managed-by", "kubemind")
+                .addToLabels(EphemeralSessionReaper.PURPOSE_LABEL, EphemeralSessionReaper.PURPOSE_CLUSTER_TERMINAL)
             .endMetadata()
             .build();
 
         var binding = new ClusterRoleBindingBuilder()
             .withNewMetadata().withName(name)
                 .addToLabels("app.kubernetes.io/managed-by", "kubemind")
+                .addToLabels(EphemeralSessionReaper.PURPOSE_LABEL, EphemeralSessionReaper.PURPOSE_CLUSTER_TERMINAL)
             .endMetadata()
             .withNewRoleRef().withApiGroup("rbac.authorization.k8s.io").withKind("ClusterRole").withName("cluster-admin").endRoleRef()
             .addNewSubject().withKind("ServiceAccount").withName(name).withNamespace(TERMINAL_NAMESPACE).endSubject()
@@ -79,7 +84,7 @@ public class ClusterTerminalWebSocketHandler extends AbstractEphemeralExecHandle
                 .withName(name)
                 .withNamespace(TERMINAL_NAMESPACE)
                 .addToLabels("app.kubernetes.io/managed-by", "kubemind")
-                .addToLabels("kubemind.io/purpose", "cluster-terminal")
+                .addToLabels(EphemeralSessionReaper.PURPOSE_LABEL, EphemeralSessionReaper.PURPOSE_CLUSTER_TERMINAL)
             .endMetadata()
             .withNewSpec()
                 .withServiceAccountName(name)
