@@ -54,15 +54,16 @@ public class PortForwardController {
     public record OpenedSessionDto(String sessionId, String proxyPath) {}
 
     @PostMapping("/api/clusters/{clusterId}/namespaces/{ns}/services/{name}/forward")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
     public OpenedSessionDto open(@PathVariable long clusterId, @PathVariable String ns, @PathVariable String name,
                                  @RequestParam(required = false) Integer port, Authentication auth) {
         var opened = portForwardService.open(auth.getName(), clusterId, ns, name, port);
         return new OpenedSessionDto(opened.sessionId(), opened.proxyPath());
     }
 
+    // No cluster id in this path, so authorization is by session ownership:
+    // PortForwardService ignores a session that isn't the caller's.
     @DeleteMapping("/api/port-forward/{sessionId}")
-    @PreAuthorize("hasRole('ADMIN')")
     public void close(@PathVariable String sessionId, Authentication auth) {
         portForwardService.close(auth.getName(), sessionId);
     }
@@ -77,9 +78,12 @@ public class PortForwardController {
         RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE,
         RequestMethod.PATCH, RequestMethod.HEAD, RequestMethod.OPTIONS
     })
-    @PreAuthorize("hasRole('ADMIN')")
-    public void proxy(@PathVariable String sessionId, HttpServletRequest request, HttpServletResponse response) throws IOException {
-        Integer localPort = portForwardService.touch(sessionId);
+    public void proxy(@PathVariable String sessionId, HttpServletRequest request,
+                      HttpServletResponse response, Authentication auth) throws IOException {
+        // Authorized by ownership, not by role: the session id is the only thing
+        // this path carries, so someone else's tunnel must look exactly like one
+        // that expired.
+        Integer localPort = portForwardService.touch(sessionId, auth.getName());
         if (localPort == null) {
             throw new ResponseStatusException(HttpStatus.GONE, "Port-forward session expired or not found");
         }
