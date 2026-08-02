@@ -2,15 +2,27 @@
 #
 # SECURITY — READ BEFORE INSTALLING
 # =================================
-# 1. The backend ServiceAccount is bound to the `cluster-admin` ClusterRole
-#    (rbac.clusterAdmin below). This is required by the current feature set:
-#    the Cluster Terminal provisions its own cluster-admin ServiceAccount, the
-#    Node Shell schedules privileged host-mounted pods, and the Access Control
-#    pages create RBAC objects. A "restricted" role that can still do those
-#    things would be equivalent power wearing a costume — so the grant is
-#    explicit instead. If that is unacceptable in your environment, do not
-#    install this chart yet; a feature-flagged reduced-privilege mode is on
-#    the roadmap.
+# 1. Choose a privilege mode with `rbac.clusterAdmin` below.
+#
+#    true  (default) — the backend ServiceAccount is bound to `cluster-admin`.
+#      Three features need this and cannot be made to work without it: the
+#      Cluster Terminal (provisions its own cluster-admin ServiceAccount), the
+#      Node Shell (privileged host-mounted debug pods), and creating RBAC
+#      objects. Anyone who can log in as an ADMIN effectively holds
+#      cluster-admin on this cluster.
+#
+#    false — restricted mode. The chart binds a narrower role instead (see
+#      templates/clusterrole-restricted.yaml) and the app switches those three
+#      features off, so the UI never offers what the API server would refuse.
+#      Everything else still works: browsing, scaling, restarting, editing
+#      YAML for the allowlisted kinds, pod terminals, logs, Helm and the AI
+#      features. Restricted mode still reads Secrets cluster-wide and can exec
+#      into pods — read that template's header before assuming it is safe for
+#      your environment.
+#
+#    Writing RBAC objects is never part of restricted mode: whoever can create
+#    a RoleBinding can grant themselves cluster-admin, so allowing it would be
+#    the same power wearing a costume.
 # 2. NEVER expose KubeMind directly to the internet. Put it behind your
 #    ingress with TLS and network-level access control (VPN/allowlist), or
 #    keep ingress disabled and access it via `kubectl port-forward`.
@@ -45,7 +57,13 @@ auth:
   existingSecret: ""
 
 rbac:
-  # See the security note at the top of this file.
+  # true  -> bind cluster-admin; Cluster Terminal, Node Shell and RBAC writes work.
+  # false -> restricted mode; those three are switched off app-wide and a narrower
+  #          ClusterRole is bound instead. See the security note at the top of
+  #          this file, and templates/clusterrole-restricted.yaml for exactly
+  #          what restricted mode grants.
+  # This value also drives KUBEMIND_PRIVILEGED_FEATURES on the backend, so the
+  # app and the RBAC it runs under can never disagree.
   clusterAdmin: true
 
 serviceAccount:

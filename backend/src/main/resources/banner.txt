@@ -5,5 +5,5 @@ ${AnsiColor.BRIGHT_BLUE}
  |_|\_\\_,_|_.__/\___||_|  |_|_|_||_\__,_|
 ${AnsiColor.BRIGHT_BLACK}
  AI-assisted Kubernetes dashboard
- v${application.version:0.2.0}  ::  Spring Boot ${spring-boot.version}
+ v${kubemind.version}  ::  Spring Boot ${spring-boot.version}
 ${AnsiColor.DEFAULT}

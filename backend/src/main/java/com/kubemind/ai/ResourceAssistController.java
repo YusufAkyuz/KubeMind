@@ -20,11 +20,15 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
  * AI assistance for the Create Resource flow: drafting a manifest from a plain-
  * English request, and reviewing a manifest the user is about to apply. Both are
  * advisory-only — neither endpoint touches the cluster (CLAUDE.md: "AI explains,
- * never acts"). ADMIN-only because the only caller is the ADMIN-gated Create page.
+ * never acts").
+ *
+ * Gated exactly like the Create page that calls it: whoever may apply a manifest
+ * here may also have the AI draft one. Anything stricter would leave people able
+ * to create resources but not to get help writing them.
  */
 @RestController
 @RequestMapping("/api/clusters/{clusterId}/namespaces/{ns}/resources")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
 public class ResourceAssistController {
 
     private static final Logger log = LoggerFactory.getLogger(ResourceAssistController.class);

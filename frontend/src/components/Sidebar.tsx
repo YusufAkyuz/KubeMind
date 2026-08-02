@@ -163,6 +163,18 @@ export function Sidebar({ onClose }: Props) {
     return p.phase === 'Failed' || p.lastTerminatedReason === 'OOMKilled' || p.containers.some((c) => !c.ready)
   }).length
 
+  // A URL can name a cluster this user can't reach: a bookmark from when they
+  // were an ADMIN, a link someone shared, or the built-in cluster (id 0) which
+  // is ADMIN-only. Without this the app wedges — the picker falls back to
+  // showing some other cluster while every request still goes to the one in the
+  // URL and comes back 403, so the page just sits there.
+  useEffect(() => {
+    if (!clusters || !clusterId) return
+    if (clusters.some((c) => String(c.id) === clusterId)) return
+    navigate(clusters.length > 0 ? `/clusters/${clusters[0].id}/nodes` : '/settings/clusters',
+      { replace: true })
+  }, [clusters, clusterId, navigate])
+
   const handleClusterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     navigate(`/clusters/${e.target.value}/nodes`); onClose?.()
   }

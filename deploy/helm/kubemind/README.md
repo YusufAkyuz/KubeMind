@@ -7,13 +7,36 @@ working system.
 
 ## ⚠️ Before you install
 
-- **The backend ServiceAccount is bound to `cluster-admin`** (`rbac.clusterAdmin`).
-  The Cluster Terminal, Node Shell, and Access Control features all require
-  this level of access — see the security note at the top of `values.yaml`
-  before deploying.
+- **Pick a privilege mode** with `rbac.clusterAdmin`. The default (`true`) binds
+  the backend ServiceAccount to `cluster-admin`, which the Cluster Terminal,
+  Node Shell and RBAC-object creation genuinely require. Set it to `false` for
+  **restricted mode**: a narrower ClusterRole is bound and those three features
+  switch off, so the UI never offers what the API server would refuse. See the
+  security note at the top of `values.yaml`.
 - **Never expose KubeMind directly to the internet.** Put it behind an
   ingress with TLS and network-level access control (VPN/allowlist), or keep
   ingress disabled and use `kubectl port-forward`.
+
+### Restricted mode
+
+```console
+helm install kubemind kubemind/kubemind -n kubemind --create-namespace \
+  --set rbac.clusterAdmin=false \
+  --set auth.adminPassword=<password> \
+  --set postgresql.password=<password>
+```
+
+Still works: browsing every resource, scaling, restarting, deleting, editing
+YAML for the allowlisted kinds, pod terminals, logs, port-forwarding, Helm, and
+all the AI features. Switched off: the Cluster Terminal, the Node Shell, and
+creating or editing RBAC objects — the last because whoever can write a
+RoleBinding can grant themselves cluster-admin, which would make the mode
+pointless.
+
+Restricted mode still reads Secrets cluster-wide (the Secrets page and Helm both
+need it) and can exec into pods. Read
+`templates/clusterrole-restricted.yaml` before assuming it fits your
+environment.
 
 ## Install
 

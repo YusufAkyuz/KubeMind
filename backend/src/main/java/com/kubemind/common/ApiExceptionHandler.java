@@ -54,8 +54,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(KubernetesClientException.class)
     public ResponseEntity<Map<String, String>> handleKubernetesError(KubernetesClientException ex) {
         if (ex.getCode() == HttpStatus.FORBIDDEN.value()) {
+            // The API server's own wording names the verb, resource and namespace
+            // it refused — far more actionable than "forbidden", and it makes clear
+            // the limit is the kubeconfig's, not something KubeMind decided.
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(Map.of("error", "The cluster denied this request (RBAC forbidden)."));
+                .body(Map.of("error", "Your kubeconfig for this cluster isn't allowed to do that. "
+                    + kubernetesReason(ex)));
         }
         if (ex.getCode() == HttpStatus.NOT_FOUND.value()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -76,6 +80,14 @@ public class ApiExceptionHandler {
 
     // Thrown by @PreAuthorize inside MVC handlers; without this mapping the generic
     // handler below would report a 500 instead of the honest 403.
+    /** The API server's explanation, or a usable fallback when it didn't give one. */
+    private static String kubernetesReason(KubernetesClientException ex) {
+        String message = ex.getStatus() != null && ex.getStatus().getMessage() != null
+            ? ex.getStatus().getMessage()
+            : ex.getMessage();
+        return message == null || message.isBlank() ? "The cluster gave no further detail." : message;
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
