@@ -121,17 +121,17 @@ class ClusterServiceTest {
     }
 
     @Test
-    void userSeesOwnClustersPlusTheBuiltInOne() {
-        // The built-in cluster is open to everyone (see ClusterService.list
-        // javadoc) — a USER isn't limited to only their own registered clusters.
+    void userSeesOnlyTheirOwnClustersNotTheBuiltInOne() {
+        // The built-in cluster is the installation's own identity (usually
+        // cluster-admin), not a credential anyone was given — showing it to
+        // every login would hand over the whole management cluster.
         when(repository.findByCreatedBy("bob")).thenReturn(
             List.of(withId(1L, new Cluster("dev", "enc", "bob", "PENDING"))));
+        List<ClusterDto> result = service.list("bob", false);
 
-        List<ClusterDto> result = service.list("bob");
-
-        assertThat(result).hasSize(2);
-        assertThat(result).anyMatch(ClusterDto::builtIn);
-        assertThat(result).filteredOn(c -> !c.builtIn()).allMatch(c -> "bob".equals(c.createdBy()));
+        assertThat(result).hasSize(1);
+        assertThat(result).noneMatch(ClusterDto::builtIn);
+        assertThat(result).allMatch(c -> "bob".equals(c.createdBy()));
     }
 
     @Test
@@ -141,7 +141,7 @@ class ClusterServiceTest {
         when(repository.findByCreatedBy("admin")).thenReturn(
             List.of(withId(2L, new Cluster("prod", "enc", "admin", "APPROVED"))));
 
-        List<ClusterDto> result = service.list("admin");
+        List<ClusterDto> result = service.list("admin", true);
 
         assertThat(result).hasSize(2);
         assertThat(result).anyMatch(ClusterDto::builtIn);

@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { usePrivilegedFeatures } from '../hooks/useAppConfig'
 import type { ComponentType } from 'react'
 import {
   IconServer,
@@ -94,6 +95,7 @@ interface Props {
 
 export function Sidebar({ onClose }: Props) {
   const { username, isAdmin, logout } = useAuth()
+  const privilegedFeatures = usePrivilegedFeatures()
   const { theme, toggle: toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
@@ -349,13 +351,17 @@ export function Sidebar({ onClose }: Props) {
             <NavLink to={`/clusters/${clusterId}/runbooks`} className={linkClass} onClick={onClose}>
               <IconLayers className="w-4 h-4 shrink-0" /> Runbooks
             </NavLink>
-            <button
-              onClick={() => { terminalPanel.openClusterTerminal(clusterId); onClose?.() }}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm w-full text-left
-                         text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100 transition-colors"
-            >
-              <IconTerminal className="w-4 h-4 shrink-0" /> Cluster Terminal
-            </button>
+            {/* Provisions a cluster-admin ServiceAccount for the session, so it
+                simply doesn't exist on a deployment running without cluster-admin. */}
+            {privilegedFeatures && (
+              <button
+                onClick={() => { terminalPanel.openClusterTerminal(clusterId); onClose?.() }}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm w-full text-left
+                           text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100 transition-colors"
+              >
+                <IconTerminal className="w-4 h-4 shrink-0" /> Cluster Terminal
+              </button>
+            )}
           </>
         )}
       </nav>

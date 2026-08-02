@@ -2,6 +2,7 @@ package com.kubemind.k8s;
 
 import com.kubemind.audit.AuditService;
 import com.kubemind.cluster.ClusterClientFactory;
+import com.kubemind.config.PrivilegedFeatures;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.springframework.http.HttpStatus;
@@ -30,8 +31,24 @@ public class ResourceEditService {
 
     private final ClusterClientFactory clientFactory;
     private final AuditService auditService;
+    private final PrivilegedFeatures privilegedFeatures;
 
-    public ResourceEditService(ClusterClientFactory clientFactory, AuditService auditService) {
+    /** See ResourceCreationService#effectiveAllowedKinds — RBAC kinds drop out when
+     *  this install runs without cluster-admin. */
+    public Set<String> effectiveEditableKinds() {
+        return privilegedFeatures.isEnabled()
+            ? EDITABLE_KINDS : ManifestValidation.withoutRbacKinds(EDITABLE_KINDS);
+    }
+
+    public Set<String> effectiveClusterScopedEditableKinds() {
+        return privilegedFeatures.isEnabled()
+            ? CLUSTER_SCOPED_EDITABLE_KINDS
+            : ManifestValidation.withoutRbacKinds(CLUSTER_SCOPED_EDITABLE_KINDS);
+    }
+
+    public ResourceEditService(ClusterClientFactory clientFactory, AuditService auditService,
+                               PrivilegedFeatures privilegedFeatures) {
+        this.privilegedFeatures = privilegedFeatures;
         this.clientFactory = clientFactory;
         this.auditService = auditService;
     }
@@ -64,7 +81,7 @@ public class ResourceEditService {
         Map<String, Object> payload = Map.of("kind", kind, "yamlBytes", yaml != null ? yaml.length() : 0);
 
         try {
-            var parsed = ManifestValidation.parseAndValidate(yaml, ns, EDITABLE_KINDS);
+            var parsed = ManifestValidation.parseAndValidate(yaml, ns, effectiveEditableKinds());
             if (!kind.equals(parsed.kind())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "kind must remain '" + kind + "'");
@@ -101,10 +118,10 @@ public class ResourceEditService {
     }
 
     private void requireEditableKind(String kind) {
-        if (!EDITABLE_KINDS.contains(kind)) {
+        if (!effectiveEditableKinds().contains(kind)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Kind '" + kind + "' is not supported here. Supported kinds: "
-                + String.join(", ", EDITABLE_KINDS.stream().sorted().toList()));
+                + String.join(", ", effectiveEditableKinds().stream().sorted().toList()));
         }
     }
 
@@ -128,7 +145,7 @@ public class ResourceEditService {
         Map<String, Object> payload = Map.of("kind", kind, "yamlBytes", yaml != null ? yaml.length() : 0);
 
         try {
-            var parsed = ManifestValidation.parseAndValidateClusterScoped(yaml, CLUSTER_SCOPED_EDITABLE_KINDS);
+            var parsed = ManifestValidation.parseAndValidateClusterScoped(yaml, effectiveClusterScopedEditableKinds());
             if (!kind.equals(parsed.kind())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "kind must remain '" + kind + "'");
             }
@@ -147,10 +164,10 @@ public class ResourceEditService {
     }
 
     private void requireClusterScopedKind(String kind) {
-        if (!CLUSTER_SCOPED_EDITABLE_KINDS.contains(kind)) {
+        if (!effectiveClusterScopedEditableKinds().contains(kind)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Kind '" + kind + "' is not supported here. Supported kinds: "
-                + String.join(", ", CLUSTER_SCOPED_EDITABLE_KINDS.stream().sorted().toList()));
+                + String.join(", ", effectiveClusterScopedEditableKinds().stream().sorted().toList()));
         }
     }
 }

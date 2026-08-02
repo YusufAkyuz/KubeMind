@@ -2,6 +2,7 @@ package com.kubemind.k8s;
 
 import com.kubemind.audit.AuditService;
 import com.kubemind.cluster.ClusterClientFactory;
+import com.kubemind.config.PrivilegedFeatures;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -39,16 +40,31 @@ public class ResourceCreationService {
 
     private final ClusterClientFactory clientFactory;
     private final AuditService auditService;
+    private final PrivilegedFeatures privilegedFeatures;
 
-    public ResourceCreationService(ClusterClientFactory clientFactory, AuditService auditService) {
+    public ResourceCreationService(ClusterClientFactory clientFactory, AuditService auditService,
+                                   PrivilegedFeatures privilegedFeatures) {
         this.clientFactory = clientFactory;
         this.auditService = auditService;
+        this.privilegedFeatures = privilegedFeatures;
     }
 
     public record CreatedResourceDto(String kind, String name, String namespace) {}
 
+    /**
+     * What this install actually permits right now. On a deployment running without
+     * cluster-admin the RBAC kinds drop out — creating a RoleBinding is a way to grant
+     * yourself more than you were given, so a "restricted" mode that still allowed it
+     * would not be restricted at all.
+     */
+    public Set<String> effectiveAllowedKinds() {
+        return privilegedFeatures.isEnabled()
+            ? ALLOWED_KINDS
+            : ManifestValidation.withoutRbacKinds(ALLOWED_KINDS);
+    }
+
     public List<String> allowedKinds() {
-        return ALLOWED_KINDS.stream().sorted().toList();
+        return effectiveAllowedKinds().stream().sorted().toList();
     }
 
     public CreatedResourceDto create(String username, long clusterId, String ns, String yaml) {
@@ -61,7 +77,7 @@ public class ResourceCreationService {
 
         try {
             validateSize(yaml);
-            var parsed = ManifestValidation.parseAndValidate(yaml, ns, ALLOWED_KINDS);
+            var parsed = ManifestValidation.parseAndValidate(yaml, ns, effectiveAllowedKinds());
 
             // A create is atomic — either the object is persisted or it isn't, so
             // there's no partial state to guard against with a separate dry-run step.

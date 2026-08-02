@@ -14,7 +14,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
+import org.springframework.security.authorization.AuthorityAuthorizationManager;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -34,8 +39,22 @@ import java.util.function.Supplier;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    /** Denies unconditionally — used to close a route off entirely. */
+    private static final AuthorizationManager<RequestAuthorizationContext> DENY =
+        (authentication, context) -> new AuthorizationDecision(false);
+
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   PrivilegedFeatures privilegedFeatures) throws Exception {
+        // Built outside the authorizeHttpRequests lambda on purpose: these depend on
+        // an install-level flag, and inlining them there would shadow its parameter.
+        var clusterTerminalRule = privilegedFeatures.isEnabled()
+            ? AuthorityAuthorizationManager.<RequestAuthorizationContext>hasRole("ADMIN")
+            : DENY;
+        var nodeShellRule = privilegedFeatures.isEnabled()
+            ? AuthenticatedAuthorizationManager.<RequestAuthorizationContext>authenticated()
+            : DENY;
+
         http
             // SPA CSRF setup (Spring Security 6 reference recipe): the token lives in a
             // readable XSRF-TOKEN cookie, axios echoes it back as X-XSRF-TOKEN on every
@@ -66,13 +85,17 @@ public class SecurityConfig {
                 // cluster-admin for the session, unconditionally — that's full
                 // access regardless of the caller's own kubeconfig, so it stays
                 // the one deliberate ADMIN-only exception among the terminals.
-                .requestMatchers("/ws/exec-cluster").hasRole("ADMIN")
-                // Pod exec and Node shell just use the target cluster's own
-                // kubeconfig — real Kubernetes RBAC decides what they can do,
-                // same as every other action against a registered cluster. No
-                // extra ADMIN gate here (enforced at the WebSocket handshake,
-                // an HTTP GET upgrade).
-                .requestMatchers("/ws/exec", "/ws/exec-node").authenticated()
+                // Node shell schedules a privileged, host-mounted debug pod.
+                // Neither can work — or be safely offered — on a deployment that
+                // isn't cluster-admin, so both are closed off entirely there
+                // rather than left to fail somewhere deeper with a confusing error.
+                .requestMatchers("/ws/exec-cluster").access(clusterTerminalRule)
+                .requestMatchers("/ws/exec-node").access(nodeShellRule)
+                // Pod exec just uses the target cluster's own kubeconfig — real
+                // Kubernetes RBAC decides what it can do, same as every other
+                // action against a registered cluster. No extra gate here
+                // (enforced at the WebSocket handshake, an HTTP GET upgrade).
+                .requestMatchers("/ws/exec").authenticated()
                 .anyRequest().authenticated())
             .exceptionHandling(ex -> ex.authenticationEntryPoint(
                 (request, response, authException) ->

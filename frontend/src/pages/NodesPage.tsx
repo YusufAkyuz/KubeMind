@@ -10,6 +10,7 @@ import { DetailDrawer, DrawerRow, DrawerSection } from '../components/DetailDraw
 import { ErrorBanner } from '../components/ErrorBanner'
 import { ClusterInsightsPanel } from '../components/ClusterInsightsPanel'
 import { useSSE } from '../hooks/useSSE'
+import { usePrivilegedFeatures } from '../hooks/useAppConfig'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { formatAge } from '../utils/format'
 import type { NodeMetrics, NodeResource } from '../types/k8s'
@@ -27,6 +28,7 @@ const COLUMNS = [
 export function NodesPage() {
   const { clusterId } = useParams<{ clusterId: string }>()
   const terminalPanel = useTerminalPanel()
+  const privilegedFeatures = usePrivilegedFeatures()
   const [selected, setSelected] = useState<NodeResource | null>(null)
   const queryKey = ['nodes', clusterId]
 
@@ -97,16 +99,20 @@ export function NodesPage() {
           <>
             {/* Not ADMIN-gated: node shell schedules a debug pod using the
                 target cluster's own kubeconfig — real Kubernetes RBAC decides
-                what it can actually do, same as any other cluster action. */}
-            <div className="pb-3">
-              <button
-                onClick={() => terminalPanel.openNodeExec(clusterId!, selected.name)}
-                className="rounded-md border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 text-xs font-medium
-                           text-amber-800 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
-              >
-                Node shell
-              </button>
-            </div>
+                what it can actually do, same as any other cluster action. It
+                does need a privileged, host-mounted pod though, so it's absent
+                entirely on a deployment running without cluster-admin. */}
+            {privilegedFeatures && (
+              <div className="pb-3">
+                <button
+                  onClick={() => terminalPanel.openNodeExec(clusterId!, selected.name)}
+                  className="rounded-md border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 text-xs font-medium
+                             text-amber-800 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
+                >
+                  Node shell
+                </button>
+              </div>
+            )}
 
             <DrawerSection title="Overview" />
             <DrawerRow label="Status" value={<StatusBadge status={selected.status} />} />

@@ -2,6 +2,7 @@ package com.kubemind.k8s;
 
 import com.kubemind.audit.AuditService;
 import com.kubemind.cluster.ClusterClientFactory;
+import com.kubemind.config.PrivilegedFeatures;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,14 +29,21 @@ public class ClusterResourceCreationService {
 
     private final ClusterClientFactory clientFactory;
     private final AuditService auditService;
+    private final PrivilegedFeatures privilegedFeatures;
 
-    public ClusterResourceCreationService(ClusterClientFactory clientFactory, AuditService auditService) {
+    public ClusterResourceCreationService(ClusterClientFactory clientFactory, AuditService auditService,
+                                          PrivilegedFeatures privilegedFeatures) {
         this.clientFactory = clientFactory;
         this.auditService = auditService;
+        this.privilegedFeatures = privilegedFeatures;
     }
 
+    /** Everything this service can create is an RBAC object, so on a deployment
+     *  running without cluster-admin the whole feature is off — nothing to list. */
     public List<String> allowedKinds() {
-        return CLUSTER_ALLOWED_KINDS.stream().sorted().toList();
+        return privilegedFeatures.isEnabled()
+            ? CLUSTER_ALLOWED_KINDS.stream().sorted().toList()
+            : List.of();
     }
 
     public ResourceCreationService.CreatedResourceDto create(String username, long clusterId, String yaml) {
@@ -44,6 +52,11 @@ public class ClusterResourceCreationService {
         Map<String, Object> payload = Map.of("kind", identity.kind());
 
         try {
+            if (!privilegedFeatures.isEnabled()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Creating cluster-scoped RBAC objects is disabled on this deployment "
+                    + "(it runs without cluster-admin).");
+            }
             if (yaml.getBytes().length > MAX_YAML_BYTES) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Manifest is too large");
             }

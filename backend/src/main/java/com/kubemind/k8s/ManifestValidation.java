@@ -38,6 +38,22 @@ final class ManifestValidation {
         Map.entry("ClusterRoleBinding", "rbac.authorization.k8s.io/v1")
     );
 
+    /**
+     * Kinds whose creation is itself a privilege-escalation path: anyone who can
+     * write a RoleBinding or ClusterRoleBinding can bind themselves (or a
+     * ServiceAccount they control) to cluster-admin. A deployment running without
+     * cluster-admin must therefore not offer these at all — see
+     * {@link com.kubemind.config.PrivilegedFeatures}.
+     */
+    static final Set<String> RBAC_KINDS =
+        Set.of("ServiceAccount", "Role", "RoleBinding", "ClusterRole", "ClusterRoleBinding");
+
+    /** The allowlist minus the escalation-capable kinds when privileged features are off. */
+    static Set<String> withoutRbacKinds(Set<String> kinds) {
+        return kinds.stream().filter(k -> !RBAC_KINDS.contains(k))
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
     private ManifestValidation() {}
 
     record Identity(String kind, String name) {}

@@ -30,7 +30,7 @@ class ResourceCreationServiceTest {
         auditService = mock(AuditService.class);
         var factory = mock(ClusterClientFactory.class);
         when(factory.getClient(0L)).thenReturn(client);
-        service = new ResourceCreationService(factory, auditService);
+        service = new ResourceCreationService(factory, auditService, new com.kubemind.config.PrivilegedFeatures(true));
     }
 
     private static final String CONFIGMAP_YAML = """

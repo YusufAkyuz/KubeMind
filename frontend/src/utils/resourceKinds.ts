@@ -251,3 +251,18 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 `,
 }
+
+/**
+ * Kinds whose creation is itself a privilege-escalation path — writing a
+ * RoleBinding lets you bind yourself to cluster-admin. A deployment running
+ * without cluster-admin refuses these server-side (see the backend's
+ * ManifestValidation.RBAC_KINDS, which this must mirror), so the UI hides the
+ * controls rather than offering a button that is guaranteed to fail.
+ */
+export const RBAC_KINDS: ReadonlySet<string> = new Set([
+  'ServiceAccount', 'Role', 'RoleBinding', 'ClusterRole', 'ClusterRoleBinding',
+])
+
+export function isRbacKind(kind: string): boolean {
+  return RBAC_KINDS.has(kind)
+}
