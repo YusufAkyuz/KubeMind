@@ -33,7 +33,7 @@ class ResourceEditServiceTest {
         auditService = mock(AuditService.class);
         var factory = mock(ClusterClientFactory.class);
         when(factory.getClient(0L)).thenReturn(client);
-        service = new ResourceEditService(factory, auditService);
+        service = new ResourceEditService(factory, auditService, new com.kubemind.config.PrivilegedFeatures(true));
     }
 
     private void createConfigMap(String ns, String name, String value) {

@@ -13,9 +13,9 @@
 
     <groupId>com.kubemind</groupId>
     <artifactId>kubemind-backend</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.2.1</version>
     <name>kubemind-backend</name>
-    <description>KubeMind backend (Phase 0 walking skeleton)</description>
+    <description>KubeMind backend — AI-assisted Kubernetes dashboard</description>
 
     <properties>
         <java.version>21</java.version>

@@ -34,7 +34,11 @@ public class PortForwardService {
     private static final Logger log = LoggerFactory.getLogger(PortForwardService.class);
     private static final long IDLE_TIMEOUT_MINUTES = 15;
 
-    private record Session(long clusterId, LocalPortForward forward, java.util.concurrent.atomic.AtomicReference<Instant> lastAccess) {}
+    /** The owner is part of the session because /api/port-forward/{id}/** carries no
+     *  cluster id: without it there is nothing to authorize the proxy against, and
+     *  the session id alone would let any logged-in user ride someone else's tunnel. */
+    private record Session(String owner, long clusterId, LocalPortForward forward,
+                           java.util.concurrent.atomic.AtomicReference<Instant> lastAccess) {}
 
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
     private final ClusterClientFactory clientFactory;
@@ -74,7 +78,8 @@ public class PortForwardService {
                 .portForward(targetPort);
 
             String sessionId = UUID.randomUUID().toString();
-            sessions.put(sessionId, new Session(clusterId, forward, new java.util.concurrent.atomic.AtomicReference<>(Instant.now())));
+            sessions.put(sessionId, new Session(username, clusterId, forward,
+                new java.util.concurrent.atomic.AtomicReference<>(Instant.now())));
 
             auditService.record(username, clusterId, "OPEN_PORT_FORWARD", ref,
                 Map.of("pod", pod.getMetadata().getName(), "port", targetPort), true, null);
@@ -116,17 +121,24 @@ public class PortForwardService {
                 "Could not resolve named targetPort '" + name + "' against the pod's containers"));
     }
 
-    /** @return the local port to proxy to, touching the session's idle clock. Null if the session doesn't exist (expired or bogus id). */
-    public Integer touch(String sessionId) {
+    /**
+     * @return the local port to proxy to, touching the session's idle clock. Null
+     *         when the session doesn't exist (expired or bogus id) or belongs to
+     *         someone else — the caller turns both into the same 404, so a probe
+     *         can't tell a live session it doesn't own from one that never existed.
+     */
+    public Integer touch(String sessionId, String username) {
         Session s = sessions.get(sessionId);
-        if (s == null) return null;
+        if (s == null || !s.owner().equals(username)) return null;
         s.lastAccess().set(Instant.now());
         return s.forward().getLocalPort();
     }
 
+    /** Silently does nothing for an unknown or someone else's session. */
     public void close(String username, String sessionId) {
-        Session s = sessions.remove(sessionId);
-        if (s == null) return;
+        Session s = sessions.get(sessionId);
+        if (s == null || !s.owner().equals(username)) return;
+        sessions.remove(sessionId);
         closeQuietly(s);
         auditService.record(username, s.clusterId(), "CLOSE_PORT_FORWARD", "session/" + sessionId, null, true, null);
     }

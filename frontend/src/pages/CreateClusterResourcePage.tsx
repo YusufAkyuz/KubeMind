@@ -95,9 +95,10 @@ export function CreateClusterResourcePage() {
         <span className="text-neutral-600 dark:text-neutral-400 font-medium">Create resource</span>
       </nav>
 
-      <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm overflow-hidden max-w-3xl">
+      <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm
+                      overflow-hidden max-w-3xl flex flex-col min-h-0 lg:h-[calc(100vh-11rem)]">
         {!yaml && (
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
             <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">Start from a template</p>
             <div className="flex flex-wrap gap-1.5">
               {CLUSTER_ALLOWED_KINDS.map((kind) => (
@@ -119,11 +120,11 @@ export function CreateClusterResourcePage() {
           onChange={(e) => setYaml(e.target.value)}
           spellCheck={false}
           placeholder="Pick a template above…"
-          className="w-full h-[28rem] bg-neutral-950 text-neutral-100 font-mono text-xs leading-5 p-4
-                     resize-none focus:outline-none"
+          className="w-full h-[28rem] lg:h-auto lg:flex-1 lg:min-h-0 bg-neutral-950 text-neutral-100
+                     font-mono text-xs leading-5 p-4 resize-none focus:outline-none"
         />
 
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60">
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60 shrink-0">
           <button
             onClick={() => navigate(-1)}
             className="rounded-lg border border-gray-300 dark:border-neutral-600 px-3.5 py-2 text-sm text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"

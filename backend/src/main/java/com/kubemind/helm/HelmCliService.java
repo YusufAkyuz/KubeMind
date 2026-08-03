@@ -96,7 +96,7 @@ public class HelmCliService {
             }
             if (process.exitValue() != 0) {
                 String message = !stderr.isBlank() ? stderr.trim() : stdout.trim();
-                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "helm: " + message);
+                throw new ResponseStatusException(statusFor(message), "helm: " + message);
             }
             return stdout;
         } catch (IOException e) {
@@ -115,6 +115,28 @@ public class HelmCliService {
                 }
             }
         }
+    }
+
+    /**
+     * helm exits non-zero for everything from "your kubeconfig can't do that" to
+     * "the API server is down", and reporting them all as 502 tells the user the
+     * cluster is unreachable when it answered perfectly well — it just said no.
+     * The API server's own wording is what we match on; it's stable across
+     * versions and shows up verbatim in helm's stderr.
+     */
+    static HttpStatus statusFor(String stderr) {
+        String s = stderr.toLowerCase(java.util.Locale.ROOT);
+        if (s.contains("is forbidden:") || s.contains("forbidden: user")) {
+            return HttpStatus.FORBIDDEN;
+        }
+        if (s.contains("the server has asked for the client to provide credentials")
+            || s.contains("unauthorized")) {
+            return HttpStatus.UNAUTHORIZED;
+        }
+        if (s.contains("not found") && s.contains("release:")) {
+            return HttpStatus.NOT_FOUND;
+        }
+        return HttpStatus.BAD_GATEWAY;
     }
 
     /** Like {@link #run} but returns an empty string instead of throwing when helm's stderr

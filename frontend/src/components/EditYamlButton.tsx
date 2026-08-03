@@ -6,6 +6,9 @@ import { streamText } from '../utils/streamFetch'
 import { stripLeadingFence, stripTrailingFence } from '../utils/yamlFence'
 import { IconSparkles } from './Icons'
 import { DiffViewer, useDiffCount } from './DiffViewer'
+import { usePrivilegedFeatures } from '../hooks/useAppConfig'
+import { useKindPermission } from '../hooks/useClusterPermissions'
+import { isRbacKind } from '../utils/resourceKinds'
 
 interface Props {
   clusterId: string
@@ -18,6 +21,8 @@ interface Props {
 
 /** Self-contained "Edit YAML" button + modal, generic across every editable resource kind. */
 export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) {
+  const privilegedFeatures = usePrivilegedFeatures()
+  const permission = useKindPermission(clusterId, ns, kind, 'update')
   const [open, setOpen] = useState(false)
   const [originalYaml, setOriginalYaml] = useState('')
   const [yaml, setYaml] = useState('')
@@ -94,6 +99,25 @@ export function EditYamlButton({ clusterId, ns, kind, name, onApplied }: Props) 
     } finally {
       setAiEditing(false)
     }
+  }
+
+  // Deployments without cluster-admin refuse RBAC writes server-side — don't
+  // offer an editor whose Apply would only ever return a 403.
+  if (isRbacKind(kind) && !privilegedFeatures) return null
+
+  // Viewing the YAML is still useful when the kubeconfig can't apply changes,
+  // so this stays a read-only view rather than disappearing.
+  if (!permission.allowed) {
+    return (
+      <button
+        disabled
+        title={permission.reason ?? undefined}
+        className="rounded-md border border-gray-200 dark:border-neutral-700 px-3 py-1.5 text-xs font-medium
+                   text-gray-400 dark:text-neutral-600 cursor-not-allowed"
+      >
+        Edit YAML
+      </button>
+    )
   }
 
   return (

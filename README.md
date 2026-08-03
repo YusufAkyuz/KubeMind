@@ -158,8 +158,11 @@ No local clone needed — the chart is published from this repo (see [`deploy/he
 for the full values reference). To install straight from source instead, swap the first
 three lines for `helm install kubemind deploy/helm/kubemind ...`.
 
-The chart bundles optional PostgreSQL (pgvector) and Ollama (both toggleable). It binds the
-backend ServiceAccount to **cluster-admin** — a deliberate, loudly documented choice; see
+The chart bundles optional PostgreSQL (pgvector) and Ollama (both toggleable). By default it
+binds the backend ServiceAccount to **cluster-admin** — a deliberate, loudly documented
+choice. Add `--set rbac.clusterAdmin=false` for **restricted mode**: a narrower ClusterRole,
+with the Cluster Terminal, Node Shell and RBAC-object writes switched off in the app so the
+UI never offers what the API server would refuse. See
 [`deploy/helm/kubemind/values.yaml`](./deploy/helm/kubemind/values.yaml) and the
 [Security model](#security-model).
 
@@ -177,8 +180,8 @@ KUBEMIND_ADMIN_PASSWORD=... KUBEMIND_DB_PASSWORD=... \
 Building the images locally:
 
 ```bash
-docker build -f deploy/docker/backend.Dockerfile  -t kubemind/backend:0.2.0 .
-docker build -f deploy/docker/frontend.Dockerfile -t kubemind/frontend:0.2.0 .
+docker build -f deploy/docker/backend.Dockerfile  -t kubemind/backend:0.2.1 .
+docker build -f deploy/docker/frontend.Dockerfile -t kubemind/frontend:0.2.1 .
 ```
 
 > Published images and a one-line Helm install from a chart repository are both live — see
@@ -191,10 +194,14 @@ credentials never leave it. A few things you must understand before deploying:
 
 - **Never expose it to the internet.** Assume it sits behind a VPN, or ingress with TLS +
   auth + an IP allowlist.
-- **The in-cluster Helm install binds to `cluster-admin`.** This is required by the cluster
-  terminal, node shell, and RBAC-creation features. Anyone who can log in as an **ADMIN**
-  effectively holds cluster-admin on the install cluster. If that's more power than you want,
-  use the standalone Docker Compose mode with least-privilege kubeconfigs instead.
+- **The in-cluster Helm install binds to `cluster-admin` by default.** The cluster terminal,
+  node shell, and RBAC-creation features genuinely require it, and anyone who can log in as
+  an **ADMIN** then effectively holds cluster-admin on the install cluster. Two ways out:
+  install with `rbac.clusterAdmin=false` for **restricted mode** (narrower ClusterRole; those
+  three features switch off app-wide so nothing offers what would be refused), or use the
+  standalone Docker Compose mode with least-privilege kubeconfigs. Writing RBAC objects is
+  never part of restricted mode — whoever can create a RoleBinding can grant themselves
+  cluster-admin, so allowing it would defeat the point.
 - **Roles.** `ADMIN` can write anywhere and manage users/terminals. `USER` can write only on
   clusters they registered themselves — that cluster runs under their own kubeconfig, so real
   Kubernetes RBAC on it is the actual ceiling, not an app-level permission. Registered clusters
@@ -228,9 +235,9 @@ Found a vulnerability? Please follow [SECURITY.md](./SECURITY.md) — don't open
 
 ## Release plan
 
-- ✅ **Tagged releases publish images to Docker Hub.** Pushing a tag like `v0.2.0` triggers
+- ✅ **Tagged releases publish images to Docker Hub.** Pushing a tag like `v0.2.1` triggers
   [`.github/workflows/release.yml`](./.github/workflows/release.yml), which builds and pushes
-  `kubemind/backend:0.2.0` and `kubemind/frontend:0.2.0` (plus `:latest`), amd64 + arm64. Once
+  `kubemind/backend:0.2.1` and `kubemind/frontend:0.2.1` (plus `:latest`), amd64 + arm64. Once
   a release is out, `helm install` works straight from this repo's chart with no local
   `docker build` step.
 - ✅ **Helm chart is published as a repository.** `helm repo add kubemind

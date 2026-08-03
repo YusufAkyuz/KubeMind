@@ -6,7 +6,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { streamText } from '../utils/streamFetch'
 import { renderLiteMarkdown } from '../utils/markdownLite'
-import { ALLOWED_KINDS, KIND_ROUTES, KIND_TEMPLATES, type AllowedKind } from '../utils/resourceKinds'
+import { ALLOWED_KINDS, KIND_ROUTES, KIND_TEMPLATES, isRbacKind, type AllowedKind } from '../utils/resourceKinds'
+import { usePrivilegedFeatures } from '../hooks/useAppConfig'
 import { stripLeadingFence, stripTrailingFence } from '../utils/yamlFence'
 import { IconSparkles, IconChevronRight } from '../components/Icons'
 
@@ -38,6 +39,13 @@ export function CreateResourcePage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const busy = drafting || analyzing
+
+  // Deployments without cluster-admin refuse RBAC writes, so don't offer those
+  // templates — the backend's /allowed-kinds reflects the same filtering.
+  const privilegedFeatures = usePrivilegedFeatures()
+  const selectableKinds = privilegedFeatures
+    ? ALLOWED_KINDS
+    : ALLOWED_KINDS.filter((k) => !isRbacKind(k))
 
   // Prefill a starter template from the ?kind= hint (from a "+ Create" button elsewhere).
   useEffect(() => {
@@ -125,15 +133,21 @@ export function CreateResourcePage() {
         <span className="text-neutral-600 dark:text-neutral-400 font-medium">Create resource</span>
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 items-start">
+      {/* On a wide screen both columns fill the viewport: the editor is the point
+          of the page and was boxed into 28rem with dead space underneath, while
+          the review panel was scrolling inside a shorter box than it needed.
+          Narrow screens keep the stacked, natural-height layout. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 items-start
+                      lg:items-stretch lg:h-[calc(100vh-11rem)]">
         {/* ── Editor column ─────────────────────────────────────────────── */}
-        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm
+                        overflow-hidden flex flex-col min-h-0">
           {/* Kind quick-start (only while the editor is empty) */}
           {!yaml && (
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
               <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">Start from a template</p>
               <div className="flex flex-wrap gap-1.5">
-                {ALLOWED_KINDS.map((kind) => (
+                {selectableKinds.map((kind) => (
                   <button
                     key={kind}
                     onClick={() => loadTemplate(kind)}
@@ -148,7 +162,7 @@ export function CreateResourcePage() {
           )}
 
           {/* AI draft prompt */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700 bg-gradient-to-r from-blue-50/60 to-violet-50/60 dark:from-blue-500/10 dark:to-violet-500/10">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700 bg-gradient-to-r from-blue-50/60 to-violet-50/60 dark:from-blue-500/10 dark:to-violet-500/10 shrink-0">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -182,12 +196,12 @@ export function CreateResourcePage() {
             onChange={(e) => { setYaml(e.target.value); setAnalysis(''); hasAnalyzed.current = false }}
             spellCheck={false}
             placeholder="Pick a template above, or draft one with AI…"
-            className="w-full h-[28rem] bg-neutral-950 text-neutral-100 font-mono text-xs leading-5 p-4
-                       resize-none focus:outline-none"
+            className="w-full h-[28rem] lg:h-auto lg:flex-1 lg:min-h-0 bg-neutral-950 text-neutral-100
+                       font-mono text-xs leading-5 p-4 resize-none focus:outline-none"
           />
 
           {/* Action bar */}
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60 shrink-0">
             <button
               onClick={analyze}
               disabled={busy || !yaml.trim()}
@@ -218,12 +232,13 @@ export function CreateResourcePage() {
         </div>
 
         {/* ── AI assistant column ───────────────────────────────────────── */}
-        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm overflow-hidden lg:sticky lg:top-6">
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60">
+        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm
+                        overflow-hidden flex flex-col min-h-0">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60 shrink-0">
             <p className="text-sm font-medium text-gray-900 dark:text-neutral-100">AI Review</p>
             <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">Correctness, security, and best-practice notes</p>
           </div>
-          <div className="px-4 py-3 max-h-[32rem] overflow-y-auto">
+          <div className="px-4 py-3 max-h-[32rem] lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto">
             {!hasAnalyzed.current && !analyzing && (
               <p className="text-sm text-gray-400 dark:text-neutral-500">
                 Click "Analyze with AI" to review the manifest before creating it.

@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { usePrivilegedFeatures } from '../hooks/useAppConfig'
 import type { ComponentType } from 'react'
 import {
   IconServer,
@@ -94,6 +95,7 @@ interface Props {
 
 export function Sidebar({ onClose }: Props) {
   const { username, isAdmin, logout } = useAuth()
+  const privilegedFeatures = usePrivilegedFeatures()
   const { theme, toggle: toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
@@ -160,6 +162,18 @@ export function Sidebar({ onClose }: Props) {
     if (p.phase === 'Running' && allReady) return false
     return p.phase === 'Failed' || p.lastTerminatedReason === 'OOMKilled' || p.containers.some((c) => !c.ready)
   }).length
+
+  // A URL can name a cluster this user can't reach: a bookmark from when they
+  // were an ADMIN, a link someone shared, or the built-in cluster (id 0) which
+  // is ADMIN-only. Without this the app wedges — the picker falls back to
+  // showing some other cluster while every request still goes to the one in the
+  // URL and comes back 403, so the page just sits there.
+  useEffect(() => {
+    if (!clusters || !clusterId) return
+    if (clusters.some((c) => String(c.id) === clusterId)) return
+    navigate(clusters.length > 0 ? `/clusters/${clusters[0].id}/nodes` : '/settings/clusters',
+      { replace: true })
+  }, [clusters, clusterId, navigate])
 
   const handleClusterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     navigate(`/clusters/${e.target.value}/nodes`); onClose?.()
@@ -349,13 +363,17 @@ export function Sidebar({ onClose }: Props) {
             <NavLink to={`/clusters/${clusterId}/runbooks`} className={linkClass} onClick={onClose}>
               <IconLayers className="w-4 h-4 shrink-0" /> Runbooks
             </NavLink>
-            <button
-              onClick={() => { terminalPanel.openClusterTerminal(clusterId); onClose?.() }}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm w-full text-left
-                         text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100 transition-colors"
-            >
-              <IconTerminal className="w-4 h-4 shrink-0" /> Cluster Terminal
-            </button>
+            {/* Provisions a cluster-admin ServiceAccount for the session, so it
+                simply doesn't exist on a deployment running without cluster-admin. */}
+            {privilegedFeatures && (
+              <button
+                onClick={() => { terminalPanel.openClusterTerminal(clusterId); onClose?.() }}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm w-full text-left
+                           text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100 transition-colors"
+              >
+                <IconTerminal className="w-4 h-4 shrink-0" /> Cluster Terminal
+              </button>
+            )}
           </>
         )}
       </nav>

@@ -42,15 +42,18 @@ public class ExecWebSocketHandler extends TextWebSocketHandler {
     private final ClusterClientFactory clientFactory;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final ExecClusterAccessGuard accessGuard;
 
     private final Map<String, ExecWatch> watches = new ConcurrentHashMap<>();
 
     public ExecWebSocketHandler(ClusterClientFactory clientFactory,
                                 AuditService auditService,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper,
+                                ExecClusterAccessGuard accessGuard) {
         this.clientFactory = clientFactory;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
+        this.accessGuard = accessGuard;
     }
 
     @Override
@@ -67,6 +70,15 @@ public class ExecWebSocketHandler extends TextWebSocketHandler {
 
         if (ns == null || pod == null) {
             close(rawSession, CloseStatus.BAD_DATA.withReason("Missing ns/pod"));
+            return;
+        }
+
+        // This route bypasses ClusterAccessInterceptor and the cluster id is
+        // caller-supplied — see ExecClusterAccessGuard. Checked before the pod is
+        // even looked up, so a refusal reveals nothing about another cluster.
+        if (!accessGuard.permits(rawSession, clusterId)) {
+            auditService.record(username, clusterId, "EXEC_POD", ref, null, false, "no access to cluster");
+            close(rawSession, CloseStatus.POLICY_VIOLATION.withReason("No access to this cluster"));
             return;
         }
 

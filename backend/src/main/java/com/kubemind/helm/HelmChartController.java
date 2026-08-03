@@ -15,7 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Chart search + install. Search is read-only; install is ADMIN-only, audited (HelmChartService). */
+/**
+ * Chart search + install. Search is read-only; install is gated like any other
+ * write on the cluster (see ClusterAccessService) and audited in HelmChartService.
+ */
 @RestController
 @RequestMapping("/api/clusters/{clusterId}")
 public class HelmChartController {
@@ -44,7 +47,7 @@ public class HelmChartController {
     }
 
     @PostMapping("/namespaces/{ns}/helm/install")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
     public ResponseEntity<Void> install(@PathVariable long clusterId, @PathVariable String ns,
                                         @Valid @RequestBody InstallRequest request, Authentication auth) {
         service.install(auth.getName(), clusterId, ns, request.releaseName(), request.chartRef(), request.valuesYaml());

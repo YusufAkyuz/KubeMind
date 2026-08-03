@@ -36,24 +36,22 @@ public class ClusterService {
     }
 
     /**
-     * Self-service for anything a user registered themselves: everyone (ADMIN
-     * included) only ever sees the clusters they themselves added. Once a
-     * cluster is APPROVED it is private to its owner forever — an ADMIN's only
-     * touchpoint with someone else's registered cluster is the one-time
-     * approve/reject decision on the PENDING request (see
-     * {@link #listPendingRequests()}), never the cluster itself.
+     * Self-service, like a desktop Kubernetes client: everyone sees exactly the
+     * clusters they registered themselves, and works through that kubeconfig's
+     * own permissions.
      *
-     * The one exception is the built-in cluster (id 0): it isn't a per-user
-     * credential, it's the single identity this KubeMind install itself runs
-     * as, so there's no per-user scope to gate it by — every authenticated
-     * user sees and uses it exactly the same way (maintainer-confirmed
-     * trade-off; see ClusterClientFactory.getClient). See UserService's
-     * javadoc for the matching authorization note on everything else.
+     * The built-in cluster (id 0) is ADMIN-only. It isn't anyone's kubeconfig —
+     * it's the single identity this KubeMind install runs as, usually bound to
+     * cluster-admin — so there is no per-user scope to show it under. Listing it
+     * for every login would hand the whole management cluster to anyone with an
+     * account, which is the opposite of the model everything else here follows.
      */
-    public List<ClusterDto> list(String username) {
+    public List<ClusterDto> list(String username, boolean isAdmin) {
         List<ClusterDto> result = new ArrayList<>();
-        result.add(new ClusterDto(ClusterClientFactory.DEFAULT_CLUSTER_ID,
-            ClusterClientFactory.DEFAULT_CLUSTER_NAME, true, null, null, null, null, "APPROVED"));
+        if (isAdmin) {
+            result.add(new ClusterDto(ClusterClientFactory.DEFAULT_CLUSTER_ID,
+                ClusterClientFactory.DEFAULT_CLUSTER_NAME, true, null, null, null, null, "APPROVED"));
+        }
         repository.findByCreatedBy(username).forEach(c -> result.add(toDto(c)));
         return result;
     }

@@ -37,8 +37,9 @@ public class NodeExecWebSocketHandler extends AbstractEphemeralExecHandler {
 
     public NodeExecWebSocketHandler(ClusterClientFactory clientFactory,
                                     AuditService auditService,
-                                    ObjectMapper objectMapper) {
-        super(objectMapper);
+                                    ObjectMapper objectMapper,
+                                    ExecClusterAccessGuard accessGuard) {
+        super(objectMapper, accessGuard);
         this.clientFactory = clientFactory;
         this.auditService = auditService;
     }
@@ -68,7 +69,7 @@ public class NodeExecWebSocketHandler extends AbstractEphemeralExecHandler {
                 .withName(podName)
                 .withNamespace(DEBUG_NAMESPACE)
                 .addToLabels("app.kubernetes.io/managed-by", "kubemind")
-                .addToLabels("kubemind.io/purpose", "node-debug")
+                .addToLabels(EphemeralSessionReaper.PURPOSE_LABEL, EphemeralSessionReaper.PURPOSE_NODE_DEBUG)
             .endMetadata()
             .withNewSpec()
                 .withNodeName(node)

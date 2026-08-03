@@ -37,8 +37,16 @@ KubeMind {{ .Chart.AppVersion }} deployed as release "{{ .Release.Name }}".
 {{- end }}
 
 SECURITY REMINDERS
-  * The backend ServiceAccount is bound to cluster-admin
-    ({{ if .Values.rbac.clusterAdmin }}rbac.clusterAdmin=true{{ else }}DISABLED — most write features will fail with 403s{{ end }}).
-    Anyone who can log in to KubeMind as ADMIN effectively holds cluster-admin.
+{{- if .Values.rbac.clusterAdmin }}
+  * FULL PRIVILEGE (rbac.clusterAdmin=true). The backend ServiceAccount is bound
+    to cluster-admin, so anyone who can log in to KubeMind as ADMIN effectively
+    holds cluster-admin on this cluster. Set rbac.clusterAdmin=false for
+    restricted mode if that is more power than you want to hand out.
+{{- else }}
+  * RESTRICTED MODE (rbac.clusterAdmin=false). No cluster-admin binding. The
+    Cluster Terminal, Node Shell and RBAC-object writes are switched off in the
+    app, so nothing offers what this role would be refused. Still granted, and
+    worth a conscious decision: reading Secrets cluster-wide, and exec into pods.
+{{- end }}
   * Never expose this deployment to the public internet. VPN or IP-allowlisted
     ingress + TLS only.
