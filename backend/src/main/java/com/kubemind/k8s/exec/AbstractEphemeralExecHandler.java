@@ -33,10 +33,12 @@ abstract class AbstractEphemeralExecHandler extends TextWebSocketHandler {
     private static final int SEND_BUFFER_LIMIT = 512 * 1024;
 
     private final ObjectMapper objectMapper;
+    private final ExecClusterAccessGuard accessGuard;
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
-    protected AbstractEphemeralExecHandler(ObjectMapper objectMapper) {
+    protected AbstractEphemeralExecHandler(ObjectMapper objectMapper, ExecClusterAccessGuard accessGuard) {
         this.objectMapper = objectMapper;
+        this.accessGuard = accessGuard;
     }
 
     private record Session(ExecWatch watch, Runnable cleanup) {}
@@ -59,6 +61,15 @@ abstract class AbstractEphemeralExecHandler extends TextWebSocketHandler {
     @Override
     public final void afterConnectionEstablished(WebSocketSession rawSession) throws Exception {
         var params = UriComponentsBuilder.fromUri(rawSession.getUri()).build().getQueryParams();
+
+        // Before anything is provisioned: the cluster id is caller-supplied and
+        // this route bypasses ClusterAccessInterceptor. See ExecClusterAccessGuard.
+        long clusterId = parseLong(params.getFirst("clusterId"), 0L);
+        if (!accessGuard.permits(rawSession, clusterId)) {
+            close(rawSession, CloseStatus.POLICY_VIOLATION.withReason("No access to this cluster"));
+            return;
+        }
+
         // Thread-safe sends: the output pump and the exec listener both write.
         WebSocketSession session = new ConcurrentWebSocketSessionDecorator(rawSession, 5_000, SEND_BUFFER_LIMIT);
 

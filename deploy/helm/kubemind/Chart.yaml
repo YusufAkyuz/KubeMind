@@ -6,8 +6,8 @@ description: >-
   PostgreSQL and an Ollama instance so a bare `helm install` yields a fully
   working system.
 type: application
-version: 0.2.0
-appVersion: "0.2.0"
+version: 0.2.1
+appVersion: "0.2.1"
 keywords:
   - kubernetes
   - dashboard

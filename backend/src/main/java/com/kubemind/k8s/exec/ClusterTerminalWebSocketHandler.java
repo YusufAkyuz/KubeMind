@@ -44,8 +44,9 @@ public class ClusterTerminalWebSocketHandler extends AbstractEphemeralExecHandle
 
     public ClusterTerminalWebSocketHandler(ClusterClientFactory clientFactory,
                                            AuditService auditService,
-                                           ObjectMapper objectMapper) {
-        super(objectMapper);
+                                           ObjectMapper objectMapper,
+                                           ExecClusterAccessGuard accessGuard) {
+        super(objectMapper, accessGuard);
         this.clientFactory = clientFactory;
         this.auditService = auditService;
     }
