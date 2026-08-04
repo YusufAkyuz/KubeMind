@@ -168,12 +168,18 @@ export function Sidebar({ onClose }: Props) {
   // is ADMIN-only. Without this the app wedges — the picker falls back to
   // showing some other cluster while every request still goes to the one in the
   // URL and comes back 403, so the page just sits there.
+  //
+  // Gated on clusterMatch, not clusterId: clusterId defaults to '0' on every
+  // page that isn't /clusters/:id/... (Clusters, Users, Audit log, ...), and a
+  // USER's own cluster list never contains the built-in cluster (ADMIN-only).
+  // Checking the fallback value against that list redirected USERs away from
+  // every non-cluster-scoped page in the app, Clusters included.
   useEffect(() => {
-    if (!clusters || !clusterId) return
+    if (!clusters || !clusterMatch) return
     if (clusters.some((c) => String(c.id) === clusterId)) return
     navigate(clusters.length > 0 ? `/clusters/${clusters[0].id}/nodes` : '/settings/clusters',
       { replace: true })
-  }, [clusters, clusterId, navigate])
+  }, [clusters, clusterMatch, clusterId, navigate])
 
   const handleClusterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     navigate(`/clusters/${e.target.value}/nodes`); onClose?.()

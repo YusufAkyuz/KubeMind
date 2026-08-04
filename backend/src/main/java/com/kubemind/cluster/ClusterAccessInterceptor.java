@@ -48,11 +48,28 @@ public class ClusterAccessInterceptor implements HandlerInterceptor {
         return true;
     }
 
-    /** /api/clusters/{id}/... -> id, or null when the segment isn't a cluster id. */
+    /**
+     * ClusterController's own actions on the registration itself, not on the
+     * cluster's K8s API. It already authorizes these correctly via
+     * ClusterService's ownership checks — which, unlike this interceptor,
+     * deliberately allow the owner to act on their own PENDING or REJECTED
+     * cluster (testing a connection is how you find out it's reachable before
+     * anyone approves it; withdrawing a bad request means deleting it). Gating
+     * these here too would additionally require APPROVED and lock an owner out
+     * of their own not-yet-approved cluster.
+     */
+    private static final java.util.Set<String> CLUSTER_CONTROLLER_OWN_ACTIONS =
+        java.util.Set.of("test", "approve", "reject");
+
+    /** /api/clusters/{id}/... -> id, or null when the segment isn't a cluster id
+     *  or the route is one ClusterController already authorizes itself. */
     private Long extractClusterId(String uri) {
         String[] parts = uri.split("/");
         // ["", "api", "clusters", "<id>", ...] — anything shorter has no cluster segment.
         if (parts.length < 5 || !"api".equals(parts[1]) || !"clusters".equals(parts[2])) {
+            return null;
+        }
+        if (parts.length == 5 && CLUSTER_CONTROLLER_OWN_ACTIONS.contains(parts[4])) {
             return null;
         }
         try {
