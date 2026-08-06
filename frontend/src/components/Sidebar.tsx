@@ -132,6 +132,11 @@ export function Sidebar({ onClose }: Props) {
     queryKey: ['namespaces', clusterId],
     queryFn: async () => (await api.get<Namespace[]>(`/clusters/${clusterId}/namespaces`)).data,
     staleTime: 30_000,
+    // The namespace picker only means anything on a /clusters/:id page anyway.
+    // Without this, clusterId's fallback to '0' fired this on every page for
+    // every user — a silent 403 for a USER, since the built-in cluster is
+    // ADMIN-only.
+    enabled: !!clusterMatch,
   })
 
   const remembered = storedNs && storedNs !== 'all' && namespaces && !namespaces.some((n) => n.name === storedNs)
