@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { usePrivilegedFeatures } from '../hooks/useAppConfig'
+import { useTerminalPermission } from '../hooks/useClusterPermissions'
 import type { ComponentType } from 'react'
 import {
   IconServer,
@@ -103,6 +104,10 @@ export function Sidebar({ onClose }: Props) {
 
   const clusterMatch = location.pathname.match(/^\/clusters\/(\d+)/)
   const clusterId = clusterMatch ? clusterMatch[1] : '0'
+  // Same reasoning as the namespaces query below: clusterId falls back to '0'
+  // on every non-cluster page, and firing this there would be a wasted request
+  // every time an admin is on, say, Settings > Clusters.
+  const canOpenClusterTerminal = useTerminalPermission(clusterMatch ? clusterId : undefined, 'clusterTerminal')
   const nsMatch = location.pathname.match(/^\/clusters\/\d+\/namespaces\/([^/]+)\//)
   const urlNs = nsMatch ? nsMatch[1] : null
 
@@ -378,9 +383,14 @@ export function Sidebar({ onClose }: Props) {
                 simply doesn't exist on a deployment running without cluster-admin. */}
             {privilegedFeatures && (
               <button
-                onClick={() => { terminalPanel.openClusterTerminal(clusterId); onClose?.() }}
+                onClick={() => { if (canOpenClusterTerminal) { terminalPanel.openClusterTerminal(clusterId); onClose?.() } }}
+                disabled={!canOpenClusterTerminal}
+                title={canOpenClusterTerminal ? undefined
+                  : "Your kubeconfig for this cluster can't create a ClusterRoleBinding, "
+                    + 'which the Cluster Terminal needs.'}
                 className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm w-full text-left
-                           text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100 transition-colors"
+                           text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100 transition-colors
+                           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-neutral-400"
               >
                 <IconTerminal className="w-4 h-4 shrink-0" /> Cluster Terminal
               </button>

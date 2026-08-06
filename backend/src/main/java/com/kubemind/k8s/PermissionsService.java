@@ -2,6 +2,8 @@ package com.kubemind.k8s;
 
 import com.kubemind.cluster.ClusterClientFactory;
 import io.fabric8.kubernetes.api.model.authorization.v1.ResourceRule;
+import io.fabric8.kubernetes.api.model.authorization.v1.SelfSubjectAccessReview;
+import io.fabric8.kubernetes.api.model.authorization.v1.SelfSubjectAccessReviewBuilder;
 import io.fabric8.kubernetes.api.model.authorization.v1.SelfSubjectRulesReview;
 import io.fabric8.kubernetes.api.model.authorization.v1.SelfSubjectRulesReviewBuilder;
 import org.slf4j.Logger;
@@ -127,5 +129,66 @@ public class PermissionsService {
 
     static Set<String> knownKinds() {
         return KIND_RESOURCES.keySet();
+    }
+
+    // ── Node Shell / Cluster Terminal ────────────────────────────────────────
+    //
+    // Neither fits the "kind + namespace + verb" shape above: both are
+    // KubeMind-provisioned side effects (a debug pod, a throwaway
+    // ServiceAccount + ClusterRoleBinding), not CRUD on a resource kind the
+    // user is browsing. A single targeted SelfSubjectAccessReview per action is
+    // the right tool here instead of folding them into the bulk rules review.
+    //
+    // "kube-system" is duplicated from NodeExecWebSocketHandler.DEBUG_NAMESPACE
+    // / ClusterTerminalWebSocketHandler.TERMINAL_NAMESPACE (different package,
+    // not worth a cross-module constant for one string) — if either changes,
+    // this must too.
+    private static final String TERMINAL_NAMESPACE = "kube-system";
+
+    /**
+     * Node Shell schedules a privileged, host-mounted debug pod into
+     * {@code kube-system}. RBAC can't see "privileged" — Pod Security Admission
+     * decides that separately and isn't queryable this way — so "may this
+     * identity create a Pod there" is the closest available signal, not a
+     * guarantee the pod will actually be admitted.
+     */
+    public boolean canOpenNodeShell(long clusterId) {
+        return selfSubjectAccessReview(clusterId, "", "pods", "create", TERMINAL_NAMESPACE);
+    }
+
+    /**
+     * Cluster Terminal provisions a ServiceAccount and binds it to
+     * cluster-admin. Being able to create a ClusterRoleBinding is the one
+     * check that actually matters — it's already equivalent to holding
+     * cluster-admin, so there's no weaker permission worth asking about.
+     */
+    public boolean canOpenClusterTerminal(long clusterId) {
+        return selfSubjectAccessReview(clusterId, "rbac.authorization.k8s.io",
+            "clusterrolebindings", "create", null);
+    }
+
+    /**
+     * Fails open, matching {@link #forNamespace} — a control this identity
+     * genuinely has is worse to hide than one to let a click discover is
+     * refused, and the cluster enforces the real limit either way.
+     */
+    private boolean selfSubjectAccessReview(long clusterId, String group, String resource,
+                                            String verb, String namespace) {
+        try {
+            var attrs = new io.fabric8.kubernetes.api.model.authorization.v1.ResourceAttributesBuilder()
+                .withGroup(group).withResource(resource).withVerb(verb);
+            if (namespace != null) attrs.withNamespace(namespace);
+
+            SelfSubjectAccessReview review = clientFactory.getClient(clusterId)
+                .authorization().v1().selfSubjectAccessReview()
+                .create(new SelfSubjectAccessReviewBuilder()
+                    .withNewSpec().withResourceAttributes(attrs.build()).endSpec()
+                    .build());
+            return review.getStatus() != null && Boolean.TRUE.equals(review.getStatus().getAllowed());
+        } catch (Exception e) {
+            log.debug("SelfSubjectAccessReview unavailable for cluster {} ({} {}/{}): {}",
+                clusterId, verb, group, resource, e.getMessage());
+            return true;
+        }
     }
 }

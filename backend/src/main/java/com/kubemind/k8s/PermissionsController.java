@@ -25,4 +25,15 @@ public class PermissionsController {
                                                                @RequestParam String namespace) {
         return permissionsService.forNamespace(clusterId, namespace);
     }
+
+    public record TerminalPermissions(boolean nodeShell, boolean clusterTerminal) {}
+
+    /** Whether this identity can actually open the Node Shell / Cluster Terminal —
+     *  see PermissionsService for why these don't fit the namespace-scoped check above. */
+    @GetMapping("/terminals")
+    public TerminalPermissions terminals(@PathVariable long clusterId) {
+        return new TerminalPermissions(
+            permissionsService.canOpenNodeShell(clusterId),
+            permissionsService.canOpenClusterTerminal(clusterId));
+    }
 }

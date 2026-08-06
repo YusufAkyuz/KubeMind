@@ -11,6 +11,7 @@ import { ErrorBanner } from '../components/ErrorBanner'
 import { ClusterInsightsPanel } from '../components/ClusterInsightsPanel'
 import { useSSE } from '../hooks/useSSE'
 import { usePrivilegedFeatures } from '../hooks/useAppConfig'
+import { useTerminalPermission } from '../hooks/useClusterPermissions'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { formatAge } from '../utils/format'
 import type { NodeMetrics, NodeResource } from '../types/k8s'
@@ -29,6 +30,7 @@ export function NodesPage() {
   const { clusterId } = useParams<{ clusterId: string }>()
   const terminalPanel = useTerminalPanel()
   const privilegedFeatures = usePrivilegedFeatures()
+  const canOpenNodeShell = useTerminalPermission(clusterId, 'nodeShell')
   const [selected, setSelected] = useState<NodeResource | null>(null)
   const queryKey = ['nodes', clusterId]
 
@@ -106,8 +108,13 @@ export function NodesPage() {
               <div className="pb-3">
                 <button
                   onClick={() => terminalPanel.openNodeExec(clusterId!, selected.name)}
+                  disabled={!canOpenNodeShell}
+                  title={canOpenNodeShell ? undefined
+                    : "Your kubeconfig for this cluster can't create pods in kube-system, "
+                      + 'which the Node Shell needs.'}
                   className="rounded-md border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 text-xs font-medium
-                             text-amber-800 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
+                             text-amber-800 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors
+                             disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-50 dark:disabled:hover:bg-amber-500/10"
                 >
                   Node shell
                 </button>
