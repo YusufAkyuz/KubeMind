@@ -163,32 +163,51 @@ These are non-negotiable:
 
 ## Branching model
 
-`main` is always releasable; `develop` is where work integrates.
+`develop` is the default branch and where all work integrates. `main` is the released
+line — **nobody merges into it by hand**; the release workflow is the only thing that
+writes to it.
 
 | Branch | Cut from | Merges into | Use for |
 |---|---|---|---|
-| `main` | — | — | Released code. Version tags (`v*.*.*`) are pushed here and drive the image + chart release workflows. |
-| `develop` | `main` | `main` (at release time) | Integration branch — the default target for everyday work. |
+| `develop` | — | `main`, by the release workflow only | Default branch. The target for every pull request. |
+| `main` | — | — | Released code, plus the published Helm chart. Written only by `release.yml`. |
 | `feature/…` | `develop` | `develop` | New functionality. |
-| `fix/…` | `develop` | `develop` | Bug fixes that can wait for the next release. |
-| `hotfix/…` | `main` | `main`, then back into `develop` | Urgent production fixes that can't wait for `develop` to be released. |
+| `fix/…` | `develop` | `develop` | Bug fixes. |
 
-After a hotfix lands on `main`, merge `main` back into `develop` right away so the fix
-isn't lost on the next release.
+Both branches run CI (backend tests + frontend build) on pushes and on incoming pull
+requests.
 
-Both `main` and `develop` run CI (backend tests + frontend build/tests) on pushes and on
-incoming pull requests.
+## Releasing
+
+Everything ships from a `v*.*.*` tag on a **`develop`** commit:
+
+1. Bump `deploy/helm/kubemind/Chart.yaml` (`version` **and** `appVersion`) and
+   `backend/pom.xml` to the new version, via a normal PR into `develop`.
+   The release refuses to run if these three disagree with the tag.
+2. Tag the merge commit on `develop` and push the tag.
+
+`.github/workflows/release.yml` then, in order: checks the tag sits on `develop`, builds
+and pushes both images, merges the tagged commit into `main`, packages the chart into
+`docs/` (the Helm repo GitHub Pages serves), and opens the GitHub release. Images go out
+before `main` moves, so a failed build never leaves `main` advertising a version nobody
+can pull.
+
+`main` accumulates release commits `develop` never sees, so the two branches are
+permanently divergent by design — the promotion is a merge, not a fast-forward.
+
+There is no hotfix-from-`main` path: a fix reaches production the same way everything
+else does, through `develop`, and carries whatever else is sitting there. Keeping
+`develop` releasable at all times is what makes that safe.
 
 ## Pull request process
 
-1. **Branch** off `develop` (`feature/…`, `fix/…`, `docs/…`) — or off `main` for a
-   `hotfix/…`. Don't commit directly to `main` or `develop`.
+1. **Branch** off `develop` (`feature/…`, `fix/…`, `docs/…`). Don't commit directly to
+   `develop` or `main`.
 2. **Keep it focused.** One logical change per PR. Refactors separate from behavior changes.
 3. **Write/adjust tests** for the change. Backend and frontend suites must stay green.
 4. **Commit messages** in imperative mood (`feat: add cluster approval workflow`,
    `fix: scope cluster name uniqueness per owner`). Conventional-commit prefixes preferred.
-5. **Open the PR** against `develop` (or `main` for a hotfix/release). CI must pass —
-   `main` is protected and requires it.
+5. **Open the PR** against `develop`. CI must pass — `develop` is protected and requires it.
 6. **Describe the security impact** if the change touches auth, write allowlists, the AI
    redaction path, or the terminals' privilege model.
 
