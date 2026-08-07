@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { usePrivilegedFeatures } from '../hooks/useAppConfig'
+import { useTerminalPermission } from '../hooks/useClusterPermissions'
 import type { ComponentType } from 'react'
 import {
   IconServer,
@@ -103,6 +104,10 @@ export function Sidebar({ onClose }: Props) {
 
   const clusterMatch = location.pathname.match(/^\/clusters\/(\d+)/)
   const clusterId = clusterMatch ? clusterMatch[1] : '0'
+  // Same reasoning as the namespaces query below: clusterId falls back to '0'
+  // on every non-cluster page, and firing this there would be a wasted request
+  // every time an admin is on, say, Settings > Clusters.
+  const canOpenClusterTerminal = useTerminalPermission(clusterMatch ? clusterId : undefined, 'clusterTerminal')
   const nsMatch = location.pathname.match(/^\/clusters\/\d+\/namespaces\/([^/]+)\//)
   const urlNs = nsMatch ? nsMatch[1] : null
 
@@ -132,6 +137,11 @@ export function Sidebar({ onClose }: Props) {
     queryKey: ['namespaces', clusterId],
     queryFn: async () => (await api.get<Namespace[]>(`/clusters/${clusterId}/namespaces`)).data,
     staleTime: 30_000,
+    // The namespace picker only means anything on a /clusters/:id page anyway.
+    // Without this, clusterId's fallback to '0' fired this on every page for
+    // every user — a silent 403 for a USER, since the built-in cluster is
+    // ADMIN-only.
+    enabled: !!clusterMatch,
   })
 
   const remembered = storedNs && storedNs !== 'all' && namespaces && !namespaces.some((n) => n.name === storedNs)
@@ -168,12 +178,18 @@ export function Sidebar({ onClose }: Props) {
   // is ADMIN-only. Without this the app wedges — the picker falls back to
   // showing some other cluster while every request still goes to the one in the
   // URL and comes back 403, so the page just sits there.
+  //
+  // Gated on clusterMatch, not clusterId: clusterId defaults to '0' on every
+  // page that isn't /clusters/:id/... (Clusters, Users, Audit log, ...), and a
+  // USER's own cluster list never contains the built-in cluster (ADMIN-only).
+  // Checking the fallback value against that list redirected USERs away from
+  // every non-cluster-scoped page in the app, Clusters included.
   useEffect(() => {
-    if (!clusters || !clusterId) return
+    if (!clusters || !clusterMatch) return
     if (clusters.some((c) => String(c.id) === clusterId)) return
     navigate(clusters.length > 0 ? `/clusters/${clusters[0].id}/nodes` : '/settings/clusters',
       { replace: true })
-  }, [clusters, clusterId, navigate])
+  }, [clusters, clusterMatch, clusterId, navigate])
 
   const handleClusterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     navigate(`/clusters/${e.target.value}/nodes`); onClose?.()
@@ -367,9 +383,14 @@ export function Sidebar({ onClose }: Props) {
                 simply doesn't exist on a deployment running without cluster-admin. */}
             {privilegedFeatures && (
               <button
-                onClick={() => { terminalPanel.openClusterTerminal(clusterId); onClose?.() }}
+                onClick={() => { if (canOpenClusterTerminal) { terminalPanel.openClusterTerminal(clusterId); onClose?.() } }}
+                disabled={!canOpenClusterTerminal}
+                title={canOpenClusterTerminal ? undefined
+                  : "Your kubeconfig for this cluster can't create a ClusterRoleBinding, "
+                    + 'which the Cluster Terminal needs.'}
                 className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm w-full text-left
-                           text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100 transition-colors"
+                           text-neutral-400 hover:bg-neutral-800/70 hover:text-neutral-100 transition-colors
+                           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-neutral-400"
               >
                 <IconTerminal className="w-4 h-4 shrink-0" /> Cluster Terminal
               </button>

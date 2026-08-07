@@ -49,6 +49,37 @@ const ALLOWED: KindPermission = { allowed: true, reason: null }
  * allowed. Disabling a control the user actually has is a worse failure than
  * letting them discover a refusal — and the cluster still refuses it.
  */
+interface TerminalPermissions {
+  nodeShell: boolean
+  clusterTerminal: boolean
+}
+
+/**
+ * Whether this identity can actually open the Node Shell / Cluster Terminal —
+ * a single targeted RBAC check per action (see the backend's
+ * PermissionsService), not the per-namespace CRUD check above. Cluster-wide,
+ * so unlike useClusterPermissions this doesn't vary by namespace and needs no
+ * "all namespaces" special case.
+ *
+ * Fails open while loading or on error, same reasoning as useKindPermission:
+ * hiding a control the caller actually has is worse than a click discovering
+ * a refusal, and the cluster enforces the real limit either way.
+ */
+export function useTerminalPermission(
+  clusterId: string | undefined,
+  action: keyof TerminalPermissions,
+): boolean {
+  const { data } = useQuery<TerminalPermissions>({
+    queryKey: ['terminal-permissions', clusterId],
+    queryFn: async () =>
+      (await api.get<TerminalPermissions>(`/clusters/${clusterId}/permissions/terminals`)).data,
+    enabled: !!clusterId,
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+  return data ? data[action] : true
+}
+
 export function useKindPermission(
   clusterId: string | undefined,
   ns: string | undefined,

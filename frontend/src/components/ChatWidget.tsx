@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { streamText } from '../utils/streamFetch'
 import { renderLiteMarkdown } from '../utils/markdownLite'
@@ -9,6 +11,7 @@ import { useChatPanel } from '../chat/ChatPanelContext'
 import { useRightReserve } from '../layout/RightReserveContext'
 import { AiFeedbackButtons } from './AiFeedbackButtons'
 import { randomId } from '../utils/id'
+import type { Cluster } from '../types/k8s'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -45,9 +48,19 @@ export function ChatWidget() {
     return () => rightReserve.register('chat', 0)
   }, [chatPanel.isOpen, chatPanel.width, rightReserve])
 
-  // Current cluster from the URL (defaults to the built-in local cluster).
+  // Current cluster from the URL. Off a /clusters/:id page there's no cluster
+  // in view, so this can't default to the built-in cluster (id 0) the way
+  // Sidebar's picker does when nothing else applies — id 0 is ADMIN-only, and
+  // a USER on, say, Settings > Clusters would get a silent 403 from every
+  // chat send. Fall back to whatever cluster this user can actually reach
+  // instead (same query Sidebar uses, so no extra request).
   const clusterMatch = location.pathname.match(/^\/clusters\/(\d+)/)
-  const clusterId = clusterMatch ? clusterMatch[1] : '0'
+  const { data: clusters } = useQuery<Cluster[]>({
+    queryKey: ['clusters'],
+    queryFn: async () => (await api.get<Cluster[]>('/clusters')).data,
+    staleTime: 30_000,
+  })
+  const clusterId = clusterMatch ? clusterMatch[1] : clusters?.[0] ? String(clusters[0].id) : null
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -92,7 +105,7 @@ export function ChatWidget() {
 
   const send = async () => {
     const text = input.trim()
-    if (!text || streaming) return
+    if (!text || streaming || !clusterId) return
 
     const history: Message[] = [...messages, { role: 'user', content: text, id: randomId() }]
     setMessages([...history, { role: 'assistant', content: '', id: randomId() }])
@@ -217,7 +230,8 @@ export function ChatWidget() {
                   ? (m.content ? renderLiteMarkdown(m.content) : (streaming ? '…' : ''))
                   : m.content}
               </div>
-              {m.role === 'assistant' && m.content && !(streaming && i === messages.length - 1) && (
+              {m.role === 'assistant' && m.content && clusterId
+                && !(streaming && i === messages.length - 1) && (
                 <div className="mt-1 pl-1">
                   <AiFeedbackButtons clusterId={clusterId} surface="CHAT" contextHash={m.id} />
                 </div>
@@ -234,15 +248,16 @@ export function ChatWidget() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
               rows={1}
-              placeholder="Ask anything…"
+              disabled={!clusterId}
+              placeholder={clusterId ? 'Ask anything…' : 'Register a cluster first to chat'}
               className="flex-1 resize-none rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
                          text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                         max-h-24"
+                         max-h-24 disabled:opacity-60 disabled:cursor-not-allowed"
             />
             <button
               onClick={send}
-              disabled={streaming || !input.trim()}
+              disabled={streaming || !input.trim() || !clusterId}
               className="shrink-0 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white
                          hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >

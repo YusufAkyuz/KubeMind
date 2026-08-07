@@ -123,6 +123,23 @@ class ClusterAccessInterceptorTest {
         assertThat(preHandle("/actuator/health")).isTrue();
     }
 
+    /**
+     * The regression this guards against: a USER's own freshly-registered
+     * cluster starts PENDING, and testing/deleting it is how they find out it's
+     * reachable or withdraw a bad request — ClusterService's ownership checks
+     * deliberately allow that regardless of status. This interceptor must not
+     * add an APPROVED requirement on top and lock them out of their own
+     * not-yet-approved cluster.
+     */
+    @Test
+    void ignoresClusterControllersOwnActionsRegardlessOfStatus() {
+        loggedInAs("bob", "USER");
+
+        assertThat(preHandle("/api/clusters/7/test")).isTrue();
+        assertThat(preHandle("/api/clusters/7/approve")).isTrue();
+        assertThat(preHandle("/api/clusters/7/reject")).isTrue();
+    }
+
     /** /api/clusters/{id} with nothing after it is the cluster resource itself,
      *  handled by ClusterController's own ownership checks. */
     @Test
