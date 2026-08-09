@@ -3,12 +3,14 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { useAuth } from './AuthContext'
+import { useAppConfig } from '../hooks/useAppConfig'
 import { Logo } from '../components/Icons'
 import { LoginBackground } from './LoginBackground'
 
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const { data: config } = useAppConfig()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +48,28 @@ export function LoginPage() {
           </div>
         </div>
         {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+        {config?.oidcEnabled && (
+          <>
+            {/* A plain link, not a fetch: Spring's oauth2Login() DSL owns this
+                redirect, the code exchange, and the callback — see
+                SecurityConfig/OidcClientConfig. Landing back on the SPA root
+                afterward hits the same GET /auth/me AuthContext already runs
+                on mount, same as a password login. */}
+            <a
+              href="/oauth2/authorization/oidc"
+              className="flex w-full items-center justify-center gap-2 rounded border border-gray-300 dark:border-neutral-600
+                         bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 py-2 text-sm font-medium
+                         hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+            >
+              Sign in with SSO
+            </a>
+            <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-neutral-500">
+              <div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
+              or
+              <div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
+            </div>
+          </>
+        )}
         <input
           className="w-full border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
                      text-gray-900 dark:text-neutral-100 rounded px-3 py-2"

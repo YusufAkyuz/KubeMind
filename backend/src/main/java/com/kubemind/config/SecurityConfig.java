@@ -1,10 +1,12 @@
 package com.kubemind.config;
 
+import com.kubemind.auth.oidc.KubemindOidcUserService;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +20,7 @@ import org.springframework.security.authorization.AuthenticatedAuthorizationMana
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -45,7 +48,9 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   PrivilegedFeatures privilegedFeatures) throws Exception {
+                                                   PrivilegedFeatures privilegedFeatures,
+                                                   ObjectProvider<ClientRegistrationRepository> oidcClientRegistrations,
+                                                   KubemindOidcUserService oidcUserService) throws Exception {
         // Built outside the authorizeHttpRequests lambda on purpose: these depend on
         // an install-level flag, and inlining them there would shadow its parameter.
         var clusterTerminalRule = privilegedFeatures.isEnabled()
@@ -54,6 +59,12 @@ public class SecurityConfig {
         var nodeShellRule = privilegedFeatures.isEnabled()
             ? AuthenticatedAuthorizationManager.<RequestAuthorizationContext>authenticated()
             : DENY;
+
+        // Non-null only when kubemind.oidc.issuer-uri is set — see
+        // OidcClientConfig. This is the single "is OIDC configured" check;
+        // AppConfigController asks the same ObjectProvider so the two never
+        // disagree about it.
+        ClientRegistrationRepository oidcRegistrations = oidcClientRegistrations.getIfAvailable();
 
         http
             // SPA CSRF setup (Spring Security 6 reference recipe): the token lives in a
@@ -80,7 +91,18 @@ public class SecurityConfig {
                 // hitting /error directly is a REQUEST dispatch and still authenticated).
                 .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                 .requestMatchers("/api/auth/login").permitAll()
+                // Spring's own fixed OIDC endpoints (authorization redirect + callback —
+                // see OidcClientConfig). Harmless to permit even when OIDC isn't
+                // configured: with no oauth2Login() wired below, nothing is
+                // registered to handle them and they simply 404 unauthenticated,
+                // same as any other nonexistent route.
+                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                // LoginPage needs to know whether to offer an SSO link BEFORE
+                // the user is authenticated. Only ever exposes install-level
+                // booleans (privilegedFeatures, oidcEnabled) — no per-user or
+                // per-cluster data lives here.
+                .requestMatchers("/api/config").permitAll()
                 // Cluster Terminal provisions its own ServiceAccount bound to
                 // cluster-admin for the session, unconditionally — that's full
                 // access regardless of the caller's own kubeconfig, so it stays
@@ -104,6 +126,17 @@ public class SecurityConfig {
                 .logoutUrl("/api/auth/logout")
                 .logoutSuccessHandler((request, response, authentication) ->
                     response.setStatus(HttpServletResponse.SC_OK)));
+
+        if (oidcRegistrations != null) {
+            http.oauth2Login(oauth2 -> oauth2
+                .clientRegistrationRepository(oidcRegistrations)
+                .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
+                // Lands back on the SPA's root, exactly like a successful
+                // password login does today; AuthContext's GET /auth/me on
+                // mount resolves the new session the same way either path.
+                .defaultSuccessUrl("/", true));
+        }
+
         return http.build();
     }
 

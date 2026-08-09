@@ -1,5 +1,12 @@
 server:
   port: 8080
+  # Nginx (see deploy/docker/nginx.conf.template) sets X-Forwarded-Proto/Host
+  # on every request it proxies. Without this, OIDC's redirect_uri would be
+  # computed from the internal http://backend:8080 address Tomcat actually
+  # sees rather than the external https:// one the IdP needs to call back to.
+  # Harmless when unproxied (local `mvn spring-boot:run`) — those headers
+  # simply aren't sent, so this has no effect there.
+  forward-headers-strategy: framework
 
 spring:
   mvc:
@@ -77,3 +84,19 @@ kubemind:
     # calls, so KubeMind can run against a ServiceAccount that is NOT cluster-admin.
     # Default true keeps the existing behaviour for current installs.
     enabled: ${KUBEMIND_PRIVILEGED_FEATURES:true}
+  oidc:
+    # All blank by default -> OidcClientConfig builds no ClientRegistrationRepository
+    # bean at all, which is what actually gates .oauth2Login() in SecurityConfig (a
+    # plain null-check, not @ConditionalOnProperty — an empty string here must not
+    # be mistaken for "configured").
+    #
+    # These MUST be referenced by name like this (${KUBEMIND_OIDC_...}), the same
+    # way KUBEMIND_ENCRYPTION_KEY is above. Spring's relaxed binding (env var name
+    # -> dotted property path) only auto-applies to a real SystemEnvironmentPropertySource;
+    # spring-dotenv's .env loader isn't one, so without an explicit reference here
+    # a value set only in backend/.env is silently invisible to KubemindOidcProperties.
+    issuer-uri: ${KUBEMIND_OIDC_ISSUER_URI:}
+    client-id: ${KUBEMIND_OIDC_CLIENT_ID:}
+    client-secret: ${KUBEMIND_OIDC_CLIENT_SECRET:}
+    groups-claim: ${KUBEMIND_OIDC_GROUPS_CLAIM:groups}
+    admin-group: ${KUBEMIND_OIDC_ADMIN_GROUP:}

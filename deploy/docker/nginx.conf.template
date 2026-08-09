@@ -32,6 +32,27 @@ server {
         proxy_read_timeout 3600s;
     }
 
+    # OIDC login (when configured — see KubemindOidcProperties): the browser
+    # is redirected here directly, not fetched via axios, so these need their
+    # own location blocks alongside /api/ rather than falling under it.
+    location /oauth2/ {
+        proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # More specific than the SPA's own /login route below, so nginx's
+    # longest-prefix match sends only the OIDC callback here.
+    location /login/oauth2/ {
+        proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # Interactive terminals (pod exec, node shell, cluster terminal).
     location /ws/ {
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
