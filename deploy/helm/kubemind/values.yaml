@@ -30,11 +30,11 @@
 image:
   backend:
     repository: kubemind/backend
-    tag: 0.2.1
+    tag: 0.3.0
     pullPolicy: IfNotPresent
   frontend:
     repository: kubemind/frontend
-    tag: 0.2.1
+    tag: 0.3.0
     pullPolicy: IfNotPresent
   # imagePullSecrets: [{ name: my-registry-secret }]
   imagePullSecrets: []
@@ -53,8 +53,21 @@ auth:
   # cluster registration (the built-in local cluster keeps working).
   encryptionKey: ""
   # Alternatively, point at an existing Secret with keys:
-  #   admin-password, encryption-key
+  #   admin-password, encryption-key, oidc-client-secret (only oidc-client-secret is optional)
   existingSecret: ""
+  # Optional OIDC/SSO login, additive to the admin/password login above —
+  # both stay available together. Blank issuerUri means OIDC is entirely off,
+  # same as leaving KUBEMIND_OIDC_ISSUER_URI unset in backend/.env for local dev.
+  oidc:
+    issuerUri: ""
+    clientId: ""
+    clientSecret: ""
+    # Claim carrying the caller's IdP groups, for the admin-group mapping below.
+    groupsClaim: groups
+    # A group name in that claim that maps a first-time OIDC login to ADMIN.
+    # Blank -> every new OIDC account starts as USER; promote via the existing
+    # Users admin page afterward, same as any local account.
+    adminGroup: ""
 
 rbac:
   # true  -> bind cluster-admin; Cluster Terminal, Node Shell and RBAC writes work.

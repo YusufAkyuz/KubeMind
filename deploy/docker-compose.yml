@@ -39,7 +39,7 @@ services:
       retries: 10
 
   backend:
-    image: kubemind/backend:0.1.0
+    image: kubemind/backend:0.3.0
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,6 +51,13 @@ services:
       KUBEMIND_ADMIN_PASSWORD: ${KUBEMIND_ADMIN_PASSWORD:?set KUBEMIND_ADMIN_PASSWORD}
       # openssl rand -base64 32 — required to register remote clusters.
       KUBEMIND_ENCRYPTION_KEY: ${KUBEMIND_ENCRYPTION_KEY:-}
+      # Optional SSO login, additive to the admin/password login above. All
+      # blank by default -> OIDC is entirely off; local login is untouched.
+      KUBEMIND_OIDC_ISSUER_URI: ${KUBEMIND_OIDC_ISSUER_URI:-}
+      KUBEMIND_OIDC_CLIENT_ID: ${KUBEMIND_OIDC_CLIENT_ID:-}
+      KUBEMIND_OIDC_CLIENT_SECRET: ${KUBEMIND_OIDC_CLIENT_SECRET:-}
+      KUBEMIND_OIDC_GROUPS_CLAIM: ${KUBEMIND_OIDC_GROUPS_CLAIM:-groups}
+      KUBEMIND_OIDC_ADMIN_GROUP: ${KUBEMIND_OIDC_ADMIN_GROUP:-}
     extra_hosts:
       # Makes host.docker.internal work on Linux too (no-op on Docker Desktop).
       - "host.docker.internal:host-gateway"
@@ -60,7 +67,7 @@ services:
     #   - ~/.kube/config:/home/kubemind/.kube/config:ro
 
   frontend:
-    image: kubemind/frontend:0.1.0
+    image: kubemind/frontend:0.3.0
     depends_on:
       - backend
     environment:
