@@ -7,8 +7,37 @@ entries:
         - name: Repository
           url: https://github.com/YusufAkyuz/KubeMind
     apiVersion: v2
+    appVersion: 0.3.0
+    created: "2026-08-09T20:21:54.251627199Z"
+    description: KubeMind — web-based, AI-assisted Kubernetes dashboard. Deploys the
+      backend (Spring Boot) and frontend (nginx) plus, optionally, a pgvector-enabled
+      PostgreSQL and an Ollama instance so a bare `helm install` yields a fully working
+      system.
+    digest: 2ec38bc34c8694924594a127fd7cbeb9199349ea846c8e582aad4a272235dd72
+    home: https://github.com/YusufAkyuz/KubeMind
+    icon: https://raw.githubusercontent.com/YusufAkyuz/KubeMind/main/frontend/public/favicon.svg
+    keywords:
+    - kubernetes
+    - dashboard
+    - ai
+    maintainers:
+    - name: Yusuf Akyüz
+      url: https://github.com/YusufAkyuz
+    name: kubemind
+    sources:
+    - https://github.com/YusufAkyuz/KubeMind
+    type: application
+    urls:
+    - https://YusufAkyuz.github.io/KubeMind/kubemind-0.3.0.tgz
+    version: 0.3.0
+  - annotations:
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Repository
+          url: https://github.com/YusufAkyuz/KubeMind
+    apiVersion: v2
     appVersion: 0.2.2
-    created: "2026-08-07T07:45:40.450995983Z"
+    created: "2026-08-09T20:21:54.250945913Z"
     description: KubeMind — web-based, AI-assisted Kubernetes dashboard. Deploys the
       backend (Spring Boot) and frontend (nginx) plus, optionally, a pgvector-enabled
       PostgreSQL and an Ollama instance so a bare `helm install` yields a fully working
@@ -37,7 +66,7 @@ entries:
           url: https://github.com/YusufAkyuz/KubeMind
     apiVersion: v2
     appVersion: 0.2.1
-    created: "2026-08-07T07:45:40.450342267Z"
+    created: "2026-08-09T20:21:54.250277412Z"
     description: KubeMind — web-based, AI-assisted Kubernetes dashboard. Deploys the
       backend (Spring Boot) and frontend (nginx) plus, optionally, a pgvector-enabled
       PostgreSQL and an Ollama instance so a bare `helm install` yields a fully working
@@ -66,7 +95,7 @@ entries:
           url: https://github.com/YusufAkyuz/KubeMind
     apiVersion: v2
     appVersion: 0.2.0
-    created: "2026-08-07T07:45:40.449689378Z"
+    created: "2026-08-09T20:21:54.249604051Z"
     description: KubeMind — web-based, AI-assisted Kubernetes dashboard. Deploys the
       backend (Spring Boot) and frontend (nginx) plus, optionally, a pgvector-enabled
       PostgreSQL and an Ollama instance so a bare `helm install` yields a fully working
@@ -95,7 +124,7 @@ entries:
           url: https://github.com/YusufAkyuz/KubeMind
     apiVersion: v2
     appVersion: 0.1.0
-    created: "2026-08-07T07:45:40.448943947Z"
+    created: "2026-08-09T20:21:54.249006521Z"
     description: KubeMind — web-based, AI-assisted Kubernetes dashboard. Deploys the
       backend (Spring Boot) and frontend (nginx) plus, optionally, a pgvector-enabled
       PostgreSQL and an Ollama instance so a bare `helm install` yields a fully working
@@ -124,7 +153,7 @@ entries:
           url: https://github.com/YusufAkyuz/KubeMind
     apiVersion: v2
     appVersion: 0.1.0
-    created: "2026-08-07T07:45:40.447345097Z"
+    created: "2026-08-09T20:21:54.248398884Z"
     description: KubeMind — web-based, AI-assisted Kubernetes dashboard. Deploys the
       backend (Spring Boot) and frontend (nginx) plus, optionally, a pgvector-enabled
       PostgreSQL and an Ollama instance so a bare `helm install` yields a fully working
@@ -146,4 +175,4 @@ entries:
     urls:
     - https://YusufAkyuz.github.io/KubeMind/kubemind-0.1.0.tgz
     version: 0.1.0
-generated: "2026-08-07T07:45:40.446642637Z"
+generated: "2026-08-09T20:21:54.247660992Z"
