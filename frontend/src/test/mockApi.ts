@@ -28,7 +28,9 @@ type Responder = unknown | (() => unknown)
 
 /** Registers GET responses on an already-mocked `api` object, keyed by the
  *  path passed to `api.get`. Unregistered paths reject, so a component that
- *  fires a request no test expected fails loudly instead of hanging. */
+ *  fires a request no test expected fails loudly instead of hanging. An
+ *  `Error` instance as the fixture value makes that path reject instead of
+ *  resolve — for simulating a 401 on GET /auth/me before login, for example. */
 export function mockGet(api: { get: ReturnType<typeof vi.fn> }, routes: Record<string, Responder>) {
   api.get.mockImplementation((path: string) => {
     const match = Object.keys(routes).find((p) => path === p || path.startsWith(`${p}?`))
@@ -36,6 +38,9 @@ export function mockGet(api: { get: ReturnType<typeof vi.fn> }, routes: Record<s
       return Promise.reject(new Error(`mockGet: no fixture registered for GET ${path}`))
     }
     const value = routes[match]
+    if (value instanceof Error) {
+      return Promise.reject(value)
+    }
     const data = typeof value === 'function' ? (value as () => unknown)() : value
     return Promise.resolve({ data })
   })

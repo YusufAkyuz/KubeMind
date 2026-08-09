@@ -1,5 +1,7 @@
 package com.kubemind.config;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,9 +16,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AppConfigController {
 
     private final PrivilegedFeatures privilegedFeatures;
+    private final ObjectProvider<ClientRegistrationRepository> oidcClientRegistrations;
 
-    public AppConfigController(PrivilegedFeatures privilegedFeatures) {
+    public AppConfigController(PrivilegedFeatures privilegedFeatures,
+                               ObjectProvider<ClientRegistrationRepository> oidcClientRegistrations) {
         this.privilegedFeatures = privilegedFeatures;
+        this.oidcClientRegistrations = oidcClientRegistrations;
     }
 
     /**
@@ -24,11 +29,15 @@ public class AppConfigController {
      *                           the Cluster Terminal, Node Shell and RBAC-object
      *                           writes are switched off server-side, so the UI must
      *                           not offer them.
+     * @param oidcEnabled        true when kubemind.oidc.issuer-uri is set — see
+     *                           OidcClientConfig/SecurityConfig, which check the
+     *                           same bean presence, so this can never disagree
+     *                           with whether /oauth2/authorization/oidc actually works.
      */
-    public record AppConfigDto(boolean privilegedFeatures) {}
+    public record AppConfigDto(boolean privilegedFeatures, boolean oidcEnabled) {}
 
     @GetMapping
     public AppConfigDto config() {
-        return new AppConfigDto(privilegedFeatures.isEnabled());
+        return new AppConfigDto(privilegedFeatures.isEnabled(), oidcClientRegistrations.getIfAvailable() != null);
     }
 }
