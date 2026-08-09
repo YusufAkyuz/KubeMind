@@ -5,6 +5,9 @@ interface AppConfig {
   /** false when this deployment runs without cluster-admin: the Cluster Terminal,
    *  Node Shell and RBAC-object writes are switched off server-side. */
   privilegedFeatures: boolean
+  /** true when kubemind.oidc.issuer-uri is configured server-side — see
+   *  LoginPage, which only offers the SSO link when this is true. */
+  oidcEnabled: boolean
 }
 
 /**

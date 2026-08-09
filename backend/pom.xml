@@ -13,7 +13,7 @@
 
     <groupId>com.kubemind</groupId>
     <artifactId>kubemind-backend</artifactId>
-    <version>0.2.2</version>
+    <version>0.3.0</version>
     <name>kubemind-backend</name>
     <description>KubeMind backend — AI-assisted Kubernetes dashboard</description>
 
@@ -44,6 +44,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

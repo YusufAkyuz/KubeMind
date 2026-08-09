@@ -44,15 +44,20 @@ public class ClusterClientFactory {
         this.crypto = crypto;
     }
 
+    /**
+     * Resolves credentials; authorizes nothing. Whether the caller may reach
+     * this cluster at all was already decided upstream by
+     * ClusterAccessInterceptor via {@link ClusterAccessService#canRead}.
+     *
+     * Cluster 0 is ADMIN-only there — it isn't anyone's kubeconfig, it's the
+     * single identity this installation runs as, usually bound to
+     * cluster-admin. That check lives in ClusterAccessService and nowhere else:
+     * repeating it here would be a second copy to keep in sync, and dropping it
+     * there would hand the management cluster to every account.
+     */
     public KubernetesClient getClient(long clusterId) {
         if (clusterId == DEFAULT_CLUSTER_ID) {
-            // Open to every authenticated user, same as any other cluster — there's
-            // no per-user credential to scope this one by (it's the one identity
-            // this KubeMind install itself runs as), so "same rules as other
-            // clusters" means "no extra gate here", not "ADMIN-only". Deliberate,
-            // maintainer-confirmed: this does mean a USER shares the same access
-            // to this specific cluster as ADMIN (see ClusterService.list javadoc).
-            return defaultClient;
+            return defaultClient; // no stored credentials — the ambient/in-cluster identity
         }
         return cache.computeIfAbsent(clusterId, this::buildClient);
     }
