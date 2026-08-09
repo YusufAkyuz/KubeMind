@@ -84,6 +84,23 @@ spec:
                   name: {{ include "kubemind.secretName" . }}
                   key: encryption-key
                   optional: true
+            # Optional SSO login — see values.yaml's auth.oidc block. Blank
+            # issuerUri (the default) means KubemindOidcProperties.enabled()
+            # is false and none of this does anything; local login is untouched.
+            - name: KUBEMIND_OIDC_ISSUER_URI
+              value: {{ .Values.auth.oidc.issuerUri | quote }}
+            - name: KUBEMIND_OIDC_CLIENT_ID
+              value: {{ .Values.auth.oidc.clientId | quote }}
+            - name: KUBEMIND_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubemind.secretName" . }}
+                  key: oidc-client-secret
+                  optional: true
+            - name: KUBEMIND_OIDC_GROUPS_CLAIM
+              value: {{ .Values.auth.oidc.groupsClaim | quote }}
+            - name: KUBEMIND_OIDC_ADMIN_GROUP
+              value: {{ .Values.auth.oidc.adminGroup | quote }}
             {{- with .Values.backend.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
