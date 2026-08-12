@@ -57,7 +57,7 @@ class ClusterServiceTest {
         crypto = mock(CryptoService.class);
         clientFactory = mock(ClusterClientFactory.class);
         auditService = mock(AuditService.class);
-        service = new ClusterService(repository, crypto, clientFactory, auditService);
+        service = new ClusterService(repository, crypto, clientFactory, auditService, new ImpersonationProperties(false));
 
         when(crypto.isAvailable()).thenReturn(true);
         when(crypto.encrypt(anyString())).thenReturn("encrypted-blob");

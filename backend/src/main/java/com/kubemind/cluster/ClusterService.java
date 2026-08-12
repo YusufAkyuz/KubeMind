@@ -24,15 +24,18 @@ public class ClusterService {
     private final CryptoService crypto;
     private final ClusterClientFactory clientFactory;
     private final AuditService auditService;
+    private final ImpersonationProperties impersonation;
 
     public ClusterService(ClusterRepository repository,
                           CryptoService crypto,
                           ClusterClientFactory clientFactory,
-                          AuditService auditService) {
+                          AuditService auditService,
+                          ImpersonationProperties impersonation) {
         this.repository = repository;
         this.crypto = crypto;
         this.clientFactory = clientFactory;
         this.auditService = auditService;
+        this.impersonation = impersonation;
     }
 
     /**
@@ -40,15 +43,17 @@ public class ClusterService {
      * clusters they registered themselves, and works through that kubeconfig's
      * own permissions.
      *
-     * The built-in cluster (id 0) is ADMIN-only. It isn't anyone's kubeconfig —
-     * it's the single identity this KubeMind install runs as, usually bound to
-     * cluster-admin — so there is no per-user scope to show it under. Listing it
-     * for every login would hand the whole management cluster to anyone with an
-     * account, which is the opposite of the model everything else here follows.
+     * The built-in cluster (id 0) isn't anyone's kubeconfig — it's the single
+     * identity this KubeMind install runs as. It is listed for ADMINs always,
+     * and for everyone once impersonation is on, mirroring
+     * {@link ClusterAccessService#canRead} exactly: with impersonation the
+     * calls carry each caller's own identity, so Kubernetes RBAC decides what
+     * they actually see inside. Without it, listing this cluster for every
+     * login would hand the whole management cluster to anyone with an account.
      */
     public List<ClusterDto> list(String username, boolean isAdmin) {
         List<ClusterDto> result = new ArrayList<>();
-        if (isAdmin) {
+        if (isAdmin || impersonation.enabled()) {
             result.add(new ClusterDto(ClusterClientFactory.DEFAULT_CLUSTER_ID,
                 ClusterClientFactory.DEFAULT_CLUSTER_NAME, true, null, null, null, null, "APPROVED"));
         }

@@ -69,6 +69,33 @@ auth:
     # Users admin page afterward, same as any local account.
     adminGroup: ""
 
+# ── Kubernetes user impersonation ─────────────────────────────────────────────
+# enabled: false (default) -> KubeMind acts against this cluster as its own
+#   ServiceAccount, and the built-in cluster stays ADMIN-only (there is no
+#   per-user scope to grant when everyone shares one identity).
+#
+# enabled: true -> every call carries the caller's own identity
+#   (Impersonate-User / Impersonate-Group), so Kubernetes RBAC decides what each
+#   person may do and the API server's audit log names the real human. The
+#   built-in cluster then opens to ALL logged-in users, because the cluster
+#   itself — not this app — is doing the scoping.
+#
+# READ BEFORE ENABLING:
+# * Requires rbac.clusterAdmin: true. Restricted mode holds no impersonate
+#   permission, so this combination is rejected at render time rather than
+#   installed broken.
+# * Local accounts are impersonated too, the seeded admin included. Without an
+#   RBAC binding carrying their name they lose access to the built-in cluster
+#   the moment this flips — which is what bootstrapAdminBinding prevents.
+impersonation:
+  enabled: false
+  # Binds auth.adminUsername to cluster-admin so enabling impersonation never
+  # leaves the install with nobody able to administer it. This is a REAL grant
+  # of cluster-admin to that username — set it to false and create your own
+  # narrower binding if you'd rather the seeded admin not hold it.
+  # Rendered only when impersonation.enabled is true.
+  bootstrapAdminBinding: true
+
 rbac:
   # true  -> bind cluster-admin; Cluster Terminal, Node Shell and RBAC writes work.
   # false -> restricted mode; those three are switched off app-wide and a narrower

@@ -85,6 +85,12 @@ public class ClusterProfileService {
         }
     }
 
+    /**
+     * Reached only from the scheduled refresh above — the controller and the AI
+     * callers read the stored profile, they never trigger this. That matters
+     * for the getSystemClient calls below: this runs on nobody's behalf, so
+     * there is no caller identity to impersonate.
+     */
     public void refreshCluster(long clusterId) {
         refreshTopology(clusterId);
         refreshWorkloadSummary(clusterId);
@@ -98,7 +104,7 @@ public class ClusterProfileService {
     record TopologyContent(int nodeCount, List<String> versions) {}
 
     private void refreshTopology(long clusterId) {
-        var nodes = clientFactory.getClient(clusterId).nodes().list().getItems();
+        var nodes = clientFactory.getSystemClient(clusterId).nodes().list().getItems();
         List<String> versions = nodes.stream()
             .map(n -> n.getStatus() != null && n.getStatus().getNodeInfo() != null
                 ? n.getStatus().getNodeInfo().getKubeletVersion() : null)
@@ -115,7 +121,7 @@ public class ClusterProfileService {
     record WorkloadSummaryContent(int namespaceCount, int podCount, int unhealthyPodCount, List<String> unhealthyHighlights) {}
 
     private void refreshWorkloadSummary(long clusterId) {
-        var client = clientFactory.getClient(clusterId);
+        var client = clientFactory.getSystemClient(clusterId);
         int namespaceCount = client.namespaces().list().getItems().size();
         var pods = client.pods().inAnyNamespace().list().getItems();
         var unhealthy = pods.stream()
@@ -172,7 +178,7 @@ public class ClusterProfileService {
     record IncidentPatternsContent(String narrative, List<IncidentPattern> patterns) {}
 
     private void refreshIncidentPatterns(long clusterId) {
-        var warnings = clientFactory.getClient(clusterId).resources(Event.class).inAnyNamespace().list().getItems().stream()
+        var warnings = clientFactory.getSystemClient(clusterId).resources(Event.class).inAnyNamespace().list().getItems().stream()
             .filter(e -> "Warning".equals(e.getType()))
             .toList();
 

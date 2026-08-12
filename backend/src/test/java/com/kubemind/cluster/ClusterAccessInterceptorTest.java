@@ -33,7 +33,7 @@ class ClusterAccessInterceptorTest {
     @BeforeEach
     void setUp() {
         repository = mock(ClusterRepository.class);
-        interceptor = new ClusterAccessInterceptor(new ClusterAccessService(repository));
+        interceptor = new ClusterAccessInterceptor(new ClusterAccessService(repository, new ImpersonationProperties(false)));
     }
 
     @AfterEach

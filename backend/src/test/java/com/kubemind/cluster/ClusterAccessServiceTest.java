@@ -26,7 +26,7 @@ class ClusterAccessServiceTest {
     @BeforeEach
     void setUp() {
         repository = mock(ClusterRepository.class);
-        service = new ClusterAccessService(repository);
+        service = new ClusterAccessService(repository, new ImpersonationProperties(false));
     }
 
     private static Authentication auth(String username, String role) {
