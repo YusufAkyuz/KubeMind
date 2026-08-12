@@ -101,6 +101,10 @@ spec:
               value: {{ .Values.auth.oidc.groupsClaim | quote }}
             - name: KUBEMIND_OIDC_ADMIN_GROUP
               value: {{ .Values.auth.oidc.adminGroup | quote }}
+            # See the impersonation block in values.yaml. Off by default, in
+            # which case the app behaves exactly as it did before this existed.
+            - name: KUBEMIND_IMPERSONATION_ENABLED
+              value: {{ .Values.impersonation.enabled | quote }}
             {{- with .Values.backend.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

@@ -1,0 +1,29 @@
+{{- if .Values.impersonation.enabled }}
+{{- if not .Values.rbac.clusterAdmin }}
+{{- fail "impersonation.enabled requires rbac.clusterAdmin: true — restricted mode's ServiceAccount cannot impersonate, so this combination would install an app where every call against the built-in cluster fails. Set one of them differently." }}
+{{- end }}
+{{- if .Values.impersonation.bootstrapAdminBinding }}
+# Impersonation makes the seeded admin subject to cluster RBAC like everyone
+# else. Without a binding under their own name they would lose the built-in
+# cluster the instant impersonation was switched on — so the chart grants it
+# here rather than shipping an install nobody can administer.
+#
+# This is a real cluster-admin grant to a named user. Disable it with
+# impersonation.bootstrapAdminBinding: false and bind something narrower
+# yourself if that is too much for your environment.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kubemind.fullname" . }}-impersonated-admin
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: {{ .Values.auth.adminUsername | quote }}
+{{- end }}
+{{- end }}

@@ -7,6 +7,8 @@ import io.fabric8.kubernetes.client.WatcherException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -135,20 +137,38 @@ public class WatchController {
     /**
      * Generic watcher that re-fetches the full list on any change and pushes it to the emitter.
      * Full-list push keeps the client logic simple: just replace the cache entry.
+     *
+     * The supplier re-reads the cluster, so it needs the caller's identity: with
+     * impersonation on, ClusterClientFactory resolves that from
+     * SecurityContextHolder, and eventReceived runs on a Fabric8 watch thread
+     * that has none. Capturing the context here (still on the request thread)
+     * and restoring it around each refresh is what keeps a long-lived stream
+     * scoped to the person who opened it, not just its first response.
      */
     private class ListRefreshWatcher<T> implements Watcher<T> {
 
         private final SseEmitter emitter;
         private final Supplier<List<?>> listSupplier;
+        private final SecurityContext securityContext;
 
         ListRefreshWatcher(SseEmitter emitter, Supplier<List<?>> listSupplier) {
             this.emitter = emitter;
             this.listSupplier = listSupplier;
+            this.securityContext = SecurityContextHolder.getContext();
         }
 
         @Override
         public void eventReceived(Action action, T resource) {
-            sendEvent(emitter, "update", listSupplier.get());
+            SecurityContext previous = SecurityContextHolder.getContext();
+            SecurityContextHolder.setContext(securityContext);
+            try {
+                sendEvent(emitter, "update", listSupplier.get());
+            } finally {
+                // Restore rather than clear: Fabric8 reuses watch threads, and
+                // leaving one caller's identity behind on a shared thread is the
+                // same leak this whole class is guarding against.
+                SecurityContextHolder.setContext(previous);
+            }
         }
 
         @Override

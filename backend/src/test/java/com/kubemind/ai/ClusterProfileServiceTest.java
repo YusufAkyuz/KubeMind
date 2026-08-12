@@ -47,7 +47,7 @@ class ClusterProfileServiceTest {
     void setUp() {
         store.clear();
         var clientFactory = mock(ClusterClientFactory.class);
-        when(clientFactory.getClient(0L)).thenReturn(client);
+        when(clientFactory.getSystemClient(0L)).thenReturn(client);
         var clusterRepository = mock(ClusterRepository.class);
         when(clusterRepository.findAll()).thenReturn(List.of());
         auditLogRepository = mock(AuditLogRepository.class);

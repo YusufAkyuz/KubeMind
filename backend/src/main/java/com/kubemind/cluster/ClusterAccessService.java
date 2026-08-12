@@ -16,17 +16,28 @@ import org.springframework.stereotype.Service;
  * This class only answers "is this door yours"; the cluster answers "what may
  * you do inside".
  *
- * The built-in cluster (id 0) is ADMIN-only. It has no owner row because it
- * isn't anyone's kubeconfig — it's the single identity this installation runs
- * as, usually bound to cluster-admin.
+ * The built-in cluster (id 0) has no owner row — it isn't anyone's kubeconfig,
+ * it's the single identity this installation runs as. Who may reach it depends
+ * on whether impersonation is switched on:
+ *
+ * <ul>
+ *   <li><b>off</b> — ADMIN-only. Every caller would share one usually
+ *       cluster-admin-bound identity, so there is no per-user scope to grant.</li>
+ *   <li><b>on</b> — open to any authenticated user. Calls now carry the
+ *       caller's own identity (see ClusterClientFactory), so Kubernetes RBAC
+ *       scopes each person individually and an app-level gate here would only
+ *       be a second, weaker copy of that decision.</li>
+ * </ul>
  */
 @Service
 public class ClusterAccessService {
 
     private final ClusterRepository repository;
+    private final ImpersonationProperties impersonation;
 
-    public ClusterAccessService(ClusterRepository repository) {
+    public ClusterAccessService(ClusterRepository repository, ImpersonationProperties impersonation) {
         this.repository = repository;
+        this.impersonation = impersonation;
     }
 
     /** May this user reach the cluster at all (read included)? */
@@ -35,7 +46,10 @@ public class ClusterAccessService {
             return true;
         }
         if (clusterId == ClusterClientFactory.DEFAULT_CLUSTER_ID) {
-            return false; // shared installation identity, never per-user
+            // Impersonation on: the cluster itself decides what this person can
+            // see, so opening the door here grants nothing on its own. Off: a
+            // shared installation identity, never per-user.
+            return impersonation.enabled();
         }
         return repository.findById(clusterId)
             .map(c -> c.getCreatedBy().equals(auth.getName()) && "APPROVED".equals(c.getStatus()))

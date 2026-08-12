@@ -9,6 +9,7 @@ import { Modal } from '../components/Modal'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../auth/AuthContext'
+import { useAppConfig } from '../hooks/useAppConfig'
 import { formatAge } from '../utils/format'
 import type { Cluster, PendingCluster } from '../types/k8s'
 
@@ -124,6 +125,7 @@ export function ClustersPage() {
   const toast = useToast()
   const queryClient = useQueryClient()
   const { isAdmin } = useAuth()
+  const impersonationEnabled = useAppConfig().data?.impersonationEnabled ?? false
   const [addOpen, setAddOpen] = useState(false)
   const [deleting, setDeleting] = useState<Cluster | null>(null)
   const [name, setName] = useState('')
@@ -184,9 +186,11 @@ export function ClustersPage() {
       <PageHeader
         title="Clusters"
         subtitle={
-          isAdmin
-            ? "Clusters you've registered, plus the built-in one. Other users' clusters are private to them — you only ever see their PENDING requests, below, to approve or reject."
-            : "Clusters you've registered with your own kubeconfig. A new cluster stays pending until an admin approves it."
+          impersonationEnabled && !isAdmin
+            ? "Clusters you've registered with your own kubeconfig, plus the built-in one. On the built-in cluster you act as yourself, so what you can see and change there is whatever your Kubernetes permissions allow — an empty page means no access has been granted to you yet, not a broken connection."
+            : isAdmin
+              ? "Clusters you've registered, plus the built-in one. Other users' clusters are private to them — you only ever see their PENDING requests, below, to approve or reject."
+              : "Clusters you've registered with your own kubeconfig. A new cluster stays pending until an admin approves it."
         }
         count={data?.length}
         noun="cluster"

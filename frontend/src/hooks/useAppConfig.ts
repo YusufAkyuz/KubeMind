@@ -8,6 +8,12 @@ interface AppConfig {
   /** true when kubemind.oidc.issuer-uri is configured server-side — see
    *  LoginPage, which only offers the SSO link when this is true. */
   oidcEnabled: boolean
+  /** true when calls against the built-in cluster carry the caller's own
+   *  Kubernetes identity. That cluster is then visible to everyone, and what
+   *  each person sees inside it is the cluster's RBAC decision, not the app's —
+   *  worth saying out loud in the UI, since "I can see it but it's empty" is
+   *  otherwise indistinguishable from a broken connection. */
+  impersonationEnabled: boolean
 }
 
 /**
