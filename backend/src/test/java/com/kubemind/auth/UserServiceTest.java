@@ -115,6 +115,28 @@ class UserServiceTest {
             eq(null), eq(true), eq(null));
     }
 
+    /**
+     * The SSO promise is "disable them in the IdP and they're out". Giving an
+     * OIDC account a local password would leave a way in that the IdP neither
+     * knows about nor can revoke, so this must be refused outright — not merely
+     * hidden in the UI.
+     */
+    @Test
+    void resetPasswordRefusesAnSsoProvisionedAccount() {
+        User alice = User.oidcProvisioned("alice", "USER");
+        when(userRepository.findById(4L)).thenReturn(Optional.of(alice));
+
+        assertThatThrownBy(() -> userService.resetPassword("admin", 4L, "newpassword1"))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT));
+
+        assertThat(alice.getPasswordHash()).isNull();
+        verify(userRepository, never()).save(any(User.class));
+        verify(auditService).record(eq("admin"), eq(null), eq("RESET_USER_PASSWORD"), eq("User/alice"),
+            eq(null), eq(false), org.mockito.ArgumentMatchers.contains("identity provider"));
+    }
+
     @Test
     void missingUserIs404() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());

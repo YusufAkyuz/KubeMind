@@ -3,6 +3,7 @@ import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '../auth/AuthContext'
+import { ToastProvider } from '../components/Toast'
 import { TerminalPanelProvider } from '../terminal/TerminalPanelContext'
 import { ChatPanelProvider } from '../chat/ChatPanelContext'
 import { RightReserveProvider } from '../layout/RightReserveContext'
@@ -44,11 +45,16 @@ export function renderWithProviders(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[route]}>
           <AuthProvider>
-            <RightReserveProvider>
-              <ChatPanelProvider>
-                <TerminalPanelProvider>{children}</TerminalPanelProvider>
-              </ChatPanelProvider>
-            </RightReserveProvider>
+            {/* ToastProvider sits directly inside AuthProvider in main.tsx —
+                pages that report success/failure through useToast throw
+                without it. */}
+            <ToastProvider>
+              <RightReserveProvider>
+                <ChatPanelProvider>
+                  <TerminalPanelProvider>{children}</TerminalPanelProvider>
+                </ChatPanelProvider>
+              </RightReserveProvider>
+            </ToastProvider>
           </AuthProvider>
         </MemoryRouter>
       </QueryClientProvider>

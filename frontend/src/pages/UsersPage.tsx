@@ -124,6 +124,14 @@ export function UsersPage() {
                     you
                   </span>
                 )}
+                {u.identityProvider === 'oidc' && (
+                  <span
+                    title="Signs in through your identity provider. Revoke access there, not here."
+                    className="ml-2 rounded-full bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400 ring-1 ring-inset ring-blue-600/20"
+                  >
+                    SSO
+                  </span>
+                )}
               </Td>
               <Td>
                 <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
@@ -279,28 +287,40 @@ export function UsersPage() {
           </div>
 
           <div className="border-t border-gray-100 dark:border-neutral-800 pt-4">
-            <label className="block text-xs text-gray-500 dark:text-neutral-400 mb-1.5">New password</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Min 8 characters"
-              maxLength={128}
-              autoComplete="new-password"
-              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
-                         text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <div className="mt-2 flex justify-end">
-              <button
-                onClick={() => resetMutation.mutate()}
-                disabled={resetMutation.isPending || newPassword.length < 8}
-                className="rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white
-                           hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {resetMutation.isPending ? 'Saving…' : 'Reset password'}
-              </button>
-            </div>
+            {managing?.identityProvider === 'oidc' ? (
+              /* No password field at all for SSO accounts. The backend refuses
+                 this outright, and offering the control would suggest an admin
+                 can hand out a way in that survives being disabled in the IdP. */
+              <p className="text-xs text-gray-500 dark:text-neutral-400">
+                This account signs in through your identity provider, so it has no password here.
+                Reset it — or revoke access entirely — in the identity provider.
+              </p>
+            ) : (
+              <>
+                <label className="block text-xs text-gray-500 dark:text-neutral-400 mb-1.5">New password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Min 8 characters"
+                  maxLength={128}
+                  autoComplete="new-password"
+                  className="w-full rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                             text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <div className="mt-2 flex justify-end">
+                  <button
+                    onClick={() => resetMutation.mutate()}
+                    disabled={resetMutation.isPending || newPassword.length < 8}
+                    className="rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white
+                               hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {resetMutation.isPending ? 'Saving…' : 'Reset password'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}

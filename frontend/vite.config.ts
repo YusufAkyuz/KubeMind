@@ -7,22 +7,25 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // changeOrigin: false everywhere, on purpose — matching what
+    // deploy/docker/nginx.conf.template does in the built app (every location
+    // block there sets proxy_set_header Host $host, preserving the original
+    // Host rather than rewriting it to the backend's). Spring computes
+    // absolute URLs it hands back to the browser (OIDC's redirect_uri, and
+    // {baseUrl} in the post-logout redirect) from that Host header. Vite's
+    // default rewrites it to match the proxy target instead, so those URLs
+    // pointed at the bare backend origin (localhost:8080) — which serves no
+    // SPA — rather than back through this dev server. First caught on the
+    // OIDC authorization redirect; recurred on logout via plain /api once
+    // /api was left on Vite's default, which is why it's no longer an
+    // exception here.
     proxy: {
-      '/api': 'http://localhost:8080',
+      '/api': { target: 'http://localhost:8080', changeOrigin: false },
       // WebSocket upgrade for the interactive pod terminal.
-      '/ws': { target: 'ws://localhost:8080', ws: true },
-      // OIDC login (when configured): the browser is redirected here
-      // directly, not fetched via axios, so it needs its own proxy entries
-      // alongside /api rather than falling under it — mirrored in
-      // deploy/docker/nginx.conf.template for the built app.
-      //
-      // changeOrigin: false (unlike /api and /ws, which don't need it) —
-      // Spring computes the OIDC redirect_uri it hands to the IdP from the
-      // request's Host header. Vite's default proxy behavior rewrites that
-      // header to match the target (localhost:8080), so Spring would build a
-      // redirect_uri pointing at the bare backend origin — which serves no
-      // SPA at "/" — instead of back through this dev server. Preserving the
-      // original Host keeps the whole login round-trip on localhost:5173.
+      '/ws': { target: 'ws://localhost:8080', ws: true, changeOrigin: false },
+      // OIDC login: the browser is redirected here directly, not fetched via
+      // axios, so it needs its own entries alongside /api rather than falling
+      // under it.
       '/oauth2': { target: 'http://localhost:8080', changeOrigin: false },
       '/login/oauth2': { target: 'http://localhost:8080', changeOrigin: false },
     },

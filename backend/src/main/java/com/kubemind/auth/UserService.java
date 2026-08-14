@@ -82,11 +82,25 @@ public class UserService {
         }
     }
 
+    /**
+     * Local accounts only. Setting a password on an SSO-provisioned account
+     * would quietly give it a second way in — one the identity provider knows
+     * nothing about and cannot revoke. Disabling someone in the IdP is supposed
+     * to end their access here too; a local password would survive that, which
+     * is the opposite of why SSO was switched on.
+     */
     @Transactional
     public void resetPassword(String actor, long id, String newPassword) {
         User target = userRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         String ref = "User/" + target.getUsername();
+        if (!"local".equals(target.getIdentityProvider())) {
+            var e = new ResponseStatusException(HttpStatus.CONFLICT,
+                "This account signs in through your identity provider — manage its password there. "
+                    + "Setting one here would create a login your IdP cannot revoke.");
+            auditService.record(actor, null, "RESET_USER_PASSWORD", ref, null, false, e.getReason());
+            throw e;
+        }
         target.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(target);
         auditService.record(actor, null, "RESET_USER_PASSWORD", ref, null, true, null);

@@ -20,8 +20,13 @@ import org.springframework.security.authorization.AuthenticatedAuthorizationMana
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
@@ -124,8 +129,7 @@ public class SecurityConfig {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required")))
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
-                .logoutSuccessHandler((request, response, authentication) ->
-                    response.setStatus(HttpServletResponse.SC_OK)));
+                .logoutSuccessHandler(logoutSuccessHandler(oidcRegistrations)));
 
         if (oidcRegistrations != null) {
             http.oauth2Login(oauth2 -> oauth2
@@ -138,6 +142,44 @@ public class SecurityConfig {
         }
 
         return http.build();
+    }
+
+    /**
+     * Ends the identity provider's session too, not just ours.
+     *
+     * Without this, signing out of KubeMind only drops the local session: the
+     * IdP's own SSO cookie survives, so the next "Sign in with SSO" click is
+     * authorized silently and lands straight back in the previous user's
+     * account — on a shared machine, the person after you is you.
+     *
+     * The URL is handed back as JSON rather than sent as a 302 because the SPA
+     * calls logout with axios; a redirect there would be followed by the XHR
+     * and the browser would never leave the page. Local (password) sessions
+     * have no IdP session to end, so they keep the plain 200 they always had.
+     */
+    private LogoutSuccessHandler logoutSuccessHandler(ClientRegistrationRepository oidcRegistrations) {
+        if (oidcRegistrations == null) {
+            return (request, response, authentication) -> response.setStatus(HttpServletResponse.SC_OK);
+        }
+        var oidcLogout = new OidcClientInitiatedLogoutSuccessHandler(oidcRegistrations);
+        // Where the IdP sends the browser once it has ended its own session.
+        // {baseUrl} resolves from the request, so this follows the deployment
+        // (nginx origin in production, the dev server's origin locally).
+        oidcLogout.setPostLogoutRedirectUri("{baseUrl}/login");
+        oidcLogout.setRedirectStrategy((request, response, url) -> {
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.getWriter().write("{\"logoutUrl\":\"" + url.replace("\"", "\\\"") + "\"}");
+        });
+        return (request, response, authentication) -> {
+            boolean fromIdp = authentication instanceof OAuth2AuthenticationToken
+                && authentication.getPrincipal() instanceof OidcUser;
+            if (fromIdp) {
+                oidcLogout.onLogoutSuccess(request, response, authentication);
+            } else {
+                response.setStatus(HttpServletResponse.SC_OK);
+            }
+        };
     }
 
     @Bean
