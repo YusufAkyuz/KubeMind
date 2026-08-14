@@ -22,6 +22,10 @@ export interface AppUser {
   id: number
   username: string
   role: 'ADMIN' | 'USER'
+  /** 'oidc' accounts sign in through the identity provider and have no local
+   *  password — the backend refuses to set one (see UserService.resetPassword),
+   *  since a local password would outlive being disabled in the IdP. */
+  identityProvider: 'local' | 'oidc'
 }
 
 export interface Namespace {
