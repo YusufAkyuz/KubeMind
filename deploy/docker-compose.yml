@@ -39,7 +39,7 @@ services:
       retries: 10
 
   backend:
-    image: kubemind/backend:0.3.0
+    image: kubemind/backend:0.3.1
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,7 +73,7 @@ services:
     #   - ~/.kube/config:/home/kubemind/.kube/config:ro
 
   frontend:
-    image: kubemind/frontend:0.3.0
+    image: kubemind/frontend:0.3.1
     depends_on:
       - backend
     environment:
