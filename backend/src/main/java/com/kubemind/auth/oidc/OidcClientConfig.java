@@ -4,10 +4,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.Nullable;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ClientRegistrations;
-import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 
 import java.util.List;
@@ -32,6 +30,12 @@ import java.util.List;
  * counts as "present" and would still pass, defeating the whole point.
  * KubemindOidcProperties.enabled() is the one place that distinction is made
  * correctly.
+ *
+ * The registration itself is resolved lazily. Discovery is an HTTP call to the
+ * IdP, and making it here — while the context is still coming up — meant an
+ * unreachable IdP failed this bean, failed the context, and stopped the
+ * application booting at all, local password login included. See
+ * LazyClientRegistrationRepository.
  */
 @Configuration
 @EnableConfigurationProperties(KubemindOidcProperties.class)
@@ -45,13 +49,13 @@ public class OidcClientConfig {
         if (!properties.enabled()) {
             return null;
         }
-        ClientRegistration registration = ClientRegistrations.fromIssuerLocation(properties.issuerUri())
-            .registrationId(REGISTRATION_ID)
-            .clientId(properties.clientId())
-            .clientSecret(properties.clientSecret())
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-            .scope(List.of("openid", "profile", "email"))
-            .build();
-        return new InMemoryClientRegistrationRepository(registration);
+        return new LazyClientRegistrationRepository(REGISTRATION_ID, () ->
+            ClientRegistrations.fromIssuerLocation(properties.issuerUri())
+                .registrationId(REGISTRATION_ID)
+                .clientId(properties.clientId())
+                .clientSecret(properties.clientSecret())
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .scope(List.of("openid", "profile", "email"))
+                .build());
     }
 }

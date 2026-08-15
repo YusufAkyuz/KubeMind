@@ -1,11 +1,14 @@
 package com.kubemind.config;
 
 import com.kubemind.auth.oidc.KubemindOidcUserService;
+import com.kubemind.auth.oidc.SsoAvailabilityFilter;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
@@ -46,6 +50,11 @@ import java.util.function.Supplier;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
+    /** Must match the id OidcClientConfig registers the provider under. */
+    private static final String REGISTRATION_ID = "oidc";
 
     /** Denies unconditionally — used to close a route off entirely. */
     private static final AuthorizationManager<RequestAuthorizationContext> DENY =
@@ -132,13 +141,22 @@ public class SecurityConfig {
                 .logoutSuccessHandler(logoutSuccessHandler(oidcRegistrations)));
 
         if (oidcRegistrations != null) {
-            http.oauth2Login(oauth2 -> oauth2
-                .clientRegistrationRepository(oidcRegistrations)
-                .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
-                // Lands back on the SPA's root, exactly like a successful
-                // password login does today; AuthContext's GET /auth/me on
-                // mount resolves the new session the same way either path.
-                .defaultSuccessUrl("/", true));
+            http
+                // Ahead of Spring's authorization redirect filter, which assumes
+                // the registration resolves. With lazy discovery it may not —
+                // an IdP outage has to reach the user as a message, not a 500.
+                .addFilterBefore(new SsoAvailabilityFilter(oidcRegistrations),
+                    OAuth2AuthorizationRequestRedirectFilter.class)
+                .oauth2Login(oauth2 -> oauth2
+                    .clientRegistrationRepository(oidcRegistrations)
+                    .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
+                    // Lands back on the SPA's root, exactly like a successful
+                    // password login does today; AuthContext's GET /auth/me on
+                    // mount resolves the new session the same way either path.
+                    .defaultSuccessUrl("/", true)
+                    // Covers the second half of the round trip: the IdP going
+                    // away between the redirect out and the callback back.
+                    .failureUrl("/login?sso=failed"));
         }
 
         return http.build();
@@ -174,9 +192,19 @@ public class SecurityConfig {
         return (request, response, authentication) -> {
             boolean fromIdp = authentication instanceof OAuth2AuthenticationToken
                 && authentication.getPrincipal() instanceof OidcUser;
-            if (fromIdp) {
+            // The IdP being unreachable must not fail the logout: this session
+            // is already gone either way. Only the provider-side session
+            // survives, and OidcClientInitiatedLogoutSuccessHandler would NPE
+            // on the null registration lazy discovery hands back.
+            boolean idpReachable = fromIdp
+                && oidcRegistrations.findByRegistrationId(REGISTRATION_ID) != null;
+            if (idpReachable) {
                 oidcLogout.onLogoutSuccess(request, response, authentication);
             } else {
+                if (fromIdp) {
+                    log.warn("Signed out locally, but the identity provider was unreachable — "
+                        + "its own session for this user is still open.");
+                }
                 response.setStatus(HttpServletResponse.SC_OK);
             }
         };
