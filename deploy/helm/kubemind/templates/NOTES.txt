@@ -48,5 +48,23 @@ SECURITY REMINDERS
     app, so nothing offers what this role would be refused. Still granted, and
     worth a conscious decision: reading Secrets cluster-wide, and exec into pods.
 {{- end }}
+{{- if .Values.impersonation.enabled }}
+  * IMPERSONATION ON. Calls against the built-in cluster now carry each caller's
+    own identity, so Kubernetes RBAC — not KubeMind — decides what they may do,
+    and the API server's audit log names the real person. That cluster is
+    therefore visible to every logged-in user; what they can actually see and
+    change inside it is whatever you have bound to their name.
+    Users with no binding will find it empty and every action refused. Grant
+    access per user, e.g.:
+      kubectl create rolebinding alice-dev --clusterrole=edit \
+        --user=alice -n dev
+{{- if .Values.impersonation.bootstrapAdminBinding }}
+    "{{ .Values.auth.adminUsername }}" was bound to cluster-admin by this chart
+    (impersonation.bootstrapAdminBinding) so the install stays administrable.
+{{- else }}
+    bootstrapAdminBinding is OFF — bind "{{ .Values.auth.adminUsername }}"
+    yourself or that account cannot administer this cluster either.
+{{- end }}
+{{- end }}
   * Never expose this deployment to the public internet. VPN or IP-allowlisted
     ingress + TLS only.

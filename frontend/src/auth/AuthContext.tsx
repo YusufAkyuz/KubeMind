@@ -47,9 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
-    await api.post('/auth/logout')
+    const res = await api.post<{ logoutUrl?: string }>('/auth/logout')
     setUsername(null)
     setRole(null)
+    // An SSO session also has to be ended at the identity provider, or its
+    // cookie survives and the next "Sign in with SSO" click silently lands back
+    // in this account. The backend hands back where to go (see SecurityConfig);
+    // a full navigation, not a fetch, because the IdP has to see the browser.
+    if (res.data?.logoutUrl) {
+      window.location.href = res.data.logoutUrl
+    }
   }
 
   return (

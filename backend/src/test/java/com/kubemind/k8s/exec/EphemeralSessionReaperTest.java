@@ -42,7 +42,7 @@ class EphemeralSessionReaperTest {
     @BeforeEach
     void setUp() {
         var factory = mock(ClusterClientFactory.class);
-        when(factory.getClient(0L)).thenReturn(client);
+        when(factory.getSystemClient(0L)).thenReturn(client);
         reaper = new EphemeralSessionReaper(factory, mock(ClusterRepository.class));
     }
 

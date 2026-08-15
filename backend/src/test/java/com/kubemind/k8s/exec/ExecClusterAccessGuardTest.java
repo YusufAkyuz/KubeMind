@@ -2,6 +2,7 @@ package com.kubemind.k8s.exec;
 
 import com.kubemind.cluster.Cluster;
 import com.kubemind.cluster.ClusterAccessService;
+import com.kubemind.cluster.ImpersonationProperties;
 import com.kubemind.cluster.ClusterClientFactory;
 import com.kubemind.cluster.ClusterRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +35,7 @@ class ExecClusterAccessGuardTest {
     @BeforeEach
     void setUp() {
         repository = mock(ClusterRepository.class);
-        guard = new ExecClusterAccessGuard(new ClusterAccessService(repository));
+        guard = new ExecClusterAccessGuard(new ClusterAccessService(repository, new ImpersonationProperties(false)));
     }
 
     private static WebSocketSession sessionFor(Principal principal) {

@@ -39,7 +39,7 @@ services:
       retries: 10
 
   backend:
-    image: kubemind/backend:0.3.0
+    image: kubemind/backend:0.3.1
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,6 +58,12 @@ services:
       KUBEMIND_OIDC_CLIENT_SECRET: ${KUBEMIND_OIDC_CLIENT_SECRET:-}
       KUBEMIND_OIDC_GROUPS_CLAIM: ${KUBEMIND_OIDC_GROUPS_CLAIM:-groups}
       KUBEMIND_OIDC_ADMIN_GROUP: ${KUBEMIND_OIDC_ADMIN_GROUP:-}
+      # Kubernetes user impersonation against the built-in cluster (id 0), which
+      # in this mode is whatever kubeconfig is mounted below. Off by default.
+      # Turning it on needs an RBAC binding per user — the local admin included:
+      #   kubectl create clusterrolebinding kubemind-admin \
+      #     --clusterrole=cluster-admin --user=admin
+      KUBEMIND_IMPERSONATION_ENABLED: ${KUBEMIND_IMPERSONATION_ENABLED:-false}
     extra_hosts:
       # Makes host.docker.internal work on Linux too (no-op on Docker Desktop).
       - "host.docker.internal:host-gateway"
@@ -67,7 +73,7 @@ services:
     #   - ~/.kube/config:/home/kubemind/.kube/config:ro
 
   frontend:
-    image: kubemind/frontend:0.3.0
+    image: kubemind/frontend:0.3.1
     depends_on:
       - backend
     environment:

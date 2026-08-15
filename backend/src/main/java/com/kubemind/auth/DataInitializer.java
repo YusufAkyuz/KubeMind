@@ -37,9 +37,34 @@ public class DataInitializer implements CommandLineRunner {
                 + "Set it in backend/.env to create the '{}' user for local login.", adminUsername);
             return;
         }
-        if (userRepository.findByUsername(adminUsername).isEmpty()) {
+        User existing = userRepository.findByUsername(adminUsername).orElse(null);
+        if (existing == null) {
             userRepository.save(new User(adminUsername, passwordEncoder.encode(adminPassword), "ADMIN"));
             log.info("Seeded admin user '{}'.", adminUsername);
+            return;
+        }
+        // The configured password is the source of truth, so changing the Helm
+        // secret (or backend/.env) actually takes effect. Seeding only when the
+        // row was absent meant a database that outlived its configuration —
+        // restored from a backup, or carried to another machine — left nobody
+        // able to log in, with no way back short of editing the table by hand.
+        //
+        // The trade-off, deliberately taken: a password changed through the
+        // Users page reverts to the configured one on the next restart. That is
+        // recoverable; being locked out of your own installation is not.
+        if (!"local".equals(existing.getIdentityProvider())) {
+            // An SSO-provisioned account of the same name must never be handed a
+            // local password here — see UserService.resetPassword for why.
+            log.warn("Admin username '{}' belongs to an SSO-provisioned account; "
+                + "leaving it alone. KUBEMIND_ADMIN_PASSWORD has no effect.", adminUsername);
+            return;
+        }
+        if (!passwordEncoder.matches(adminPassword, existing.getPasswordHash())) {
+            existing.setPasswordHash(passwordEncoder.encode(adminPassword));
+            userRepository.save(existing);
+            log.warn("Admin '{}' did not match KUBEMIND_ADMIN_PASSWORD — reset to the configured value. "
+                + "If you changed it in the UI, change the configuration instead; it wins on every start.",
+                adminUsername);
         }
     }
 }

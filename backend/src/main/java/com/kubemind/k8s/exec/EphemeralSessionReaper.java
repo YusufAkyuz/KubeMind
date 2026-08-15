@@ -91,7 +91,7 @@ public class EphemeralSessionReaper {
      * @return how many objects were deleted, for tests and logging.
      */
     int reap(long clusterId, Instant cutoff) {
-        KubernetesClient client = clientFactory.getClient(clusterId);
+        KubernetesClient client = clientFactory.getSystemClient(clusterId);
         int deleted = 0;
 
         // Two equality selectors rather than one set-based withLabelIn: this code

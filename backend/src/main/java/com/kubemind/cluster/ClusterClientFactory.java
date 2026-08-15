@@ -3,6 +3,8 @@ package com.kubemind.cluster;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.RequestConfig;
+import io.fabric8.kubernetes.client.RequestConfigBuilder;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.security.Principal;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,14 +37,20 @@ public class ClusterClientFactory {
     private final KubernetesClient defaultClient;
     private final ClusterRepository repository;
     private final CryptoService crypto;
+    private final ImpersonationResolver impersonationResolver;
+    private final ImpersonationProperties impersonation;
     private final Map<Long, KubernetesClient> cache = new ConcurrentHashMap<>();
 
     public ClusterClientFactory(KubernetesClient defaultClient,
                                 ClusterRepository repository,
-                                CryptoService crypto) {
+                                CryptoService crypto,
+                                ImpersonationResolver impersonationResolver,
+                                ImpersonationProperties impersonation) {
         this.defaultClient = defaultClient;
         this.repository = repository;
         this.crypto = crypto;
+        this.impersonationResolver = impersonationResolver;
+        this.impersonation = impersonation;
     }
 
     /**
@@ -49,17 +58,77 @@ public class ClusterClientFactory {
      * this cluster at all was already decided upstream by
      * ClusterAccessInterceptor via {@link ClusterAccessService#canRead}.
      *
-     * Cluster 0 is ADMIN-only there — it isn't anyone's kubeconfig, it's the
-     * single identity this installation runs as, usually bound to
-     * cluster-admin. That check lives in ClusterAccessService and nowhere else:
-     * repeating it here would be a second copy to keep in sync, and dropping it
-     * there would hand the management cluster to every account.
+     * For the built-in cluster (id 0) with impersonation enabled, the returned
+     * client acts as the caller rather than as this installation's
+     * ServiceAccount — so Kubernetes RBAC, not the app, decides what the call
+     * may do. Registered clusters (id > 0) are untouched: each already runs
+     * under the kubeconfig its owner supplied, which is per-user by
+     * construction and almost never holds impersonate rights anyway.
      */
     public KubernetesClient getClient(long clusterId) {
-        if (clusterId == DEFAULT_CLUSTER_ID) {
+        if (clusterId != DEFAULT_CLUSTER_ID) {
+            return cache.computeIfAbsent(clusterId, this::buildClient);
+        }
+        if (!impersonation.enabled()) {
             return defaultClient; // no stored credentials — the ambient/in-cluster identity
         }
+        // Fail closed. Falling back to the ServiceAccount here would hand the
+        // caller cluster-admin precisely when we failed to identify them —
+        // the exact leak impersonation exists to prevent. Identity-less
+        // callers that are legitimate (scheduled jobs) say so explicitly via
+        // getSystemClient.
+        ImpersonationResolver.Identity identity = impersonationResolver.currentIdentity()
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Impersonation is enabled but no caller identity is available on this thread"));
+        return impersonating(identity);
+    }
+
+    /**
+     * Caller passed explicitly, for threads SecurityContextHolder knows nothing
+     * about — the WebSocket handlers, which carry the user on
+     * {@code session.getPrincipal()} instead. Fails closed on an unusable
+     * principal for the same reason the no-arg form does.
+     */
+    public KubernetesClient getClient(long clusterId, Principal principal) {
+        if (clusterId != DEFAULT_CLUSTER_ID || !impersonation.enabled()) {
+            return getSystemClient(clusterId);
+        }
+        ImpersonationResolver.Identity identity = impersonationResolver.resolve(principal)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Impersonation is enabled but the caller could not be identified"));
+        return impersonating(identity);
+    }
+
+    /**
+     * The installation's own identity, never impersonated — for scheduled
+     * background work that runs on nobody's behalf (cluster profile refresh,
+     * ephemeral session reaping). Deliberately a separate method rather than a
+     * flag: every bypass of impersonation should be greppable in one search.
+     */
+    public KubernetesClient getSystemClient(long clusterId) {
+        if (clusterId == DEFAULT_CLUSTER_ID) {
+            return defaultClient;
+        }
         return cache.computeIfAbsent(clusterId, this::buildClient);
+    }
+
+    /**
+     * Derived from the cached default client via {@code newClient(RequestConfig)},
+     * which shares its HTTP client and connection pool — so this is cheap enough
+     * to do per call and there is no per-user cache to bound or evict.
+     *
+     * The returned client must NOT be closed: closing it would tear down the
+     * shared HTTP client and break every other caller.
+     */
+    private KubernetesClient impersonating(ImpersonationResolver.Identity identity) {
+        // Derived from the existing request config, not a fresh one: a blank
+        // RequestConfig would silently reset the client's timeouts, watch
+        // reconnect behaviour and retry limits back to Fabric8's defaults.
+        RequestConfig requestConfig = new RequestConfigBuilder(defaultClient.getConfiguration().getRequestConfig())
+            .withImpersonateUsername(identity.username())
+            .withImpersonateGroups(identity.groups().toArray(String[]::new))
+            .build();
+        return defaultClient.newClient(requestConfig).adapt(KubernetesClient.class);
     }
 
     private KubernetesClient buildClient(long clusterId) {

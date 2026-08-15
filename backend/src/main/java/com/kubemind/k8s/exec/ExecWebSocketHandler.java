@@ -86,7 +86,11 @@ public class ExecWebSocketHandler extends TextWebSocketHandler {
         WebSocketSession session = new ConcurrentWebSocketSessionDecorator(rawSession, 5_000, SEND_BUFFER_LIMIT);
 
         try {
-            KubernetesClient client = clientFactory.getClient(clusterId);
+            // Principal passed explicitly: this is a WebSocket thread, so the
+            // caller lives on session.getPrincipal() and SecurityContextHolder
+            // is empty — getClient(clusterId) alone would fail closed here once
+            // impersonation is on.
+            KubernetesClient client = clientFactory.getClient(clusterId, rawSession.getPrincipal());
             var podObj = client.pods().inNamespace(ns).withName(pod).get();
             if (podObj == null) {
                 auditService.record(username, clusterId, "EXEC_POD", ref, null, false, "pod not found");

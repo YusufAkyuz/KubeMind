@@ -1,11 +1,15 @@
 package com.kubemind.config;
 
+import com.kubemind.auth.oidc.KubemindOidcProperties;
 import com.kubemind.auth.oidc.KubemindOidcUserService;
+import com.kubemind.auth.oidc.SsoAvailabilityFilter;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,8 +24,14 @@ import org.springframework.security.authorization.AuthenticatedAuthorizationMana
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
@@ -42,6 +52,11 @@ import java.util.function.Supplier;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
+    /** Must match the id OidcClientConfig registers the provider under. */
+    private static final String REGISTRATION_ID = "oidc";
+
     /** Denies unconditionally — used to close a route off entirely. */
     private static final AuthorizationManager<RequestAuthorizationContext> DENY =
         (authentication, context) -> new AuthorizationDecision(false);
@@ -49,7 +64,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    PrivilegedFeatures privilegedFeatures,
-                                                   ObjectProvider<ClientRegistrationRepository> oidcClientRegistrations,
+                                                   KubemindOidcProperties oidcProperties,
+                                                   ClientRegistrationRepository oidcClientRegistrations,
                                                    KubemindOidcUserService oidcUserService) throws Exception {
         // Built outside the authorizeHttpRequests lambda on purpose: these depend on
         // an install-level flag, and inlining them there would shadow its parameter.
@@ -60,11 +76,11 @@ public class SecurityConfig {
             ? AuthenticatedAuthorizationManager.<RequestAuthorizationContext>authenticated()
             : DENY;
 
-        // Non-null only when kubemind.oidc.issuer-uri is set — see
-        // OidcClientConfig. This is the single "is OIDC configured" check;
-        // AppConfigController asks the same ObjectProvider so the two never
-        // disagree about it.
-        ClientRegistrationRepository oidcRegistrations = oidcClientRegistrations.getIfAvailable();
+        // The repository bean always exists (Spring Security requires it as soon
+        // as its oauth2-client jar is on the classpath); whether it holds any
+        // provider is a property question. AppConfigController asks the same
+        // properties object, so the two can never disagree about it.
+        boolean oidcConfigured = oidcProperties.enabled();
 
         http
             // SPA CSRF setup (Spring Security 6 reference recipe): the token lives in a
@@ -124,20 +140,80 @@ public class SecurityConfig {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required")))
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
-                .logoutSuccessHandler((request, response, authentication) ->
-                    response.setStatus(HttpServletResponse.SC_OK)));
+                .logoutSuccessHandler(logoutSuccessHandler(oidcConfigured, oidcClientRegistrations)));
 
-        if (oidcRegistrations != null) {
-            http.oauth2Login(oauth2 -> oauth2
-                .clientRegistrationRepository(oidcRegistrations)
-                .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
-                // Lands back on the SPA's root, exactly like a successful
-                // password login does today; AuthContext's GET /auth/me on
-                // mount resolves the new session the same way either path.
-                .defaultSuccessUrl("/", true));
+        // Registered unconditionally: it only ever acts on /oauth2/authorization/**,
+        // and those paths need an answer in both shapes of "SSO isn't going to
+        // work" — the provider is configured but unreachable, or it was never
+        // configured and someone reached the URL anyway. Either way a redirect
+        // beats the 500 the bare filter chain produces.
+        http.addFilterBefore(new SsoAvailabilityFilter(oidcClientRegistrations),
+            OAuth2AuthorizationRequestRedirectFilter.class);
+
+        if (oidcConfigured) {
+            http
+                .oauth2Login(oauth2 -> oauth2
+                    .clientRegistrationRepository(oidcClientRegistrations)
+                    .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
+                    // Lands back on the SPA's root, exactly like a successful
+                    // password login does today; AuthContext's GET /auth/me on
+                    // mount resolves the new session the same way either path.
+                    .defaultSuccessUrl("/", true)
+                    // Covers the second half of the round trip: the IdP going
+                    // away between the redirect out and the callback back.
+                    .failureUrl("/login?sso=failed"));
         }
 
         return http.build();
+    }
+
+    /**
+     * Ends the identity provider's session too, not just ours.
+     *
+     * Without this, signing out of KubeMind only drops the local session: the
+     * IdP's own SSO cookie survives, so the next "Sign in with SSO" click is
+     * authorized silently and lands straight back in the previous user's
+     * account — on a shared machine, the person after you is you.
+     *
+     * The URL is handed back as JSON rather than sent as a 302 because the SPA
+     * calls logout with axios; a redirect there would be followed by the XHR
+     * and the browser would never leave the page. Local (password) sessions
+     * have no IdP session to end, so they keep the plain 200 they always had.
+     */
+    private LogoutSuccessHandler logoutSuccessHandler(boolean oidcConfigured,
+                                                     ClientRegistrationRepository oidcRegistrations) {
+        if (!oidcConfigured) {
+            return (request, response, authentication) -> response.setStatus(HttpServletResponse.SC_OK);
+        }
+        var oidcLogout = new OidcClientInitiatedLogoutSuccessHandler(oidcRegistrations);
+        // Where the IdP sends the browser once it has ended its own session.
+        // {baseUrl} resolves from the request, so this follows the deployment
+        // (nginx origin in production, the dev server's origin locally).
+        oidcLogout.setPostLogoutRedirectUri("{baseUrl}/login");
+        oidcLogout.setRedirectStrategy((request, response, url) -> {
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.getWriter().write("{\"logoutUrl\":\"" + url.replace("\"", "\\\"") + "\"}");
+        });
+        return (request, response, authentication) -> {
+            boolean fromIdp = authentication instanceof OAuth2AuthenticationToken
+                && authentication.getPrincipal() instanceof OidcUser;
+            // The IdP being unreachable must not fail the logout: this session
+            // is already gone either way. Only the provider-side session
+            // survives, and OidcClientInitiatedLogoutSuccessHandler would NPE
+            // on the null registration lazy discovery hands back.
+            boolean idpReachable = fromIdp
+                && oidcRegistrations.findByRegistrationId(REGISTRATION_ID) != null;
+            if (idpReachable) {
+                oidcLogout.onLogoutSuccess(request, response, authentication);
+            } else {
+                if (fromIdp) {
+                    log.warn("Signed out locally, but the identity provider was unreachable — "
+                        + "its own session for this user is still open.");
+                }
+                response.setStatus(HttpServletResponse.SC_OK);
+            }
+        };
     }
 
     @Bean

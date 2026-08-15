@@ -84,6 +84,24 @@ kubemind:
     # calls, so KubeMind can run against a ServiceAccount that is NOT cluster-admin.
     # Default true keeps the existing behaviour for current installs.
     enabled: ${KUBEMIND_PRIVILEGED_FEATURES:true}
+  impersonation:
+    # false -> the app acts against the built-in cluster (id 0) as its own
+    # ServiceAccount, and that cluster stays ADMIN-only (no per-user scope
+    # exists to grant). true -> every call carries the caller's own identity via
+    # Impersonate-User/Impersonate-Group, Kubernetes RBAC becomes the authority,
+    # and cluster 0 opens to all authenticated users.
+    #
+    # Off by default because turning it on needs BOTH: a ServiceAccount allowed
+    # to impersonate (restricted mode is not), and an RBAC binding for each
+    # user — including the local admin, who otherwise loses access to cluster 0
+    # the moment this flips. See the chart's impersonation.bootstrapAdminBinding.
+    #
+    # Referenced by name on purpose, like the OIDC block below: spring-dotenv's
+    # .env source is not a SystemEnvironmentPropertySource, so relaxed binding
+    # (KUBEMIND_IMPERSONATION_ENABLED -> kubemind.impersonation.enabled) does
+    # NOT happen automatically — without this line a value set only in
+    # backend/.env is silently invisible.
+    enabled: ${KUBEMIND_IMPERSONATION_ENABLED:false}
   oidc:
     # All blank by default -> OidcClientConfig builds no ClientRegistrationRepository
     # bean at all, which is what actually gates .oauth2Login() in SecurityConfig (a
