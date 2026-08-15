@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { useAuth } from './AuthContext'
 import { useAppConfig } from '../hooks/useAppConfig'
@@ -11,6 +11,12 @@ export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const { data: config } = useAppConfig()
+  // The backend bounces the browser back here with this when the identity
+  // provider can't be reached (SsoAvailabilityFilter) or the round trip failed
+  // partway (oauth2Login's failureUrl). Both are recoverable by using the
+  // password form below, so the message has to say that rather than just fail.
+  const [searchParams] = useSearchParams()
+  const ssoProblem = searchParams.get('sso')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -48,6 +54,15 @@ export function LoginPage() {
           </div>
         </div>
         {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+        {ssoProblem && (
+          <div className="rounded border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10
+                          px-3 py-2 text-sm text-amber-800 dark:text-amber-400">
+            {ssoProblem === 'unavailable'
+              ? "Couldn't reach your identity provider, so SSO is unavailable right now."
+              : 'Signing in with SSO did not complete.'}{' '}
+            Sign in with your username and password below, or try SSO again.
+          </div>
+        )}
         {config?.oidcEnabled && (
           <>
             {/* A plain link, not a fetch: Spring's oauth2Login() DSL owns this

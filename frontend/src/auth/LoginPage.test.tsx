@@ -42,6 +42,44 @@ describe('LoginPage — SSO link visibility', () => {
   })
 })
 
+/**
+ * An identity provider outage used to stop the backend booting entirely. Now it
+ * degrades to this: the page still loads, says what happened, and — the part
+ * that matters — leaves the password form working, since that is the documented
+ * way back in when SSO is broken.
+ */
+describe('LoginPage — identity provider unreachable', () => {
+  it('explains an unavailable identity provider and keeps the password form usable', async () => {
+    mockGet(mockApi, { '/auth/me': new Error('401'), '/config': { privilegedFeatures: false, oidcEnabled: true } })
+    mockApi.post.mockResolvedValue({ data: { username: 'admin', role: 'ADMIN' } })
+    renderWithProviders(<LoginPage />, { route: '/login?sso=unavailable' })
+
+    expect(await screen.findByText(/couldn't reach your identity provider/i)).toBeInTheDocument()
+
+    await userEvent.type(screen.getByPlaceholderText('Username'), 'admin')
+    await userEvent.type(screen.getByPlaceholderText('Password'), 'hunter2')
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await waitFor(() =>
+      expect(mockApi.post).toHaveBeenCalledWith('/auth/login', { username: 'admin', password: 'hunter2' }))
+  })
+
+  it('reports a round trip that did not complete', async () => {
+    mockGet(mockApi, { '/auth/me': new Error('401'), '/config': { privilegedFeatures: false, oidcEnabled: true } })
+    renderWithProviders(<LoginPage />, { route: '/login?sso=failed' })
+
+    expect(await screen.findByText(/did not complete/i)).toBeInTheDocument()
+  })
+
+  it('shows no such message on a normal visit', async () => {
+    mockGet(mockApi, { '/auth/me': new Error('401'), '/config': { privilegedFeatures: false, oidcEnabled: true } })
+    renderWithProviders(<LoginPage />, { route: '/login' })
+
+    await screen.findByText('Sign in with SSO')
+    expect(screen.queryByText(/identity provider/i)).not.toBeInTheDocument()
+  })
+})
+
 describe('LoginPage — password form', () => {
   it('still submits via the local login endpoint regardless of OIDC state', async () => {
     mockGet(mockApi, { '/auth/me': new Error('401'), '/config': { privilegedFeatures: false, oidcEnabled: true } })

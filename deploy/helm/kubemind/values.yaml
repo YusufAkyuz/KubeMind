@@ -58,6 +58,11 @@ auth:
   # Optional OIDC/SSO login, additive to the admin/password login above —
   # both stay available together. Blank issuerUri means OIDC is entirely off,
   # same as leaving KUBEMIND_OIDC_ISSUER_URI unset in backend/.env for local dev.
+  #
+  # An unreachable identity provider does not block startup: discovery happens
+  # on the first SSO click rather than at boot, so a pod restarting during an
+  # IdP outage still comes up and adminPassword above still gets you in. Keep
+  # that password set even when SSO is your normal path — it is the way back in.
   oidc:
     issuerUri: ""
     clientId: ""
