@@ -1,0 +1,49 @@
+# Local Multipass (kubeadm) testing only — NOT a production example.
+#
+# Same intent as kind-values.yaml, adjusted for a cluster of small VMs rather
+# than a single Docker container:
+#
+#   helm install kubemind deploy/helm/kubemind -n kubemind --create-namespace \
+#     -f deploy/multipass-values.yaml \
+#     --set auth.adminPassword=... --set postgresql.password=...
+
+# The bundled Ollama wants a 20Gi volume, ~6Gi of RAM and pulls a ~4.7GB model
+# on first start — more than these VMs should carry when the host already runs
+# Ollama with the models pulled. 192.168.252.1 is the host's address on the
+# Multipass bridge (bridge100), which is how pods reach back out to it.
+#
+# NOTE: Ollama binds to 127.0.0.1 by default, so it is NOT reachable from the
+# cluster until it is restarted with OLLAMA_HOST=0.0.0.0. Until then the AI
+# features error and everything else works.
+ollama:
+  enabled: false
+  external:
+    baseUrl: http://192.168.252.1:11434
+
+# Storage comes from local-path-provisioner, installed separately — a kubeadm
+# cluster ships no StorageClass at all, so without it this PVC never binds.
+postgresql:
+  storage:
+    size: 2Gi
+  resources:
+    requests: { cpu: 50m, memory: 192Mi }
+    limits: { memory: 768Mi }
+
+backend:
+  resources:
+    requests: { cpu: 100m, memory: 384Mi }
+    limits: { memory: 1Gi }
+
+frontend:
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+    limits: { memory: 128Mi }
+
+# Full privilege so the Cluster Terminal, Node Shell and RBAC writes all work
+# here. Impersonation stays off: switching it on makes the seeded admin subject
+# to this cluster's RBAC, which is worth exercising deliberately rather than
+# discovering by accident on a fresh install.
+rbac:
+  clusterAdmin: true
+impersonation:
+  enabled: false

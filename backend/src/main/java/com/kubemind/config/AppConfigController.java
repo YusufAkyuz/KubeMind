@@ -1,8 +1,7 @@
 package com.kubemind.config;
 
 import com.kubemind.cluster.ImpersonationProperties;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import com.kubemind.auth.oidc.KubemindOidcProperties;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,14 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class AppConfigController {
 
     private final PrivilegedFeatures privilegedFeatures;
-    private final ObjectProvider<ClientRegistrationRepository> oidcClientRegistrations;
+    private final KubemindOidcProperties oidcProperties;
     private final ImpersonationProperties impersonation;
 
     public AppConfigController(PrivilegedFeatures privilegedFeatures,
-                               ObjectProvider<ClientRegistrationRepository> oidcClientRegistrations,
+                               KubemindOidcProperties oidcProperties,
                                ImpersonationProperties impersonation) {
         this.privilegedFeatures = privilegedFeatures;
-        this.oidcClientRegistrations = oidcClientRegistrations;
+        this.oidcProperties = oidcProperties;
         this.impersonation = impersonation;
     }
 
@@ -33,10 +32,10 @@ public class AppConfigController {
      *                           the Cluster Terminal, Node Shell and RBAC-object
      *                           writes are switched off server-side, so the UI must
      *                           not offer them.
-     * @param oidcEnabled        true when kubemind.oidc.issuer-uri is set — see
-     *                           OidcClientConfig/SecurityConfig, which check the
-     *                           same bean presence, so this can never disagree
-     *                           with whether /oauth2/authorization/oidc actually works.
+     * @param oidcEnabled        true when kubemind.oidc.issuer-uri is set —
+     *                           SecurityConfig reads the same properties object,
+     *                           so this can never disagree with whether
+     *                           /oauth2/authorization/oidc is actually wired up.
      * @param impersonationEnabled true when calls against the built-in cluster
      *                           carry the caller's own identity. The UI needs it
      *                           to explain why a non-ADMIN can now see that
@@ -48,7 +47,7 @@ public class AppConfigController {
     @GetMapping
     public AppConfigDto config() {
         return new AppConfigDto(privilegedFeatures.isEnabled(),
-            oidcClientRegistrations.getIfAvailable() != null,
+            oidcProperties.enabled(),
             impersonation.enabled());
     }
 }

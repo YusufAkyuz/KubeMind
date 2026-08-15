@@ -1,5 +1,6 @@
 package com.kubemind.config;
 
+import com.kubemind.auth.oidc.KubemindOidcProperties;
 import com.kubemind.auth.oidc.KubemindOidcUserService;
 import com.kubemind.auth.oidc.SsoAvailabilityFilter;
 import jakarta.servlet.DispatcherType;
@@ -63,7 +64,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    PrivilegedFeatures privilegedFeatures,
-                                                   ObjectProvider<ClientRegistrationRepository> oidcClientRegistrations,
+                                                   KubemindOidcProperties oidcProperties,
+                                                   ClientRegistrationRepository oidcClientRegistrations,
                                                    KubemindOidcUserService oidcUserService) throws Exception {
         // Built outside the authorizeHttpRequests lambda on purpose: these depend on
         // an install-level flag, and inlining them there would shadow its parameter.
@@ -74,11 +76,11 @@ public class SecurityConfig {
             ? AuthenticatedAuthorizationManager.<RequestAuthorizationContext>authenticated()
             : DENY;
 
-        // Non-null only when kubemind.oidc.issuer-uri is set — see
-        // OidcClientConfig. This is the single "is OIDC configured" check;
-        // AppConfigController asks the same ObjectProvider so the two never
-        // disagree about it.
-        ClientRegistrationRepository oidcRegistrations = oidcClientRegistrations.getIfAvailable();
+        // The repository bean always exists (Spring Security requires it as soon
+        // as its oauth2-client jar is on the classpath); whether it holds any
+        // provider is a property question. AppConfigController asks the same
+        // properties object, so the two can never disagree about it.
+        boolean oidcConfigured = oidcProperties.enabled();
 
         http
             // SPA CSRF setup (Spring Security 6 reference recipe): the token lives in a
@@ -138,17 +140,20 @@ public class SecurityConfig {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required")))
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
-                .logoutSuccessHandler(logoutSuccessHandler(oidcRegistrations)));
+                .logoutSuccessHandler(logoutSuccessHandler(oidcConfigured, oidcClientRegistrations)));
 
-        if (oidcRegistrations != null) {
+        // Registered unconditionally: it only ever acts on /oauth2/authorization/**,
+        // and those paths need an answer in both shapes of "SSO isn't going to
+        // work" — the provider is configured but unreachable, or it was never
+        // configured and someone reached the URL anyway. Either way a redirect
+        // beats the 500 the bare filter chain produces.
+        http.addFilterBefore(new SsoAvailabilityFilter(oidcClientRegistrations),
+            OAuth2AuthorizationRequestRedirectFilter.class);
+
+        if (oidcConfigured) {
             http
-                // Ahead of Spring's authorization redirect filter, which assumes
-                // the registration resolves. With lazy discovery it may not —
-                // an IdP outage has to reach the user as a message, not a 500.
-                .addFilterBefore(new SsoAvailabilityFilter(oidcRegistrations),
-                    OAuth2AuthorizationRequestRedirectFilter.class)
                 .oauth2Login(oauth2 -> oauth2
-                    .clientRegistrationRepository(oidcRegistrations)
+                    .clientRegistrationRepository(oidcClientRegistrations)
                     .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
                     // Lands back on the SPA's root, exactly like a successful
                     // password login does today; AuthContext's GET /auth/me on
@@ -175,8 +180,9 @@ public class SecurityConfig {
      * and the browser would never leave the page. Local (password) sessions
      * have no IdP session to end, so they keep the plain 200 they always had.
      */
-    private LogoutSuccessHandler logoutSuccessHandler(ClientRegistrationRepository oidcRegistrations) {
-        if (oidcRegistrations == null) {
+    private LogoutSuccessHandler logoutSuccessHandler(boolean oidcConfigured,
+                                                     ClientRegistrationRepository oidcRegistrations) {
+        if (!oidcConfigured) {
             return (request, response, authentication) -> response.setStatus(HttpServletResponse.SC_OK);
         }
         var oidcLogout = new OidcClientInitiatedLogoutSuccessHandler(oidcRegistrations);
