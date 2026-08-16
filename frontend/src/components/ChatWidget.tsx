@@ -3,9 +3,9 @@ import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
-import { streamText } from '../utils/streamFetch'
+import { StreamHttpError, streamText } from '../utils/streamFetch'
 import { renderLiteMarkdown } from '../utils/markdownLite'
-import { IconHistory, IconPlus, IconSparkles, IconX, Logo } from './Icons'
+import { IconHistory, IconPlus, IconSparkles, IconSpinner, IconX, Logo } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { useChatPanel } from '../chat/ChatPanelContext'
 import { ChatHistoryList } from '../chat/ChatHistoryList'
@@ -14,6 +14,31 @@ import { useRightReserve } from '../layout/RightReserveContext'
 import { AiFeedbackButtons } from './AiFeedbackButtons'
 import { randomId } from '../utils/id'
 import type { Cluster } from '../types/k8s'
+
+/**
+ * The one signal that the model is actually working. `role="status"` announces
+ * it once to a screen reader; the dots themselves are decorative, so they stay
+ * out of the accessibility tree rather than being read as three empty spans.
+ */
+function TypingDots({ className = '' }: { className?: string }) {
+  return (
+    <span
+      role="status"
+      aria-label="Generating response"
+      className={`inline-flex items-center gap-1 ${className}`}
+    >
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          aria-hidden
+          // Staggered so the three read as one travelling wave rather than a blink.
+          style={{ animationDelay: `${i * 160}ms` }}
+          className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-neutral-400 animate-typing-dot"
+        />
+      ))}
+    </span>
+  )
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -165,6 +190,47 @@ export function ChatWidget() {
     }
   }
 
+  /** One request/response round trip, streamed into the last message bubble.
+   *  Separate from send() so a turn can be replayed against a fresh session
+   *  without re-running the optimistic bubble setup. */
+  const streamTurn = async (cluster: string, session: string | null, text: string) => {
+    // Only the new question goes over the wire — the server reads the rest of
+    // the conversation back from the session it owns.
+    await streamText(
+      `/api/clusters/${cluster}/chat`,
+      { sessionId: session, message: text },
+      (chunk) => {
+        setMessages((prev) => {
+          const next = [...prev]
+          next[next.length - 1] = {
+            ...next[next.length - 1],
+            content: next[next.length - 1].content + chunk,
+          }
+          return next
+        })
+      },
+      {
+        // Both ids arrive before the first token. The session id is what turns
+        // the next message into a continuation instead of a second orphan
+        // conversation; the message id is the row this answer will be stored
+        // under, so a rating filed on the bubble below points at real content
+        // rather than a throwaway client id.
+        onResponse: (res) => {
+          const id = res.headers.get('X-Chat-Session-Id')
+          if (id) setSessionId(id)
+          const messageId = res.headers.get('X-Chat-Message-Id')
+          if (messageId) {
+            setMessages((prev) => {
+              const next = [...prev]
+              next[next.length - 1] = { ...next[next.length - 1], id: messageId }
+              return next
+            })
+          }
+        },
+      },
+    )
+  }
+
   const send = async () => {
     const text = input.trim()
     if (!text || streaming || !clusterId) return
@@ -178,42 +244,21 @@ export function ChatWidget() {
     setStreaming(true)
 
     try {
-      // Only the new question goes over the wire — the server reads the rest of
-      // the conversation back from the session it owns.
-      const payload = { sessionId, message: text }
-      await streamText(
-        `/api/clusters/${clusterId}/chat`,
-        payload,
-        (chunk) => {
-          setMessages((prev) => {
-            const next = [...prev]
-            next[next.length - 1] = {
-              ...next[next.length - 1],
-              content: next[next.length - 1].content + chunk,
-            }
-            return next
-          })
-        },
-        {
-          // Both ids arrive before the first token. The session id is what turns
-          // the next message into a continuation instead of a second orphan
-          // conversation; the message id is the row this answer will be stored
-          // under, so a rating filed on the bubble below points at real content
-          // rather than a throwaway client id.
-          onResponse: (res) => {
-            const id = res.headers.get('X-Chat-Session-Id')
-            if (id) setSessionId(id)
-            const messageId = res.headers.get('X-Chat-Message-Id')
-            if (messageId) {
-              setMessages((prev) => {
-                const next = [...prev]
-                next[next.length - 1] = { ...next[next.length - 1], id: messageId }
-                return next
-              })
-            }
-          },
-        },
-      )
+      try {
+        await streamTurn(clusterId, sessionId, text)
+      } catch (e) {
+        // The conversation is gone server-side — deleted from another tab, or by
+        // this user on another device. The stale id would otherwise 404 every
+        // further message in this panel, with "New chat" as the only way out.
+        // Our own bookkeeping shouldn't cost the user their question, so resend
+        // it once as a new conversation.
+        if (e instanceof StreamHttpError && e.status === 404 && sessionId) {
+          setSessionId(null)
+          await streamTurn(clusterId, null, text)
+        } else {
+          throw e
+        }
+      }
     } catch (e) {
       setMessages((prev) => {
         const next = [...prev]
@@ -364,9 +409,18 @@ export function ChatWidget() {
                     : 'bg-gray-100 dark:bg-neutral-700 text-gray-800 dark:text-neutral-200'
                 }`}
               >
-                {m.role === 'assistant'
-                  ? (m.content ? renderLiteMarkdown(m.content) : (streaming ? '…' : ''))
-                  : m.content}
+                {m.role === 'assistant' ? (
+                  <>
+                    {m.content && renderLiteMarkdown(m.content)}
+                    {/* Stays up for the whole turn, not just the empty wait: once
+                        text starts arriving it trails below as the "there is more
+                        coming" signal, and it sits outside the markdown output so
+                        no code fence or bullet list can displace it. */}
+                    {streaming && i === messages.length - 1 && (
+                      <TypingDots className={m.content ? 'mt-2' : ''} />
+                    )}
+                  </>
+                ) : m.content}
               </div>
               {m.role === 'assistant' && m.content && clusterId
                 && !(streaming && i === messages.length - 1) && (
@@ -396,10 +450,14 @@ export function ChatWidget() {
             <button
               onClick={send}
               disabled={streaming || !input.trim() || !clusterId}
-              className="shrink-0 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white
+              // Only labelled while streaming — otherwise the visible "Send" text
+              // is the accessible name, and overriding it would be noise.
+              aria-label={streaming ? 'Generating response' : undefined}
+              className="shrink-0 inline-flex items-center justify-center min-w-[4rem] rounded-md bg-blue-600 px-3 py-2
+                         text-sm font-medium text-white
                          hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {streaming ? '…' : 'Send'}
+              {streaming ? <IconSpinner className="w-4 h-4" /> : 'Send'}
             </button>
           </div>
           <p className="mt-1.5 text-[10px] text-gray-400 dark:text-neutral-500">AI-generated — verify before acting.</p>

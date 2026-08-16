@@ -14,6 +14,31 @@
   animation: toast-in 0.2s ease-out;
 }
 
+/* "The model is working on it" — three dots rising and fading in sequence,
+   shown from the moment a chat turn is sent until its last token lands. It
+   replaced a static "…", which was indistinguishable from a request that had
+   silently stalled: with a local model the wait before the first token can run
+   to several seconds, and a frozen ellipsis reads as a hang. */
+@keyframes typing-dot {
+  0%, 70%, 100% { opacity: 0.3; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-3px); }
+}
+.animate-typing-dot {
+  animation: typing-dot 1.3s ease-in-out infinite;
+}
+
+/* Motion-sensitive users still need the "still working" signal, so keep the
+   sequence and drop only the movement — an opacity cycle is not motion. */
+@keyframes typing-dot-still {
+  0%, 70%, 100% { opacity: 0.3; }
+  35% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-typing-dot {
+    animation-name: typing-dot-still;
+  }
+}
+
 /* Sidebar nav scrollbar: invisible at rest (blends with the neutral-900 sidebar
    background), fades in only while actively scrolling, fades back out ~1s after
    the last scroll event (see the .is-scrolling toggle in components/Sidebar.tsx). */

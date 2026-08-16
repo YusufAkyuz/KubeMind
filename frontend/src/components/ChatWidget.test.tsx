@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ChatWidget } from './ChatWidget'
+import { StreamHttpError } from '../utils/streamFetch'
 import { renderWithProviders } from '../test/renderWithProviders'
 import { mockGet } from '../test/mockApi'
 
@@ -12,7 +13,11 @@ const { mockApi, mockStream } = vi.hoisted(() => ({
 vi.mock('../api/client', () => ({ api: mockApi, apiErrorMessage: () => 'error' }))
 // The chat send path goes through fetch(), not the axios instance, so it needs
 // its own stand-in — one that also plays back the session-id response header.
-vi.mock('../utils/streamFetch', () => ({ streamText: mockStream }))
+// StreamHttpError stays real — the recovery path branches on `instanceof`.
+vi.mock('../utils/streamFetch', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/streamFetch')>()
+  return { ...actual, streamText: mockStream }
+})
 
 const OWNED_CLUSTER = { id: 5, name: 'eba-ex', status: 'APPROVED', builtIn: false }
 const SESSIONS = [
@@ -223,6 +228,99 @@ describe('ChatWidget — saved conversations', () => {
     // A blank title would leave a row nobody can identify in the list.
     expect(mockApi.patch).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.getByText('Why is payments crashing?')).toBeInTheDocument())
+  })
+
+  /**
+   * The wait before a local model's first token runs to several seconds, during
+   * which the bubble used to hold a static "…" — indistinguishable from a
+   * request that had stalled. The indicator has to survive the whole turn, not
+   * just the empty part, and has to be gone once the answer is final.
+   */
+  it('shows a generating indicator for the whole turn and drops it when the answer lands', async () => {
+    await openPanel([])
+    let finishStream: () => void = () => {}
+    mockStream.mockImplementation(
+      async (
+        _url: string,
+        _body: unknown,
+        onChunk: (c: string) => void,
+        options?: { onResponse?: (res: Response) => void },
+      ) => {
+        options?.onResponse?.({
+          headers: { get: (h: string) => (h === 'X-Chat-Session-Id' ? 'sess-1' : 'live-msg-1') },
+        } as unknown as Response)
+        await new Promise<void>((resolve) => {
+          finishStream = () => { onChunk('partial answer'); resolve() }
+        })
+      },
+    )
+
+    await userEvent.type(screen.getByPlaceholderText('Ask anything…'), 'slow question')
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    // Nothing has streamed yet: the indicator is the only thing in the bubble.
+    await waitFor(() => expect(screen.getByRole('status', { name: 'Generating response' })).toBeInTheDocument())
+
+    // act() because the chunk lands from outside React's event loop here, the
+    // way a real network chunk does.
+    await act(async () => { finishStream() })
+
+    // Text arrived and the turn is done — the indicator must not linger.
+    await waitFor(() => expect(screen.getByText('partial answer')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.queryByRole('status', { name: 'Generating response' })).not.toBeInTheDocument())
+  })
+
+  /**
+   * Found live: deleting a conversation elsewhere (another tab, another device)
+   * left this panel holding the dead id, and every further message 404'd
+   * forever — "New chat" was the only escape, and the question the user had
+   * just typed was lost to an error bubble. A stale id is our bookkeeping
+   * problem, so the turn is replayed once as a new conversation.
+   */
+  it('recovers when the conversation was deleted somewhere else mid-chat', async () => {
+    await openPanel()
+    await userEvent.click(screen.getByLabelText('Chat history'))
+    await waitFor(() => expect(screen.getByText('Why is payments crashing?')).toBeInTheDocument())
+    await userEvent.click(screen.getByText('Why is payments crashing?'))
+    await waitFor(() => expect(screen.getByText('It is OOMKilled.')).toBeInTheDocument())
+
+    // The server no longer knows this session; the retry against a fresh one works.
+    mockStream
+      .mockRejectedValueOnce(new StreamHttpError(404, 'Request failed (404)'))
+      .mockImplementationOnce(async (
+        _url: string,
+        _body: unknown,
+        onChunk: (c: string) => void,
+        options?: { onResponse?: (res: Response) => void },
+      ) => {
+        options?.onResponse?.({
+          headers: { get: (h: string) => (h === 'X-Chat-Session-Id' ? 'sess-new' : 'live-msg-1') },
+        } as unknown as Response)
+        onChunk('answered anyway')
+      })
+
+    await userEvent.type(screen.getByPlaceholderText('Ask anything…'), 'and now?')
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => expect(mockStream).toHaveBeenCalledTimes(2))
+    expect(mockStream.mock.calls[0][1]).toEqual({ sessionId: 'sess-1', message: 'and now?' })
+    // Replayed without the dead id rather than surfaced as a dead end.
+    expect(mockStream.mock.calls[1][1]).toEqual({ sessionId: null, message: 'and now?' })
+    await waitFor(() => expect(screen.getByText('answered anyway')).toBeInTheDocument())
+    expect(screen.queryByText(/Request failed/)).not.toBeInTheDocument()
+  })
+
+  it('still surfaces failures that are not a vanished conversation', async () => {
+    await openPanel([])
+    mockStream.mockRejectedValue(new StreamHttpError(502, 'Request failed (502)'))
+
+    await userEvent.type(screen.getByPlaceholderText('Ask anything…'), 'question')
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    // One attempt only — retrying a 502 against a new session would not help.
+    await waitFor(() => expect(screen.getByText('[Request failed (502)]')).toBeInTheDocument())
+    expect(mockStream).toHaveBeenCalledTimes(1)
   })
 
   it('clears the panel when the chat being deleted is the one on screen', async () => {
