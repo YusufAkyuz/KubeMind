@@ -4,6 +4,15 @@ function csrfToken(): string {
   return match ? decodeURIComponent(match.split('=')[1]) : ''
 }
 
+/** Carries the status so a caller can tell "the thing is gone" (404) apart from
+ *  a generic failure and recover, instead of only having a message to show. */
+export class StreamHttpError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message)
+    this.name = 'StreamHttpError'
+  }
+}
+
 interface StreamOptions {
   signal?: AbortSignal
   /** Called once the response headers arrive, before the first chunk. Chat uses
@@ -31,7 +40,10 @@ export async function streamText(
     signal,
   })
   if (!res.ok || !res.body) {
-    throw new Error(res.status === 403 ? 'Not authorized' : `Request failed (${res.status})`)
+    throw new StreamHttpError(
+      res.status,
+      res.status === 403 ? 'Not authorized' : `Request failed (${res.status})`,
+    )
   }
   onResponse?.(res)
 
