@@ -156,7 +156,8 @@ export function HelmChartsPage() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') setSearchTerm(query.trim()) }}
             placeholder="Search charts, e.g. nginx"
-            className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 pl-9 pr-3 py-2 text-sm
+            className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                       text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 pl-9 pr-3 py-2 text-sm
                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -220,7 +221,8 @@ export function HelmChartsPage() {
             <input
               type="text" value={repoName} onChange={(e) => setRepoName(e.target.value)}
               placeholder="bitnami"
-              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                         text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -229,7 +231,8 @@ export function HelmChartsPage() {
             <input
               type="text" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)}
               placeholder="https://charts.bitnami.com/bitnami"
-              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                         text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -254,7 +257,8 @@ export function HelmChartsPage() {
             <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">Release name</label>
             <input
               type="text" value={releaseName} onChange={(e) => setReleaseName(e.target.value)}
-              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
+              className="w-full rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                         text-gray-900 dark:text-neutral-100 px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
