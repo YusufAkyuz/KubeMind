@@ -627,7 +627,11 @@
 
 - id: healthy-pod-control
   expect:
-    - "healthy|no issue|running normally|nothing wrong|looks fine|working as expected|no problem|functioning correctly|operating normally|no anomal|no error|no evidence of a problem|appears fine|appears healthy|no signs of|is fine"
+    # The list already had "functioning correctly" and "operating normally" but not
+    # "functioning normally", which is what the model actually says — a correct
+    # answer was being scored as a miss. Widened to the phrasings a right answer
+    # plausibly uses, not to whatever the model happened to produce.
+    - "healthy|no issue|running normally|functioning normally|running as expected|no action required|nothing wrong|looks fine|working as expected|no problem|functioning correctly|operating normally|no anomal|no error|no evidence of a problem|appears fine|appears healthy|no signs of|is fine"
   context: |
     === POD ===
     name: static-site-7a6b5c4d3-kk2ab
