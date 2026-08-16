@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { streamText } from '../utils/streamFetch'
 import { renderLiteMarkdown } from '../utils/markdownLite'
-import { IconSparkles, IconX, Logo } from './Icons'
+import { IconHistory, IconPlus, IconSparkles, IconX, Logo } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { useChatPanel } from '../chat/ChatPanelContext'
+import { ChatHistoryList } from '../chat/ChatHistoryList'
+import { deleteChatSession, fetchTranscript, useChatSessions, useRefreshChatSessions } from '../chat/useChatSessions'
 import { useRightReserve } from '../layout/RightReserveContext'
 import { AiFeedbackButtons } from './AiFeedbackButtons'
 import { randomId } from '../utils/id'
@@ -16,9 +18,11 @@ import type { Cluster } from '../types/k8s'
 interface Message {
   role: 'user' | 'assistant'
   content: string
-  /** Client-generated — chat has no server-side record to key feedback on (it's
-   *  stateless streaming; see ChatController), so this id exists purely to give
-   *  AiFeedbackButtons a stable contextHash per assistant answer. */
+  /** The persisted chat_messages id for anything loaded from history, and a
+   *  client-generated stand-in for a turn that is still streaming (the server
+   *  only writes the answer once it is complete, so there is no id to hand
+   *  back mid-stream). Either way it gives AiFeedbackButtons a stable
+   *  contextHash per answer. */
   id: string
 }
 
@@ -29,6 +33,10 @@ export function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
+  /** null = a new conversation that has not been saved yet. */
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const terminalPanel = useTerminalPanel()
   // The bottom-docked terminal (see terminal/TerminalPanel.tsx) sits on top of everything —
@@ -61,6 +69,25 @@ export function ChatWidget() {
     staleTime: 30_000,
   })
   const clusterId = clusterMatch ? clusterMatch[1] : clusters?.[0] ? String(clusters[0].id) : null
+
+  const sessionsQuery = useChatSessions(clusterId, chatPanel.isOpen)
+  const refreshSessions = useRefreshChatSessions(clusterId)
+
+  const startNewChat = useCallback(() => {
+    setMessages([])
+    setSessionId(null)
+    setInput('')
+    setHistoryOpen(false)
+    setLoadError(null)
+  }, [])
+
+  // A session belongs to the cluster it was started against — the server serves
+  // it under that cluster's URL and nowhere else. Following the user to another
+  // cluster with a stale session id would just 404 on their next message, so
+  // switching clusters starts a fresh conversation instead.
+  useEffect(() => {
+    startNewChat()
+  }, [clusterId, startNewChat])
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -103,27 +130,70 @@ export function ChatWidget() {
   // Only for authenticated users
   if (!username || location.pathname === '/login') return null
 
+  const openSession = async (id: string) => {
+    if (!clusterId) return
+    setHistoryOpen(false)
+    setLoadError(null)
+    try {
+      const transcript = await fetchTranscript(clusterId, id)
+      setMessages(transcript.map((m) => ({ id: m.id, role: m.role, content: m.content })))
+      setSessionId(id)
+    } catch {
+      setLoadError('Could not open that chat.')
+    }
+  }
+
+  const removeSession = async (id: string) => {
+    if (!clusterId) return
+    try {
+      await deleteChatSession(clusterId, id)
+      // Deleting the conversation on screen leaves nothing to continue.
+      if (id === sessionId) startNewChat()
+      refreshSessions()
+    } catch {
+      setLoadError('Could not delete that chat.')
+    }
+  }
+
   const send = async () => {
     const text = input.trim()
     if (!text || streaming || !clusterId) return
 
-    const history: Message[] = [...messages, { role: 'user', content: text, id: randomId() }]
-    setMessages([...history, { role: 'assistant', content: '', id: randomId() }])
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: text, id: randomId() },
+      { role: 'assistant', content: '', id: randomId() },
+    ])
     setInput('')
     setStreaming(true)
 
     try {
-      const payload = { messages: history.map(({ role, content }) => ({ role, content })) }
-      await streamText(`/api/clusters/${clusterId}/chat`, payload, (chunk) => {
-        setMessages((prev) => {
-          const next = [...prev]
-          next[next.length - 1] = {
-            ...next[next.length - 1],
-            content: next[next.length - 1].content + chunk,
-          }
-          return next
-        })
-      })
+      // Only the new question goes over the wire — the server reads the rest of
+      // the conversation back from the session it owns.
+      const payload = { sessionId, message: text }
+      await streamText(
+        `/api/clusters/${clusterId}/chat`,
+        payload,
+        (chunk) => {
+          setMessages((prev) => {
+            const next = [...prev]
+            next[next.length - 1] = {
+              ...next[next.length - 1],
+              content: next[next.length - 1].content + chunk,
+            }
+            return next
+          })
+        },
+        {
+          // A brand-new conversation gets its id back in the response headers,
+          // before the first token — that's what turns the next message into a
+          // continuation instead of a second orphan session.
+          onResponse: (res) => {
+            const id = res.headers.get('X-Chat-Session-Id')
+            if (id) setSessionId(id)
+          },
+        },
+      )
     } catch (e) {
       setMessages((prev) => {
         const next = [...prev]
@@ -135,6 +205,9 @@ export function ChatWidget() {
       })
     } finally {
       setStreaming(false)
+      // The title of a new session, and the ordering of an existing one, only
+      // settle once the turn is written — so refresh the list after, not during.
+      refreshSessions()
     }
   }
 
@@ -192,19 +265,63 @@ export function ChatWidget() {
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
-          <div className="flex items-center gap-2">
-            <Logo className="w-5 h-5" />
-            <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100">KubeMind Assistant</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <Logo className="w-5 h-5 shrink-0" />
+            <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate">
+              {historyOpen ? 'Chat history' : 'KubeMind Assistant'}
+            </span>
           </div>
-          <button
-            onClick={chatPanel.close}
-            className="p-1 rounded-md text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
-            aria-label="Close"
-          >
-            <IconX className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-0.5 shrink-0">
+            {!historyOpen && messages.length > 0 && (
+              <button
+                onClick={startNewChat}
+                title="New chat"
+                aria-label="New chat"
+                className="p-1.5 rounded-md text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
+              >
+                <IconPlus className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={() => setHistoryOpen((o) => !o)}
+              title={historyOpen ? 'Back to chat' : 'Chat history'}
+              aria-label={historyOpen ? 'Back to chat' : 'Chat history'}
+              className={`p-1.5 rounded-md transition-colors ${
+                historyOpen
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+                  : 'text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700'
+              }`}
+            >
+              <IconHistory className="w-4 h-4" />
+            </button>
+            <button
+              onClick={chatPanel.close}
+              className="p-1.5 rounded-md text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
+              aria-label="Close"
+            >
+              <IconX className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
+        {loadError && (
+          <p className="px-4 py-2 text-xs text-red-600 dark:text-red-400 border-b border-gray-200 dark:border-neutral-700">
+            {loadError}
+          </p>
+        )}
+
+        {historyOpen ? (
+          <ChatHistoryList
+            sessions={sessionsQuery.data}
+            isLoading={sessionsQuery.isLoading}
+            isError={sessionsQuery.isError}
+            activeSessionId={sessionId}
+            onSelect={openSession}
+            onDelete={removeSession}
+            onNewChat={startNewChat}
+          />
+        ) : (
+        <>
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {messages.length === 0 && (
@@ -266,6 +383,8 @@ export function ChatWidget() {
           </div>
           <p className="mt-1.5 text-[10px] text-gray-400 dark:text-neutral-500">AI-generated — verify before acting.</p>
         </div>
+        </>
+        )}
       </div>
     </>
   )
