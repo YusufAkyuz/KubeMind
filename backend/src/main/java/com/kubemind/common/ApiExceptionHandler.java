@@ -97,7 +97,20 @@ public class ApiExceptionHandler {
     // Without this, the generic Exception handler below would swallow deliberate
     // 404/400/503 responses thrown as ResponseStatusException and turn them into 500s.
     @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<Map<String, String>> handleResponseStatus(ResponseStatusException ex) {
+    public ResponseEntity<Map<String, String>> handleResponseStatus(ResponseStatusException ex,
+                                                                     HttpServletResponse response) {
+        if (response.isCommitted()) {
+            // SSE / streaming endpoint already committed a text/event-stream (or similar)
+            // Content-Type — writing a JSON Map body would throw
+            // HttpMessageNotWritableException ("No converter for Map with preset
+            // Content-Type 'text/event-stream'"), which itself cascades into
+            // IllegalStateException ("Cannot call sendError() after the response has been
+            // committed"). Those endpoints handle their own in-band error events; nothing
+            // more to do here.
+            log.warn("ResponseStatusException after response committed ({}): {}",
+                ex.getStatusCode(), ex.getReason());
+            return null;
+        }
         return ResponseEntity.status(ex.getStatusCode())
             .body(Map.of("error", ex.getReason() != null ? ex.getReason() : ex.getMessage()));
     }
