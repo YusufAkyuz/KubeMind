@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useAuth } from '../auth/AuthContext'
 
 export type TerminalSession =
   | { id: string; type: 'pod'; clusterId: string; ns: string; pod: string; containers: string[]; container: string }
@@ -44,6 +45,7 @@ const STORAGE_KEY = 'kubemind.terminalPanelHeight'
  * WebSocket survives page navigation, not just the active one.
  */
 export function TerminalPanelProvider({ children }: { children: ReactNode }) {
+  const { username } = useAuth()
   const [sessions, setSessions] = useState<TerminalSession[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [isMinimized, setIsMinimized] = useState(false)
@@ -51,6 +53,22 @@ export function TerminalPanelProvider({ children }: { children: ReactNode }) {
     const stored = Number(localStorage.getItem(STORAGE_KEY))
     return stored && stored >= MIN_HEIGHT ? stored : DEFAULT_HEIGHT
   })
+
+  // Every session here is a live, privileged WebSocket — the Cluster Terminal
+  // one holds cluster-admin for as long as its tab stays open. This provider
+  // deliberately lives above <Routes> so tabs survive page navigation (see the
+  // class doc below), but that same persistence let a session outlive its
+  // owner: logging out — or a different person logging into the same tab
+  // afterward, without a page reload — left the previous account's terminal
+  // dock, and its command transcript, sitting on screen. Closing every
+  // session on any identity change (including the null "signed out" state)
+  // tears down their WebSockets too, via useWsTerminal's own unmount cleanup
+  // in TerminalSessionView — this doesn't reach into the socket directly, it
+  // just stops rendering the tab that owns it.
+  useEffect(() => {
+    setSessions([])
+    setActiveId(null)
+  }, [username])
 
   /** Adds the session if it's not already open (by id), then activates it either way. */
   const openOrActivate = useCallback((session: TerminalSession) => {
