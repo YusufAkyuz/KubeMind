@@ -9,7 +9,7 @@ import { IconHistory, IconPlus, IconSparkles, IconX, Logo } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { useChatPanel } from '../chat/ChatPanelContext'
 import { ChatHistoryList } from '../chat/ChatHistoryList'
-import { deleteChatSession, fetchTranscript, useChatSessions, useRefreshChatSessions } from '../chat/useChatSessions'
+import { deleteChatSession, fetchTranscript, renameChatSession, useChatSessions, useRefreshChatSessions } from '../chat/useChatSessions'
 import { useRightReserve } from '../layout/RightReserveContext'
 import { AiFeedbackButtons } from './AiFeedbackButtons'
 import { randomId } from '../utils/id'
@@ -143,6 +143,16 @@ export function ChatWidget() {
     }
   }
 
+  const renameSession = async (id: string, title: string) => {
+    if (!clusterId) return
+    try {
+      await renameChatSession(clusterId, id, title)
+      refreshSessions()
+    } catch {
+      setLoadError('Could not rename that chat.')
+    }
+  }
+
   const removeSession = async (id: string) => {
     if (!clusterId) return
     try {
@@ -185,12 +195,22 @@ export function ChatWidget() {
           })
         },
         {
-          // A brand-new conversation gets its id back in the response headers,
-          // before the first token — that's what turns the next message into a
-          // continuation instead of a second orphan session.
+          // Both ids arrive before the first token. The session id is what turns
+          // the next message into a continuation instead of a second orphan
+          // conversation; the message id is the row this answer will be stored
+          // under, so a rating filed on the bubble below points at real content
+          // rather than a throwaway client id.
           onResponse: (res) => {
             const id = res.headers.get('X-Chat-Session-Id')
             if (id) setSessionId(id)
+            const messageId = res.headers.get('X-Chat-Message-Id')
+            if (messageId) {
+              setMessages((prev) => {
+                const next = [...prev]
+                next[next.length - 1] = { ...next[next.length - 1], id: messageId }
+                return next
+              })
+            }
           },
         },
       )
@@ -318,6 +338,7 @@ export function ChatWidget() {
             activeSessionId={sessionId}
             onSelect={openSession}
             onDelete={removeSession}
+            onRename={renameSession}
             onNewChat={startNewChat}
           />
         ) : (

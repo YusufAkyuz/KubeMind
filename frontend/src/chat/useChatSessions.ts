@@ -48,3 +48,8 @@ export async function fetchTranscript(clusterId: string, sessionId: string) {
 export async function deleteChatSession(clusterId: string, sessionId: string) {
   await api.delete(`/clusters/${clusterId}/chat/sessions/${sessionId}`)
 }
+
+/** Titles are derived from the first question, which is often a poor name for the chat. */
+export async function renameChatSession(clusterId: string, sessionId: string, title: string) {
+  await api.patch(`/clusters/${clusterId}/chat/sessions/${sessionId}`, { title })
+}

@@ -2,9 +2,11 @@ package com.kubemind.ai;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,6 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -123,14 +126,16 @@ class ChatSessionServiceTest {
         UUID sessionId = UUID.randomUUID();
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.empty());
 
-        service.completeTurn(sessionId, "The pod is failing because", "qwen2.5-coder:7b");
+        service.completeTurn(sessionId, UUID.randomUUID(), "The pod is failing because", "qwen2.5-coder:7b");
 
         verify(messageRepository).save(any(ChatMessage.class));
     }
 
     @Test
     void anAnswerThatProducedNothingIsNotStoredAsAnEmptyBubble() {
-        service.completeTurn(UUID.randomUUID(), "", "qwen2.5-coder:7b");
+        // The reserved id is simply never used — cheaper than writing a
+        // placeholder row and then having to clean it up.
+        service.completeTurn(UUID.randomUUID(), UUID.randomUUID(), "", "qwen2.5-coder:7b");
 
         verify(messageRepository, never()).save(any());
     }
@@ -140,7 +145,52 @@ class ChatSessionServiceTest {
         when(messageRepository.save(any())).thenThrow(new RuntimeException("db down"));
 
         // No exception: the response has already been streamed and committed.
-        assertThat(service.completeTurn(UUID.randomUUID(), "an answer", "m")).isNull();
+        service.completeTurn(UUID.randomUUID(), UUID.randomUUID(), "an answer", "m");
+    }
+
+    /**
+     * The browser is told the answer's id before the answer exists, so that a
+     * rating filed against the bubble on screen points at the row that ends up
+     * holding it. The two must be the same id or feedback is orphaned — which
+     * is exactly the bug this replaced.
+     */
+    @Test
+    void theAnswerIsStoredUnderTheIdHandedToTheBrowserUpFront() {
+        var turn = service.beginTurn("bob", 7L, null, "why?");
+        assertThat(turn.assistantMessageId()).isNotNull();
+
+        service.completeTurn(turn.sessionId(), turn.assistantMessageId(), "because.", "m");
+
+        ArgumentCaptor<ChatMessage> saved = ArgumentCaptor.forClass(ChatMessage.class);
+        verify(messageRepository, times(2)).save(saved.capture());
+        ChatMessage answer = saved.getAllValues().get(1);
+        assertThat(answer.getRole()).isEqualTo(ChatMessage.ROLE_ASSISTANT);
+        assertThat(answer.getId()).isEqualTo(turn.assistantMessageId());
+    }
+
+    @Test
+    void renamingIsScopedToTheOwnerAndDoesNotCountAsActivity() {
+        UUID id = UUID.randomUUID();
+        ChatSession mine = new ChatSession("bob", 7L, "Kaç node var?");
+        mine.touch();
+        Instant before = mine.getUpdatedAt();
+        when(sessionRepository.findByIdAndUsername(id, "bob")).thenReturn(Optional.of(mine));
+
+        service.rename("bob", 7L, id, "  Node health check  ");
+
+        assertThat(mine.getTitle()).isEqualTo("Node health check");
+        // Renaming should not float the chat to the top of the list.
+        assertThat(mine.getUpdatedAt()).isEqualTo(before);
+    }
+
+    @Test
+    void anotherUsersSessionCannotBeRenamed() {
+        UUID id = UUID.randomUUID();
+        when(sessionRepository.findByIdAndUsername(id, "bob")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.rename("bob", 7L, id, "mine now"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("not found");
     }
 
     @Test

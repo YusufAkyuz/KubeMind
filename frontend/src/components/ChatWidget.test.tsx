@@ -27,6 +27,10 @@ function NOW() {
 beforeEach(() => {
   mockApi.get.mockReset()
   mockApi.delete.mockReset().mockResolvedValue({ data: null })
+  mockApi.patch.mockReset().mockResolvedValue({ data: null })
+  // The real server reserves a fresh answer id per request, so the stand-in
+  // does too — a fixed id would hide a duplicate-key bug behind a passing test.
+  let turn = 0
   mockStream.mockReset().mockImplementation(
     async (
       _url: string,
@@ -34,7 +38,14 @@ beforeEach(() => {
       onChunk: (c: string) => void,
       options?: { onResponse?: (res: Response) => void },
     ) => {
-      options?.onResponse?.({ headers: { get: () => 'sess-1' } } as unknown as Response)
+      turn += 1
+      options?.onResponse?.({
+        headers: {
+          // Distinct from the stored-transcript fixture ids below, so a real
+          // duplicate-key regression is not masked by a naming collision here.
+          get: (h: string) => (h === 'X-Chat-Session-Id' ? 'sess-1' : `live-msg-${turn}`),
+        },
+      } as unknown as Response)
       onChunk('an answer')
     },
   )
@@ -160,6 +171,58 @@ describe('ChatWidget — saved conversations', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send' }))
     await waitFor(() => expect(mockStream).toHaveBeenCalledTimes(2))
     expect(mockStream.mock.calls[1][1]).toEqual({ sessionId: null, message: 'unrelated question' })
+  })
+
+  /**
+   * Chat ratings used to be filed against a random client-side id, so a
+   * thumbs-up could never be joined back to the answer it rated — the feedback
+   * table filled with rows pointing at nothing. The answer's real row id now
+   * arrives in a response header before the first token.
+   */
+  it('files feedback against the stored answer, not a throwaway client id', async () => {
+    await openPanel([])
+    mockApi.post.mockResolvedValue({ data: null })
+
+    await userEvent.type(screen.getByPlaceholderText('Ask anything…'), 'why is it broken?')
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(screen.getByLabelText('Mark as helpful')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByLabelText('Mark as helpful'))
+
+    await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith(
+      '/clusters/5/ai-feedback',
+      { surface: 'CHAT', contextHash: 'live-msg-1', rating: 'UP' },
+    ))
+  })
+
+  it('renames a chat from the history list', async () => {
+    await openPanel()
+    await userEvent.click(screen.getByLabelText('Chat history'))
+    await waitFor(() => expect(screen.getByText('Why is payments crashing?')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByLabelText('Rename chat "Why is payments crashing?"'))
+    const input = screen.getByLabelText('Chat title')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Payments OOM investigation{Enter}')
+
+    await waitFor(() => expect(mockApi.patch).toHaveBeenCalledWith(
+      '/clusters/5/chat/sessions/sess-1',
+      { title: 'Payments OOM investigation' },
+    ))
+  })
+
+  it('keeps the old title when a rename is emptied out', async () => {
+    await openPanel()
+    await userEvent.click(screen.getByLabelText('Chat history'))
+    await waitFor(() => expect(screen.getByText('Why is payments crashing?')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByLabelText('Rename chat "Why is payments crashing?"'))
+    await userEvent.clear(screen.getByLabelText('Chat title'))
+    await userEvent.keyboard('{Enter}')
+
+    // A blank title would leave a row nobody can identify in the list.
+    expect(mockApi.patch).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByText('Why is payments crashing?')).toBeInTheDocument())
   })
 
   it('clears the panel when the chat being deleted is the one on screen', async () => {

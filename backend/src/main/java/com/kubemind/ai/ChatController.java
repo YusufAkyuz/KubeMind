@@ -31,6 +31,8 @@ public class ChatController {
 
     /** Lets the browser learn the id of a conversation it just started. */
     static final String SESSION_ID_HEADER = "X-Chat-Session-Id";
+    /** The id the answer about to stream will be stored under, so feedback on it lands on a real row. */
+    static final String MESSAGE_ID_HEADER = "X-Chat-Message-Id";
 
     private static final String SYSTEM_PROMPT = """
         You are KubeMind's assistant, a senior Kubernetes SRE embedded in a cluster dashboard.
@@ -138,12 +140,14 @@ public class ChatController {
                 // saves nothing: the fallback notice is an error message, not an
                 // answer, and the transcript is honest about the question going
                 // unanswered.
-                chatSessionService.completeTurn(turn.sessionId(), answer.toString(), model);
+                chatSessionService.completeTurn(
+                    turn.sessionId(), turn.assistantMessageId(), answer.toString(), model);
             }
         };
 
         return ResponseEntity.ok()
             .header(SESSION_ID_HEADER, turn.sessionId().toString())
+            .header(MESSAGE_ID_HEADER, turn.assistantMessageId().toString())
             .body(body);
     }
 

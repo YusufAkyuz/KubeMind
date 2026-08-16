@@ -56,7 +56,16 @@ public class ChatMessage {
     protected ChatMessage() {} // JPA
 
     public ChatMessage(UUID sessionId, String role, String content, String model) {
-        this.id = UUID.randomUUID();
+        this(UUID.randomUUID(), sessionId, role, content, model);
+    }
+
+    /**
+     * Used for an assistant answer whose id was handed to the browser before
+     * the answer existed — see ChatSessionService.beginTurn. The id is still
+     * generated server-side; only the moment it is revealed differs.
+     */
+    public ChatMessage(UUID id, UUID sessionId, String role, String content, String model) {
+        this.id = id;
         this.sessionId = sessionId;
         this.role = role;
         this.content = content;

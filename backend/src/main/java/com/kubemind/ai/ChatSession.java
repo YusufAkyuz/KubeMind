@@ -63,6 +63,11 @@ public class ChatSession {
         this.updatedAt = Instant.now();
     }
 
+    /** Deliberately does not touch updatedAt — renaming a chat is not activity in it. */
+    public void rename(String title) {
+        this.title = title;
+    }
+
     public UUID getId() { return id; }
     public String getUsername() { return username; }
     public Long getClusterId() { return clusterId; }

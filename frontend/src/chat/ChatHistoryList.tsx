@@ -1,4 +1,5 @@
-import { IconPlus, IconTrash } from '../components/Icons'
+import { useState } from 'react'
+import { IconPencil, IconPlus, IconTrash } from '../components/Icons'
 import { formatAge } from '../utils/format'
 import type { ChatSessionSummary } from './useChatSessions'
 
@@ -9,6 +10,7 @@ interface Props {
   activeSessionId: string | null
   onSelect: (id: string) => void
   onDelete: (id: string) => void
+  onRename: (id: string, title: string) => void
   onNewChat: () => void
 }
 
@@ -19,8 +21,23 @@ interface Props {
  * the conversation itself.
  */
 export function ChatHistoryList({
-  sessions, isLoading, isError, activeSessionId, onSelect, onDelete, onNewChat,
+  sessions, isLoading, isError, activeSessionId, onSelect, onDelete, onRename, onNewChat,
 }: Props) {
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [draftTitle, setDraftTitle] = useState('')
+
+  const startRename = (s: ChatSessionSummary) => {
+    setRenamingId(s.id)
+    setDraftTitle(s.title)
+  }
+
+  const commitRename = () => {
+    const title = draftTitle.trim()
+    // An empty title would leave a nameless row nobody can identify; keep the old one.
+    if (renamingId && title) onRename(renamingId, title)
+    setRenamingId(null)
+  }
+
   return (
     <div className="flex-1 overflow-y-auto px-2 py-2">
       <button
@@ -51,23 +68,50 @@ export function ChatHistoryList({
               : 'hover:bg-gray-50 dark:hover:bg-neutral-800/60'
           }`}
         >
-          <button
-            onClick={() => onSelect(s.id)}
-            className="flex-1 min-w-0 text-left px-2.5 py-2"
-          >
-            <p className="truncate text-sm text-gray-800 dark:text-neutral-200">{s.title}</p>
-            <p className="text-[11px] text-gray-400 dark:text-neutral-500">{formatAge(s.updatedAt)} ago</p>
-          </button>
-          <button
-            onClick={() => onDelete(s.id)}
-            aria-label={`Delete chat "${s.title}"`}
-            className="shrink-0 mr-1.5 p-1.5 rounded-md text-gray-400 dark:text-neutral-500
-                       opacity-0 group-hover:opacity-100 focus:opacity-100
-                       hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10
-                       transition-all"
-          >
-            <IconTrash className="w-3.5 h-3.5" />
-          </button>
+          {renamingId === s.id ? (
+            <input
+              autoFocus
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename()
+                if (e.key === 'Escape') setRenamingId(null)
+              }}
+              maxLength={200}
+              aria-label="Chat title"
+              className="flex-1 min-w-0 mx-1.5 my-1 rounded-md border border-blue-500 bg-white dark:bg-neutral-800
+                         text-gray-900 dark:text-neutral-100 px-2 py-1 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          ) : (
+            <>
+              <button onClick={() => onSelect(s.id)} className="flex-1 min-w-0 text-left px-2.5 py-2">
+                <p className="truncate text-sm text-gray-800 dark:text-neutral-200">{s.title}</p>
+                <p className="text-[11px] text-gray-400 dark:text-neutral-500">{formatAge(s.updatedAt)} ago</p>
+              </button>
+              <button
+                onClick={() => startRename(s)}
+                aria-label={`Rename chat "${s.title}"`}
+                className="shrink-0 p-1.5 rounded-md text-gray-400 dark:text-neutral-500
+                           opacity-0 group-hover:opacity-100 focus:opacity-100
+                           hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-700
+                           transition-all"
+              >
+                <IconPencil className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onDelete(s.id)}
+                aria-label={`Delete chat "${s.title}"`}
+                className="shrink-0 mr-1.5 p-1.5 rounded-md text-gray-400 dark:text-neutral-500
+                           opacity-0 group-hover:opacity-100 focus:opacity-100
+                           hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10
+                           transition-all"
+              >
+                <IconTrash className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
         </div>
       ))}
     </div>

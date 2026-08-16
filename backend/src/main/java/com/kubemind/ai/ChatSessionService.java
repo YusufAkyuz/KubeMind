@@ -46,8 +46,18 @@ public class ChatSessionService {
         this.messageRepository = messageRepository;
     }
 
-    /** The session plus the bounded, chronological history to prompt the model with. */
-    public record TurnContext(UUID sessionId, List<ChatMessage> history) {}
+    /**
+     * The session, the bounded chronological history to prompt the model with,
+     * and the id the answer will be stored under once it finishes streaming.
+     *
+     * That last one is reserved rather than inserted: the browser needs an id
+     * for the answer bubble at the moment streaming starts (it is what a
+     * thumbs-up is filed against), but an answer row written before the answer
+     * exists would leave an empty message behind whenever a generation
+     * produces nothing. Reserving a UUID keeps the id server-authoritative and
+     * costs nothing if it ends up unused.
+     */
+    public record TurnContext(UUID sessionId, List<ChatMessage> history, UUID assistantMessageId) {}
 
     public List<ChatSession> list(String username, long clusterId) {
         return sessionRepository.findByUsernameAndClusterIdOrderByUpdatedAtDesc(username, clusterId);
@@ -85,7 +95,7 @@ public class ChatSessionService {
         sessionRepository.save(session);
         messageRepository.save(new ChatMessage(session.getId(), ChatMessage.ROLE_USER, userMessage, null));
 
-        return new TurnContext(session.getId(), recentHistory(session.getId()));
+        return new TurnContext(session.getId(), recentHistory(session.getId()), UUID.randomUUID());
     }
 
     /**
@@ -102,22 +112,30 @@ public class ChatSessionService {
      * one is skipped — an empty assistant bubble is noise, not history.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public UUID completeTurn(UUID sessionId, String assistantMessage, String model) {
+    public void completeTurn(UUID sessionId, UUID messageId, String assistantMessage, String model) {
         if (assistantMessage == null || assistantMessage.isBlank()) {
-            return null;
+            return;
         }
         try {
-            ChatMessage saved = messageRepository.save(
-                new ChatMessage(sessionId, ChatMessage.ROLE_ASSISTANT, assistantMessage, model));
+            // Stored under the id already given to the browser, so the feedback
+            // the user files against the bubble on screen points at this row.
+            messageRepository.save(
+                new ChatMessage(messageId, sessionId, ChatMessage.ROLE_ASSISTANT, assistantMessage, model));
             sessionRepository.findById(sessionId).ifPresent(s -> {
                 s.touch();
                 sessionRepository.save(s);
             });
-            return saved.getId();
         } catch (Exception e) {
             log.warn("Chat message write failed session={} - {}", sessionId, e.getMessage());
-            return null;
         }
+    }
+
+    /** Auto-derived titles come from whatever was asked first, which is not always a good name for the chat. */
+    @Transactional
+    public ChatSession rename(String username, long clusterId, UUID sessionId, String title) {
+        ChatSession session = requireOwned(username, clusterId, sessionId);
+        session.rename(title.strip());
+        return sessionRepository.save(session);
     }
 
     /** Oldest-first tail of the conversation, bounded to {@link #MAX_HISTORY}. */
