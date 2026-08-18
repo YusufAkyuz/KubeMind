@@ -22,6 +22,14 @@ const RELEASE = {
 const DETAIL_FROM_STORED_CHART = {
   values: 'replicas: 1\n', manifest: '', notes: '', chartRef: null, valuesEditable: true,
 }
+/** Nothing registered that matches this release — the common case for a
+ *  terminal install, and no longer a problem. */
+const NO_REPO_LINKED = {
+  chartRef: null, currentVersion: '10.5.15', latestVersion: null, updateAvailable: false,
+}
+const UPDATE_AVAILABLE = {
+  chartRef: 'bitnami/grafana', currentVersion: '10.5.15', latestVersion: '11.2.0', updateAvailable: true,
+}
 const HISTORY = [
   { revision: 1, updated: '2026-08-01T10:00:00Z', status: 'superseded', chart: 'grafana-10.5.15', appVersion: '11.0.0', description: 'Install complete' },
   { revision: 2, updated: '2026-08-01T18:00:00Z', status: 'superseded', chart: 'grafana-10.5.15', appVersion: '11.0.0', description: 'Upgrade complete' },
@@ -38,6 +46,7 @@ beforeEach(() => {
     [BASE]: [RELEASE],
     [`${BASE}/grafana`]: DETAIL_FROM_STORED_CHART,
     [`${BASE}/grafana/history`]: HISTORY,
+    [`${BASE}/grafana/chart-update`]: NO_REPO_LINKED,
     '/clusters/7/helm/repos': [],
     // Layout's sidebar fetches these on every page.
     '/clusters': [{ id: 7, name: 'staging', status: 'APPROVED', builtIn: false }],
@@ -73,8 +82,10 @@ describe('HelmReleasesPage — managing a release with no repository registered'
     const editor = await screen.findByRole('textbox')
     expect(editor).toHaveValue('replicas: 1\n')
     expect(editor).not.toHaveAttribute('readonly')
-    // The old "link a chart before you can edit" prompt must not appear.
-    expect(screen.queryByRole('button', { name: 'Link' })).not.toBeInTheDocument()
+    // Linking a chart is still offered, but as an optional extra rather than the
+    // precondition it used to be — the wording is the whole difference.
+    expect(screen.getByText(/Link a repository chart if you also want/)).toBeInTheDocument()
+    expect(screen.queryByText(/enable editing/)).not.toBeInTheDocument()
   })
 
   it('saves values without sending a chart reference', async () => {
@@ -89,6 +100,55 @@ describe('HelmReleasesPage — managing a release with no repository registered'
     // The backend resolves the chart itself; the client no longer needs to know one.
     await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith(
       `${BASE}/grafana/values`, { valuesYaml: 'replicas: 5' }))
+  })
+})
+
+/**
+ * Adding a repository is no longer the price of admission — it buys a version
+ * notice and nothing else is gated on it.
+ */
+describe('HelmReleasesPage — chart version updates', () => {
+  function withUpdateAvailable() {
+    mockGet(mockApi, {
+      '/auth/me': { username: 'admin', role: 'ADMIN' },
+      [BASE]: [RELEASE],
+      [`${BASE}/grafana`]: DETAIL_FROM_STORED_CHART,
+      [`${BASE}/grafana/chart-update`]: UPDATE_AVAILABLE,
+      '/clusters/7/helm/repos': [],
+      '/clusters': [{ id: 7, name: 'staging', status: 'APPROVED', builtIn: false }],
+      '/clusters/7/namespaces': [{ name: 'monitoring' }],
+    })
+  }
+
+  it('says nothing when no repository is linked', async () => {
+    renderPage()
+    await userEvent.click(await screen.findByText('grafana'))
+    await screen.findByRole('textbox')
+
+    expect(screen.queryByText(/Newer chart version available/)).not.toBeInTheDocument()
+  })
+
+  it('offers the newer version when a linked repository has one', async () => {
+    withUpdateAvailable()
+    renderPage()
+    await userEvent.click(await screen.findByText('grafana'))
+
+    expect(await screen.findByText(/Newer chart version available/)).toBeInTheDocument()
+    expect(screen.getByText('11.2.0')).toBeInTheDocument()
+  })
+
+  it('upgrades to that version after confirming', async () => {
+    withUpdateAvailable()
+    renderPage()
+    await userEvent.click(await screen.findByText('grafana'))
+    await userEvent.click(await screen.findByRole('button', { name: 'Upgrade' }))
+
+    // The dialog warns that a chart version change is not just a values edit.
+    expect(await screen.findByText(/add, rename or remove resources/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Upgrade chart' }))
+
+    await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith(
+      `${BASE}/grafana/chart-version`, { version: '11.2.0' }))
   })
 })
 

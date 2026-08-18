@@ -71,6 +71,26 @@ public class HelmReleaseController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Whether the linked repository has a newer chart version than the release is running. */
+    @GetMapping("/namespaces/{ns}/helm/releases/{name}/chart-update")
+    public HelmReleaseService.ChartUpdate chartUpdate(@PathVariable long clusterId, @PathVariable String ns,
+                                                      @PathVariable String name) {
+        return service.chartUpdate(clusterId, ns, name);
+    }
+
+    public record UpgradeChartRequest(@NotBlank String version) {}
+
+    /** Moves the release onto another chart version, keeping its current values. */
+    @PostMapping("/namespaces/{ns}/helm/releases/{name}/chart-version")
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
+    public ResponseEntity<Void> upgradeChartVersion(@PathVariable long clusterId, @PathVariable String ns,
+                                                    @PathVariable String name,
+                                                    @Valid @RequestBody UpgradeChartRequest request,
+                                                    Authentication auth) {
+        service.upgradeChartVersion(auth.getName(), clusterId, ns, name, request.version());
+        return ResponseEntity.noContent().build();
+    }
+
     public record UpgradeValuesRequest(String valuesYaml) {}
 
     /**

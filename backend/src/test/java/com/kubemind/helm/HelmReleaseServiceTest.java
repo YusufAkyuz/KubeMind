@@ -181,6 +181,73 @@ class HelmReleaseServiceTest {
             .anySatisfy(a -> assertThat(a).containsExactly("get", "values", "grafana", "-n", "monitoring", "-o", "yaml"));
     }
 
+    /**
+     * A release with no repository behind it is not an error state any more —
+     * it simply has no update to offer, and everything else about it still works.
+     */
+    @Test
+    void withoutARepositoryThereIsSimplyNoUpdateToOffer() {
+        when(cli.run(anyLong(), any())).thenReturn("{\"chart\":\"grafana\",\"version\":\"10.5.15\"}");
+        when(cli.runAllowingEmpty(anyLong(), any())).thenReturn("[]");
+
+        var update = service.chartUpdate(7L, "monitoring", "grafana");
+
+        assertThat(update.chartRef()).isNull();
+        assertThat(update.currentVersion()).isEqualTo("10.5.15");
+        assertThat(update.updateAvailable()).isFalse();
+    }
+
+    @Test
+    void reportsANewerChartWhenTheLinkedRepositoryHasOne() {
+        when(installRepository.findByClusterIdAndNamespaceAndReleaseName(7L, "monitoring", "grafana"))
+            .thenReturn(Optional.of(new HelmInstall(7L, "monitoring", "grafana", "bitnami/grafana")));
+        when(cli.run(anyLong(), any())).thenReturn("{\"chart\":\"grafana\",\"version\":\"10.5.15\"}");
+        when(cli.runAllowingEmpty(anyLong(), any()))
+            .thenReturn("[{\"name\":\"bitnami/grafana\",\"version\":\"11.2.0\"}]");
+
+        var update = service.chartUpdate(7L, "monitoring", "grafana");
+
+        assertThat(update.latestVersion()).isEqualTo("11.2.0");
+        assertThat(update.updateAvailable()).isTrue();
+    }
+
+    /**
+     * A bare `helm upgrade` resets a release to the chart's defaults. On a
+     * running release that is indistinguishable from wiping its configuration,
+     * so the current values have to travel with the version change.
+     */
+    @Test
+    void changingChartVersionCarriesTheCurrentValuesAcross() {
+        when(installRepository.findByClusterIdAndNamespaceAndReleaseName(7L, "monitoring", "grafana"))
+            .thenReturn(Optional.of(new HelmInstall(7L, "monitoring", "grafana", "bitnami/grafana")));
+        when(cli.run(anyLong(), any())).thenReturn("replicas: 3\n");
+
+        service.upgradeChartVersion("admin", 7L, "monitoring", "grafana", "11.2.0");
+
+        ArgumentCaptor<List<String>> args = ArgumentCaptor.forClass(List.class);
+        verify(cli, atLeastOnce()).run(anyLong(), args.capture());
+        assertThat(args.getAllValues())
+            .anySatisfy(a -> assertThat(a).containsSubsequence(
+                "get", "values", "grafana", "-n", "monitoring", "-o", "yaml"))
+            .anySatisfy(a -> assertThat(a).containsSubsequence(
+                "upgrade", "grafana", "bitnami/grafana", "--version", "11.2.0").contains("-f"));
+        verify(auditService).record(eq("admin"), eq(7L), eq("UPGRADE_HELM_CHART"), any(),
+            eq(Map.of("version", "11.2.0")), eq(true), eq(null));
+    }
+
+    @Test
+    void aVersionChangeWithNoLinkedRepositoryIsRefused() {
+        when(cli.run(anyLong(), any())).thenReturn("");
+        when(cli.runAllowingEmpty(anyLong(), any())).thenReturn("[]");
+
+        assertThatThrownBy(() -> service.upgradeChartVersion("admin", 7L, "monitoring", "grafana", "11.2.0"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("409");
+
+        verify(auditService).record(eq("admin"), eq(7L), eq("UPGRADE_HELM_CHART"), any(),
+            eq(Map.of("version", "11.2.0")), eq(false), any());
+    }
+
     @Test
     void historyIsScopedToTheNamespaceItWasAskedFor() {
         when(cli.run(anyLong(), any())).thenReturn("[]");

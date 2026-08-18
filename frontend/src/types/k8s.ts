@@ -359,6 +359,18 @@ export interface HelmRevision {
   description: string
 }
 
+/**
+ * What a chart repository buys you now. It used to be the price of editing a
+ * release at all; it now only answers "is there a newer chart version?" —
+ * everything else works without one.
+ */
+export interface HelmChartUpdate {
+  chartRef: string | null
+  currentVersion: string | null
+  latestVersion: string | null
+  updateAvailable: boolean
+}
+
 export interface HelmRepo {
   name: string
   url: string
