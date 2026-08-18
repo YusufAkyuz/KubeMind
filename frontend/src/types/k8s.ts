@@ -335,8 +335,14 @@ export interface HelmReleaseDetail {
   values: string
   manifest: string
   notes: string
-  /** Null when this release wasn't installed through KubeMind — editing values is disabled then. */
+  /** Repository reference, when one could be resolved. No longer what gates editing. */
   chartRef: string | null
+  /**
+   * Whether there is any chart to re-apply with — normally the one Helm stored in
+   * the cluster, so this is true even for releases installed from a terminal.
+   * Charts whose subcharts Helm did not persist fall back to needing a chartRef.
+   */
+  valuesEditable: boolean
 }
 
 /**

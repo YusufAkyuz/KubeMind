@@ -71,6 +71,24 @@ public class HelmReleaseController {
         return ResponseEntity.noContent().build();
     }
 
+    public record UpgradeValuesRequest(String valuesYaml) {}
+
+    /**
+     * Re-applies the release with edited values. Distinct from the install
+     * endpoint on purpose: that one takes a chart reference from the caller,
+     * this one works out for itself which chart the release is already running
+     * — usually the one stored in the cluster, so no repository is needed.
+     */
+    @PostMapping("/namespaces/{ns}/helm/releases/{name}/values")
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
+    public ResponseEntity<Void> upgradeValues(@PathVariable long clusterId, @PathVariable String ns,
+                                              @PathVariable String name,
+                                              @Valid @RequestBody UpgradeValuesRequest request,
+                                              Authentication auth) {
+        service.upgradeValues(auth.getName(), clusterId, ns, name, request.valuesYaml());
+        return ResponseEntity.noContent().build();
+    }
+
     public record LinkChartRefRequest(@NotBlank String chartRef) {}
 
     /** Unlocks values editing for a release installed outside KubeMind — see HelmReleaseService.linkChartRef. */

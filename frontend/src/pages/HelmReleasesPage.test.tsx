@@ -17,8 +17,11 @@ const RELEASE = {
   name: 'grafana', namespace: 'monitoring', revision: '3', updated: '2026-08-02T11:00:00Z',
   status: 'deployed', chart: 'grafana-10.5.15', appVersion: '11.0.0',
 }
-/** A release nobody installed through KubeMind: no chart reference resolved. */
-const DETAIL_WITHOUT_CHART = { values: 'replicas: 1\n', manifest: '', notes: '', chartRef: null }
+/** A release nobody installed through KubeMind: no repo reference, but the chart
+ *  Helm stored in the cluster is recoverable, so values stay editable. */
+const DETAIL_FROM_STORED_CHART = {
+  values: 'replicas: 1\n', manifest: '', notes: '', chartRef: null, valuesEditable: true,
+}
 const HISTORY = [
   { revision: 1, updated: '2026-08-01T10:00:00Z', status: 'superseded', chart: 'grafana-10.5.15', appVersion: '11.0.0', description: 'Install complete' },
   { revision: 2, updated: '2026-08-01T18:00:00Z', status: 'superseded', chart: 'grafana-10.5.15', appVersion: '11.0.0', description: 'Upgrade complete' },
@@ -33,7 +36,7 @@ beforeEach(() => {
   mockGet(mockApi, {
     '/auth/me': { username: 'admin', role: 'ADMIN' },
     [BASE]: [RELEASE],
-    [`${BASE}/grafana`]: DETAIL_WITHOUT_CHART,
+    [`${BASE}/grafana`]: DETAIL_FROM_STORED_CHART,
     [`${BASE}/grafana/history`]: HISTORY,
     '/clusters/7/helm/repos': [],
     // Layout's sidebar fetches these on every page.
@@ -58,11 +61,37 @@ async function openHistoryTab() {
 }
 
 /**
- * Rollback is the one release repair that needs no chart reference — Helm
- * replays the chart it stored with the revision. These lock in that the UI
- * offers it on a release installed from a terminal, where "Save & Upgrade" is
- * still disabled for want of a chartRef.
+ * Both of these work off what Helm stored in the cluster rather than a chart
+ * repository, which is what makes a release installed from a terminal fully
+ * manageable here — the thing that used to force people to add a repo first.
  */
+describe('HelmReleasesPage — managing a release with no repository registered', () => {
+  it('keeps values editable when only the stored chart is available', async () => {
+    renderPage()
+    await userEvent.click(await screen.findByText('grafana'))
+
+    const editor = await screen.findByRole('textbox')
+    expect(editor).toHaveValue('replicas: 1\n')
+    expect(editor).not.toHaveAttribute('readonly')
+    // The old "link a chart before you can edit" prompt must not appear.
+    expect(screen.queryByRole('button', { name: 'Link' })).not.toBeInTheDocument()
+  })
+
+  it('saves values without sending a chart reference', async () => {
+    renderPage()
+    await userEvent.click(await screen.findByText('grafana'))
+    const editor = await screen.findByRole('textbox')
+
+    await userEvent.clear(editor)
+    await userEvent.type(editor, 'replicas: 5')
+    await userEvent.click(screen.getByRole('button', { name: 'Save & Upgrade' }))
+
+    // The backend resolves the chart itself; the client no longer needs to know one.
+    await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith(
+      `${BASE}/grafana/values`, { valuesYaml: 'replicas: 5' }))
+  })
+})
+
 describe('HelmReleasesPage — revision history and rollback', () => {
   it('lists revisions newest first without needing a chart reference', async () => {
     await openHistoryTab()

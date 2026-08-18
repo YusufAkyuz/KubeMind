@@ -4,18 +4,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kubemind.audit.AuditService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,6 +30,7 @@ class HelmReleaseServiceTest {
     private HelmCliService cli;
     private AuditService auditService;
     private HelmInstallRepository installRepository;
+    private HelmReleaseChartExtractor extractor;
     private HelmReleaseService service;
 
     @BeforeEach
@@ -33,7 +38,9 @@ class HelmReleaseServiceTest {
         cli = mock(HelmCliService.class);
         auditService = mock(AuditService.class);
         installRepository = mock(HelmInstallRepository.class);
-        service = new HelmReleaseService(cli, auditService, new ObjectMapper(), installRepository);
+        extractor = mock(HelmReleaseChartExtractor.class);
+        when(extractor.extract(anyLong(), any(), any())).thenReturn(Optional.empty());
+        service = new HelmReleaseService(cli, auditService, new ObjectMapper(), installRepository, extractor);
     }
 
     @SuppressWarnings("unchecked")
@@ -94,6 +101,84 @@ class HelmReleaseServiceTest {
 
         verify(auditService).record(eq("admin"), eq(7L), eq("ROLLBACK_HELM_RELEASE"),
             eq("HelmRelease/monitoring/grafana"), eq(Map.of("revision", 3)), eq(false), any());
+    }
+
+    private HelmReleaseChartExtractor.ExtractedChart storedChart(Path dir) {
+        return new HelmReleaseChartExtractor.ExtractedChart(dir, "replicas: 1\n", "kind: ConfigMap\n");
+    }
+
+    /**
+     * The whole point of phase 2: a release nobody installed through KubeMind,
+     * with no repository registered, is still editable — the chart comes out of
+     * the cluster.
+     */
+    @Test
+    void valuesUpgradeUsesTheChartStoredInTheClusterAndNeverTouchesARepository(@TempDir Path dir) {
+        when(extractor.extract(anyLong(), any(), any())).thenReturn(Optional.of(storedChart(dir)));
+        when(extractor.rendersTheSameManifest(any(), anyLong(), any(), any(), any())).thenReturn(true);
+
+        service.upgradeValues("admin", 7L, "monitoring", "grafana", "replicas: 3\n");
+
+        List<String> args = capturedArgs();
+        assertThat(args).startsWith("upgrade", "grafana", dir.toString(), "-n", "monitoring");
+        verify(installRepository, never()).findByClusterIdAndNamespaceAndReleaseName(anyLong(), any(), any());
+        verify(auditService).record(eq("admin"), eq(7L), eq("UPGRADE_HELM_VALUES"), any(),
+            eq(Map.of("chartSource", "stored-chart")), eq(true), eq(null));
+    }
+
+    /**
+     * Helm 4 does not persist subcharts in the release, so a rebuilt chart can
+     * render strictly fewer resources than what is running. Applying it would
+     * delete the difference — the gate exists to stop exactly that, and this
+     * locks in that a failed gate does not reach `helm upgrade`.
+     */
+    @Test
+    void anIncompleteRebuiltChartIsNeverApplied(@TempDir Path dir) {
+        when(extractor.extract(anyLong(), any(), any())).thenReturn(Optional.of(storedChart(dir)));
+        when(extractor.rendersTheSameManifest(any(), anyLong(), any(), any(), any())).thenReturn(false);
+        when(installRepository.findByClusterIdAndNamespaceAndReleaseName(7L, "monitoring", "grafana"))
+            .thenReturn(Optional.of(new HelmInstall(7L, "monitoring", "grafana", "bitnami/grafana")));
+
+        service.upgradeValues("admin", 7L, "monitoring", "grafana", "replicas: 3\n");
+
+        assertThat(capturedArgs()).startsWith("upgrade", "grafana", "bitnami/grafana");
+        verify(auditService).record(eq("admin"), eq(7L), eq("UPGRADE_HELM_VALUES"), any(),
+            eq(Map.of("chartSource", "bitnami/grafana")), eq(true), eq(null));
+    }
+
+    /** Neither a usable stored chart nor a repository reference: refuse, don't guess. */
+    @Test
+    void withNothingToUpgradeAgainstItRefusesInsteadOfGuessing(@TempDir Path dir) {
+        when(extractor.extract(anyLong(), any(), any())).thenReturn(Optional.of(storedChart(dir)));
+        when(extractor.rendersTheSameManifest(any(), anyLong(), any(), any(), any())).thenReturn(false);
+        when(cli.run(anyLong(), any())).thenReturn(""); // resolveChartRef finds nothing
+
+        assertThatThrownBy(() -> service.upgradeValues("admin", 7L, "monitoring", "grafana", "x: 1"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("409")
+            .hasMessageContaining("Link its chart");
+
+        verify(auditService).record(eq("admin"), eq(7L), eq("UPGRADE_HELM_VALUES"), any(),
+            eq(Map.of("chartSource", "none")), eq(false), any());
+    }
+
+    /**
+     * The editor round-trips this string straight back into a values file on
+     * save, and plain `helm get values` prefixes a "USER-SUPPLIED VALUES:"
+     * header — which parses as a top-level key with a null value and quietly
+     * accumulates in the release's values on every upgrade.
+     */
+    @Test
+    void valuesAreFetchedAsPlainYamlWithoutHelmsHeaderLine() {
+        when(cli.run(anyLong(), any())).thenReturn("");
+        when(cli.runAllowingEmpty(anyLong(), any())).thenReturn("");
+
+        service.detail(7L, "monitoring", "grafana");
+
+        ArgumentCaptor<List<String>> args = ArgumentCaptor.forClass(List.class);
+        verify(cli, atLeastOnce()).run(anyLong(), args.capture());
+        assertThat(args.getAllValues())
+            .anySatisfy(a -> assertThat(a).containsExactly("get", "values", "grafana", "-n", "monitoring", "-o", "yaml"));
     }
 
     @Test

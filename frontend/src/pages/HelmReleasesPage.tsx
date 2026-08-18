@@ -93,15 +93,18 @@ export function HelmReleasesPage() {
     }
   }
 
+  // Posts only the values: the backend works out which chart the release is
+  // already running — normally the one Helm stored in the cluster, which is also
+  // what stops a values edit from quietly moving the release to a newer chart
+  // version the way upgrading against a repo reference does.
   const saveAndUpgrade = async () => {
-    if (!selected || !detail?.chartRef) return
+    if (!selected || !detail?.valuesEditable) return
     setUpgrading(true)
     try {
-      await api.post(`/clusters/${clusterId}/namespaces/${selected.namespace}/helm/install`, {
-        releaseName: selected.name,
-        chartRef: detail.chartRef,
-        valuesYaml: editedValues,
-      })
+      await api.post(
+        `/clusters/${clusterId}/namespaces/${selected.namespace}/helm/releases/${selected.name}/values`,
+        { valuesYaml: editedValues },
+      )
       toast.success(`"${selected.name}" upgraded`)
       queryClient.invalidateQueries({ queryKey: ['helm/releases', clusterId, ns] })
       queryClient.invalidateQueries({ queryKey: ['helm-release-detail', clusterId, selected.namespace, selected.name] })
@@ -224,11 +227,11 @@ export function HelmReleasesPage() {
 
             {detail && tab === 'values' && (
               <>
-                {isAdmin && !detail.chartRef && (
+                {isAdmin && !detail.valuesEditable && (
                   <div className="rounded-md border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-2 mb-1.5">
                     <p className="text-[11px] text-amber-700 dark:text-amber-400 mb-1.5">
-                      Couldn't auto-detect this release's chart — either its name doesn't match any added repo, or it
-                      matches more than one, so editing is disabled until you pick the right one below.
+                      This release's chart couldn't be recovered from the cluster (Helm doesn't store subcharts in
+                      full) and its name doesn't match exactly one added repo — pick the right chart to enable editing.
                     </p>
                     <div className="flex gap-1.5">
                       <select
@@ -267,13 +270,13 @@ export function HelmReleasesPage() {
                 <textarea
                   value={editedValues}
                   onChange={(e) => setEditedValues(e.target.value)}
-                  readOnly={!isAdmin || !detail.chartRef}
+                  readOnly={!isAdmin || !detail.valuesEditable}
                   spellCheck={false}
                   rows={16}
                   className="w-full rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 font-mono text-xs
                              leading-5 p-3 resize-none focus:outline-none disabled:opacity-60"
                 />
-                {isAdmin && detail.chartRef && (
+                {isAdmin && detail.valuesEditable && (
                   <div className="flex items-center justify-between mt-2">
                     <button
                       onClick={() => setEditedValues(detail.values)}
