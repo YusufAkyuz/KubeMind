@@ -7,6 +7,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -17,13 +20,15 @@ public class HelmReleaseService {
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
     private final HelmInstallRepository installRepository;
+    private final HelmReleaseChartExtractor extractor;
 
     public HelmReleaseService(HelmCliService cli, AuditService auditService, ObjectMapper objectMapper,
-                              HelmInstallRepository installRepository) {
+                              HelmInstallRepository installRepository, HelmReleaseChartExtractor extractor) {
         this.cli = cli;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
         this.installRepository = installRepository;
+        this.extractor = extractor;
     }
 
     public List<HelmReleaseDto> list(long clusterId, String namespace) {
@@ -34,19 +39,215 @@ public class HelmReleaseService {
         return HelmJson.parseArray(objectMapper, out, new TypeReference<>() {});
     }
 
-    /** chartRef is null when the chart couldn't be auto-resolved (see {@link #resolveChartRef})
-     *  and nobody linked one manually — the frontend disables editing values in that case,
-     *  since there's no chart reference to `helm upgrade` against without one. */
-    public record ReleaseDetail(String values, String manifest, String notes, String chartRef) {}
+    /**
+     * Revision log for one release.
+     *
+     * Reads purely from what Helm stored in the cluster, so it works for a
+     * release installed from a terminal by someone who never told KubeMind
+     * about a chart repository.
+     */
+    public List<HelmRevisionDto> history(long clusterId, String namespace, String name) {
+        String out = cli.run(clusterId, List.of("history", name, "-n", namespace, "-o", "json"));
+        return HelmJson.parseArray(objectMapper, out, new TypeReference<>() {});
+    }
+
+    /**
+     * Re-applies a previous revision.
+     *
+     * Deliberately takes no chart reference: Helm replays the chart and values
+     * it stored alongside that revision, which is why this is the one repair
+     * action that works even when values editing is still locked behind a
+     * missing chartRef (see {@link #resolveChartRef}).
+     */
+    public void rollback(String username, long clusterId, String namespace, String name, int revision) {
+        String ref = "HelmRelease/" + namespace + "/" + name;
+        Map<String, Object> payload = Map.of("revision", revision);
+        try {
+            cli.run(clusterId, List.of("rollback", name, String.valueOf(revision), "-n", namespace));
+            auditService.record(username, clusterId, "ROLLBACK_HELM_RELEASE", ref, payload, true, null);
+        } catch (ResponseStatusException e) {
+            auditService.record(username, clusterId, "ROLLBACK_HELM_RELEASE", ref, payload, false, e.getReason());
+            throw e;
+        }
+    }
+
+    /**
+     * @param chartRef      null when no repository chart could be resolved for this release
+     * @param valuesEditable whether "Save & Upgrade" has any chart to work from — either the
+     *                       one Helm stored in the cluster or a resolved chartRef. Availability
+     *                       only; whether the stored chart is <em>complete</em> is settled at
+     *                       upgrade time by the verification gate, which is the expensive check.
+     */
+    public record ReleaseDetail(String values, String manifest, String notes, String chartRef,
+                                boolean valuesEditable) {}
 
     public ReleaseDetail detail(long clusterId, String namespace, String name) {
-        String values = cli.run(clusterId, List.of("get", "values", name, "-n", namespace));
+        // `-o yaml` matters: the default output prefixes a "USER-SUPPLIED VALUES:"
+        // header, and this string is what the editor round-trips back into a
+        // values file on save — where that header parses as a junk top-level key.
+        String values = cli.run(clusterId, List.of("get", "values", name, "-n", namespace, "-o", "yaml"));
         String manifest = cli.run(clusterId, List.of("get", "manifest", name, "-n", namespace));
         String notes = cli.runAllowingEmpty(clusterId, List.of("get", "notes", name, "-n", namespace));
         String chartRef = installRepository.findByClusterIdAndNamespaceAndReleaseName(clusterId, namespace, name)
             .map(HelmInstall::getChartRef)
             .orElseGet(() -> resolveChartRef(clusterId, namespace, name));
-        return new ReleaseDetail(values, manifest, notes, chartRef);
+
+        // Cheap: one API read plus a gunzip, no helm process.
+        var stored = extractor.extract(clusterId, namespace, name);
+        stored.ifPresent(c -> HelmReleaseChartExtractor.deleteRecursively(c.chartDir()));
+
+        return new ReleaseDetail(values, manifest, notes, chartRef, stored.isPresent() || chartRef != null);
+    }
+
+    /**
+     * What a chart repository is now good for.
+     *
+     * Registering a repo used to be the price of editing a release at all. It
+     * buys something narrower and more honest now: knowing whether a newer chart
+     * version exists. Without a repo everything else still works.
+     *
+     * @param chartRef null when no repository chart matches this release
+     */
+    public record ChartUpdate(String chartRef, String currentVersion, String latestVersion,
+                              boolean updateAvailable) {}
+
+    public ChartUpdate chartUpdate(long clusterId, String namespace, String name) {
+        String currentVersion = null;
+        try {
+            String metaJson = cli.run(clusterId, List.of("get", "metadata", name, "-n", namespace, "-o", "json"));
+            currentVersion = objectMapper.readValue(metaJson, HelmMetadataDto.class).version();
+        } catch (Exception e) {
+            // Version unknown — the caller just gets a card with nothing to offer.
+        }
+
+        String chartRef = installRepository.findByClusterIdAndNamespaceAndReleaseName(clusterId, namespace, name)
+            .map(HelmInstall::getChartRef)
+            .orElseGet(() -> resolveChartRef(clusterId, namespace, name));
+        if (chartRef == null) {
+            return new ChartUpdate(null, currentVersion, null, false);
+        }
+
+        String latestVersion = null;
+        try {
+            String searchOut = cli.runAllowingEmpty(clusterId, List.of("search", "repo", chartRef, "-o", "json"));
+            latestVersion = HelmJson.parseArray(objectMapper, searchOut, new TypeReference<List<HelmChartDto>>() {})
+                .stream()
+                .filter(c -> chartRef.equals(c.name()))
+                .map(HelmChartDto::version)
+                .findFirst().orElse(null);
+        } catch (Exception e) {
+            // Repo unreachable or removed: report what we know, claim no update.
+        }
+
+        return new ChartUpdate(chartRef, currentVersion, latestVersion,
+            ChartVersions.isNewer(latestVersion, currentVersion));
+    }
+
+    /**
+     * Moves a release onto a different chart version — the one thing that
+     * genuinely needs a repository, and now the only thing.
+     *
+     * Carries the release's current values across explicitly. A bare
+     * `helm upgrade` would reset the release to the chart's defaults, which on a
+     * production release is indistinguishable from wiping its configuration.
+     */
+    public void upgradeChartVersion(String username, long clusterId, String namespace, String name, String version) {
+        String ref = "HelmRelease/" + namespace + "/" + name;
+        Map<String, Object> payload = Map.of("version", version);
+        Path valuesFile = null;
+        try {
+            String chartRef = installRepository.findByClusterIdAndNamespaceAndReleaseName(clusterId, namespace, name)
+                .map(HelmInstall::getChartRef)
+                .orElseGet(() -> resolveChartRef(clusterId, namespace, name));
+            if (chartRef == null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No chart repository is linked to this release, so there is no newer version to move to.");
+            }
+
+            String currentValues = cli.run(clusterId,
+                List.of("get", "values", name, "-n", namespace, "-o", "yaml"));
+            valuesFile = Files.createTempFile("kubemind-helm-values-", ".yaml");
+            Files.writeString(valuesFile, currentValues == null ? "" : currentValues);
+
+            cli.run(clusterId, List.of("upgrade", name, chartRef, "--version", version,
+                "-n", namespace, "-f", valuesFile.toString()));
+            auditService.record(username, clusterId, "UPGRADE_HELM_CHART", ref, payload, true, null);
+        } catch (ResponseStatusException e) {
+            auditService.record(username, clusterId, "UPGRADE_HELM_CHART", ref, payload, false, e.getReason());
+            throw e;
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Could not write values file: " + e.getMessage());
+        } finally {
+            if (valuesFile != null) {
+                try {
+                    Files.deleteIfExists(valuesFile);
+                } catch (IOException ignored) {
+                    // Best effort.
+                }
+            }
+        }
+    }
+
+    /**
+     * Re-applies a release with edited values.
+     *
+     * Prefers the chart Helm stored alongside the release, which makes this work
+     * with no repository registered and — just as importantly — guarantees that
+     * editing a value cannot also move the release onto a newer chart version
+     * the way upgrading against a repository reference silently does.
+     *
+     * The stored chart is only used once it has been proven to reproduce the
+     * running manifest; see HelmReleaseChartExtractor for the case that check
+     * exists to catch. Otherwise this falls back to the repository reference,
+     * and without one it refuses rather than guessing.
+     */
+    public void upgradeValues(String username, long clusterId, String namespace, String name, String valuesYaml) {
+        String ref = "HelmRelease/" + namespace + "/" + name;
+        var extracted = extractor.extract(clusterId, namespace, name);
+        Path valuesFile = null;
+        String source = null;
+        try {
+            String chartArg;
+            if (extracted.isPresent()
+                && extractor.rendersTheSameManifest(cli, clusterId, namespace, name, extracted.get())) {
+                chartArg = extracted.get().chartDir().toString();
+                source = "stored-chart";
+            } else {
+                chartArg = installRepository.findByClusterIdAndNamespaceAndReleaseName(clusterId, namespace, name)
+                    .map(HelmInstall::getChartRef)
+                    .orElseGet(() -> resolveChartRef(clusterId, namespace, name));
+                if (chartArg == null) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "This release's chart could not be recovered from the cluster — charts with subcharts "
+                        + "are not stored in full. Link its chart from a repository to edit values.");
+                }
+                source = chartArg;
+            }
+
+            valuesFile = Files.createTempFile("kubemind-helm-values-", ".yaml");
+            Files.writeString(valuesFile, valuesYaml == null ? "" : valuesYaml);
+
+            cli.run(clusterId, List.of("upgrade", name, chartArg, "-n", namespace, "-f", valuesFile.toString()));
+            auditService.record(username, clusterId, "UPGRADE_HELM_VALUES", ref,
+                Map.of("chartSource", source), true, null);
+        } catch (ResponseStatusException e) {
+            auditService.record(username, clusterId, "UPGRADE_HELM_VALUES", ref,
+                Map.of("chartSource", source == null ? "none" : source), false, e.getReason());
+            throw e;
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Could not write values file: " + e.getMessage());
+        } finally {
+            extracted.ifPresent(c -> HelmReleaseChartExtractor.deleteRecursively(c.chartDir()));
+            if (valuesFile != null) {
+                try {
+                    Files.deleteIfExists(valuesFile);
+                } catch (IOException ignored) {
+                    // Best effort.
+                }
+            }
+        }
     }
 
     /**

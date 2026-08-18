@@ -335,8 +335,40 @@ export interface HelmReleaseDetail {
   values: string
   manifest: string
   notes: string
-  /** Null when this release wasn't installed through KubeMind — editing values is disabled then. */
+  /** Repository reference, when one could be resolved. No longer what gates editing. */
   chartRef: string | null
+  /**
+   * Whether there is any chart to re-apply with — normally the one Helm stored in
+   * the cluster, so this is true even for releases installed from a terminal.
+   * Charts whose subcharts Helm did not persist fall back to needing a chartRef.
+   */
+  valuesEditable: boolean
+}
+
+/**
+ * One entry from a release's revision log. Unlike HelmRelease.revision this is
+ * a number, because it is what a rollback is addressed to. Reading it needs no
+ * chart reference — Helm keeps every revision in the cluster.
+ */
+export interface HelmRevision {
+  revision: number
+  updated: string
+  status: string
+  chart: string
+  appVersion: string
+  description: string
+}
+
+/**
+ * What a chart repository buys you now. It used to be the price of editing a
+ * release at all; it now only answers "is there a newer chart version?" —
+ * everything else works without one.
+ */
+export interface HelmChartUpdate {
+  chartRef: string | null
+  currentVersion: string | null
+  latestVersion: string | null
+  updateAvailable: boolean
 }
 
 export interface HelmRepo {
