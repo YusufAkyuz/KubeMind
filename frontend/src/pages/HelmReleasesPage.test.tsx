@@ -82,10 +82,23 @@ describe('HelmReleasesPage — managing a release with no repository registered'
     const editor = await screen.findByRole('textbox')
     expect(editor).toHaveValue('replicas: 1\n')
     expect(editor).not.toHaveAttribute('readonly')
-    // Linking a chart is still offered, but as an optional extra rather than the
-    // precondition it used to be — the wording is the whole difference.
-    expect(screen.getByText(/Link a repository chart if you also want/)).toBeInTheDocument()
+    // Linking is offered as one muted line, not as pickers sitting above the
+    // editor — three form controls there read as a required step whatever the
+    // copy says, which is how this shipped wrong the first time.
+    expect(screen.getByRole('button', { name: 'Link a chart' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Link' })).not.toBeInTheDocument()
     expect(screen.queryByText(/enable editing/)).not.toBeInTheDocument()
+  })
+
+  it('only shows the chart pickers once they are asked for', async () => {
+    renderPage()
+    await userEvent.click(await screen.findByText('grafana'))
+    await screen.findByRole('textbox')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Link a chart' }))
+
+    expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument()
+    expect(screen.getByText(/used only for version-update notices/)).toBeInTheDocument()
   })
 
   it('saves values without sending a chart reference', async () => {
