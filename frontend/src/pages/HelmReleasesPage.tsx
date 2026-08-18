@@ -11,7 +11,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { useAuth } from '../auth/AuthContext'
-import type { HelmChart, HelmRelease, HelmReleaseDetail, HelmRepo } from '../types/k8s'
+import type { HelmChart, HelmRelease, HelmReleaseDetail, HelmRepo, HelmRevision } from '../types/k8s'
 
 const COLUMNS = [
   { key: 'name', label: 'Name' },
@@ -35,7 +35,8 @@ export function HelmReleasesPage() {
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<HelmRelease | null>(null)
   const [uninstallOpen, setUninstallOpen] = useState(false)
-  const [tab, setTab] = useState<'values' | 'manifest' | 'notes'>('values')
+  const [tab, setTab] = useState<'values' | 'history' | 'manifest' | 'notes'>('values')
+  const [rollbackTo, setRollbackTo] = useState<HelmRevision | null>(null)
   const [editedValues, setEditedValues] = useState('')
   const [upgrading, setUpgrading] = useState(false)
   const [linkRepo, setLinkRepo] = useState('')
@@ -48,6 +49,15 @@ export function HelmReleasesPage() {
     queryFn: async () => (await api.get<HelmReleaseDetail>(
       `/clusters/${clusterId}/namespaces/${selected!.namespace}/helm/releases/${selected!.name}`)).data,
     enabled: !!selected,
+  })
+
+  // Fetched only once the tab is opened: a revision log is rarely what someone
+  // came for, and it is one more `helm` process per release otherwise.
+  const { data: history, isLoading: historyLoading, isError: historyError } = useQuery<HelmRevision[]>({
+    queryKey: ['helm-release-history', clusterId, selected?.namespace, selected?.name],
+    queryFn: async () => (await api.get<HelmRevision[]>(
+      `/clusters/${clusterId}/namespaces/${selected!.namespace}/helm/releases/${selected!.name}/history`)).data,
+    enabled: !!selected && tab === 'history',
   })
 
   // Repo + chart pickers for the "link an externally-installed release" flow — the user
@@ -99,6 +109,27 @@ export function HelmReleasesPage() {
       toast.error(apiErrorMessage(e, 'Upgrade failed'))
     } finally {
       setUpgrading(false)
+    }
+  }
+
+  /**
+   * Unlike "Save & Upgrade", this needs no chartRef — Helm replays the chart it
+   * stored with that revision. It is the one repair action available on a
+   * release installed outside KubeMind.
+   */
+  const rollback = async () => {
+    if (!selected || !rollbackTo) return
+    try {
+      await api.post(
+        `/clusters/${clusterId}/namespaces/${selected.namespace}/helm/releases/${selected.name}/rollback`,
+        { revision: rollbackTo.revision },
+      )
+      toast.success(`"${selected.name}" rolled back to revision ${rollbackTo.revision}`)
+      queryClient.invalidateQueries({ queryKey: ['helm/releases', clusterId, ns] })
+      queryClient.invalidateQueries({ queryKey: ['helm-release-detail', clusterId, selected.namespace, selected.name] })
+      queryClient.invalidateQueries({ queryKey: ['helm-release-history', clusterId, selected.namespace, selected.name] })
+    } catch (e) {
+      throw new Error(apiErrorMessage(e, 'Rollback failed'))
     }
   }
 
@@ -178,7 +209,7 @@ export function HelmReleasesPage() {
 
             <DrawerSection title="Details" />
             <div className="flex gap-1 mb-2">
-              {(['values', 'manifest', 'notes'] as const).map((t) => (
+              {(['values', 'history', 'manifest', 'notes'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
@@ -264,7 +295,54 @@ export function HelmReleasesPage() {
               </>
             )}
 
-            {detail && tab !== 'values' && (
+            {tab === 'history' && (
+              <>
+                {historyLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
+                {historyError && <ErrorBanner message="Could not load this release's history." />}
+                {history && (
+                  <div className="rounded-lg border border-gray-200 dark:border-neutral-700 overflow-hidden">
+                    {[...history].reverse().map((rev) => {
+                      // Helm records a rollback as a new revision, so the newest row is
+                      // always what is live — rolling back to it would be a no-op.
+                      const isCurrent = rev.status === 'deployed'
+                      return (
+                        <div
+                          key={rev.revision}
+                          className="flex items-center gap-3 px-3 py-2 border-b last:border-b-0
+                                     border-gray-100 dark:border-neutral-800"
+                        >
+                          <span className="w-8 shrink-0 text-xs tabular-nums text-gray-400 dark:text-neutral-500">
+                            #{rev.revision}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs text-gray-800 dark:text-neutral-200">{rev.description}</p>
+                            <p className="truncate text-[11px] text-gray-400 dark:text-neutral-500">
+                              {rev.chart} · {rev.updated}
+                            </p>
+                          </div>
+                          <StatusBadge status={STATUS_MAP[rev.status] ?? rev.status} />
+                          {isAdmin && (
+                            <button
+                              onClick={() => setRollbackTo(rev)}
+                              disabled={isCurrent}
+                              title={isCurrent ? 'Already the deployed revision' : undefined}
+                              className="shrink-0 rounded-md border border-gray-300 dark:border-neutral-600 px-2 py-1
+                                         text-[11px] font-medium text-gray-700 dark:text-neutral-300
+                                         hover:bg-gray-50 dark:hover:bg-neutral-800
+                                         disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {isCurrent ? 'Current' : 'Rollback'}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
+            {detail && (tab === 'manifest' || tab === 'notes') && (
               <pre className="rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 font-mono text-xs
                                leading-5 p-3 whitespace-pre-wrap break-all max-h-96 overflow-y-auto">
                 {detail[tab] || `(no ${tab})`}
@@ -273,6 +351,23 @@ export function HelmReleasesPage() {
           </>
         )}
       </DetailDrawer>
+
+      <ConfirmDialog
+        open={!!rollbackTo}
+        title={`Roll back to revision ${rollbackTo?.revision ?? ''}`}
+        message={
+          <>
+            Re-applies the chart and values stored with revision{' '}
+            <span className="font-medium">{rollbackTo?.revision}</span> of{' '}
+            <span className="font-mono font-medium text-gray-800 dark:text-neutral-200">{selected?.name}</span>.
+            Whatever is running now will be replaced. History is kept — the rollback becomes a new revision.
+          </>
+        }
+        confirmLabel="Roll back"
+        danger
+        onConfirm={rollback}
+        onClose={() => setRollbackTo(null)}
+      />
 
       <ConfirmDialog
         open={uninstallOpen}

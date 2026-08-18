@@ -1,6 +1,7 @@
 package com.kubemind.helm;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,6 +40,27 @@ public class HelmReleaseController {
     @GetMapping("/namespaces/{ns}/helm/releases/{name}")
     public HelmReleaseService.ReleaseDetail detail(@PathVariable long clusterId, @PathVariable String ns, @PathVariable String name) {
         return service.detail(clusterId, ns, name);
+    }
+
+    @GetMapping("/namespaces/{ns}/helm/releases/{name}/history")
+    public List<HelmRevisionDto> history(@PathVariable long clusterId, @PathVariable String ns,
+                                         @PathVariable String name) {
+        return service.history(clusterId, ns, name);
+    }
+
+    public record RollbackRequest(@Min(1) int revision) {}
+
+    /**
+     * Rolling back changes what is running, so it is gated and audited like any
+     * other write. It needs no chart reference — see HelmReleaseService.rollback.
+     */
+    @PostMapping("/namespaces/{ns}/helm/releases/{name}/rollback")
+    @PreAuthorize("@clusterAccessService.canWrite(authentication, #clusterId)")
+    public ResponseEntity<Void> rollback(@PathVariable long clusterId, @PathVariable String ns,
+                                         @PathVariable String name,
+                                         @Valid @RequestBody RollbackRequest request, Authentication auth) {
+        service.rollback(auth.getName(), clusterId, ns, name, request.revision());
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/namespaces/{ns}/helm/releases/{name}")

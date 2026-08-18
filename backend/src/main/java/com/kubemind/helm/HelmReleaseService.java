@@ -34,6 +34,38 @@ public class HelmReleaseService {
         return HelmJson.parseArray(objectMapper, out, new TypeReference<>() {});
     }
 
+    /**
+     * Revision log for one release.
+     *
+     * Reads purely from what Helm stored in the cluster, so it works for a
+     * release installed from a terminal by someone who never told KubeMind
+     * about a chart repository.
+     */
+    public List<HelmRevisionDto> history(long clusterId, String namespace, String name) {
+        String out = cli.run(clusterId, List.of("history", name, "-n", namespace, "-o", "json"));
+        return HelmJson.parseArray(objectMapper, out, new TypeReference<>() {});
+    }
+
+    /**
+     * Re-applies a previous revision.
+     *
+     * Deliberately takes no chart reference: Helm replays the chart and values
+     * it stored alongside that revision, which is why this is the one repair
+     * action that works even when values editing is still locked behind a
+     * missing chartRef (see {@link #resolveChartRef}).
+     */
+    public void rollback(String username, long clusterId, String namespace, String name, int revision) {
+        String ref = "HelmRelease/" + namespace + "/" + name;
+        Map<String, Object> payload = Map.of("revision", revision);
+        try {
+            cli.run(clusterId, List.of("rollback", name, String.valueOf(revision), "-n", namespace));
+            auditService.record(username, clusterId, "ROLLBACK_HELM_RELEASE", ref, payload, true, null);
+        } catch (ResponseStatusException e) {
+            auditService.record(username, clusterId, "ROLLBACK_HELM_RELEASE", ref, payload, false, e.getReason());
+            throw e;
+        }
+    }
+
     /** chartRef is null when the chart couldn't be auto-resolved (see {@link #resolveChartRef})
      *  and nobody linked one manually — the frontend disables editing values in that case,
      *  since there's no chart reference to `helm upgrade` against without one. */

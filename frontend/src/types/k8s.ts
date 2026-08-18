@@ -339,6 +339,20 @@ export interface HelmReleaseDetail {
   chartRef: string | null
 }
 
+/**
+ * One entry from a release's revision log. Unlike HelmRelease.revision this is
+ * a number, because it is what a rollback is addressed to. Reading it needs no
+ * chart reference — Helm keeps every revision in the cluster.
+ */
+export interface HelmRevision {
+  revision: number
+  updated: string
+  status: string
+  chart: string
+  appVersion: string
+  description: string
+}
+
 export interface HelmRepo {
   name: string
   url: string
