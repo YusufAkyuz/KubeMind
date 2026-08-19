@@ -71,6 +71,18 @@ public class HelmReleaseController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * The release's values and manifest with credentials shown. ADMIN-only and
+     * audited (REVEAL_HELM_VALUES) — the same bar the Secrets page sets for the
+     * same data, which chart values and rendered Secrets plainly are.
+     */
+    @GetMapping("/namespaces/{ns}/helm/releases/{name}/reveal")
+    @PreAuthorize("hasRole('ADMIN')")
+    public HelmReleaseService.ReleaseDetail reveal(@PathVariable long clusterId, @PathVariable String ns,
+                                                   @PathVariable String name, Authentication auth) {
+        return service.reveal(auth.getName(), clusterId, ns, name);
+    }
+
     /** Whether the linked repository has a newer chart version than the release is running. */
     @GetMapping("/namespaces/{ns}/helm/releases/{name}/chart-update")
     public HelmReleaseService.ChartUpdate chartUpdate(@PathVariable long clusterId, @PathVariable String ns,

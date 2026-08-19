@@ -248,6 +248,74 @@ class HelmReleaseServiceTest {
             eq(Map.of("version", "11.2.0")), eq(false), any());
     }
 
+    private void helmReturnsARealReleaseWithSecrets() {
+        when(cli.run(anyLong(), any())).thenAnswer(inv -> {
+            List<String> args = inv.getArgument(1);
+            if (args.contains("values")) return "auth:\n  adminPassword: admin123\n  adminUsername: admin\n";
+            if (args.contains("manifest")) return "kind: Secret\nstringData:\n  admin-password: \"admin123\"\n";
+            return "";
+        });
+        when(cli.runAllowingEmpty(anyLong(), any())).thenReturn("");
+    }
+
+    /**
+     * The gap this closes: the Secrets page has always required ADMIN and written
+     * a REVEAL_SECRET record for this data, while the Helm page handed the same
+     * credentials to anyone who could reach the cluster.
+     */
+    @Test
+    void detailHidesCredentialsInBothValuesAndManifest() {
+        helmReturnsARealReleaseWithSecrets();
+
+        var detail = service.detail(7L, "monitoring", "grafana");
+
+        assertThat(detail.values()).doesNotContain("admin123");
+        assertThat(detail.manifest()).doesNotContain("admin123");
+        assertThat(detail.masked()).isTrue();
+        // Ordinary configuration still shows, or the page stops being useful.
+        assertThat(detail.values()).contains("adminUsername: admin");
+    }
+
+    @Test
+    void revealReturnsTheRealValuesAndRecordsWhoAskedFor() {
+        helmReturnsARealReleaseWithSecrets();
+
+        var detail = service.reveal("admin", 7L, "monitoring", "grafana");
+
+        assertThat(detail.values()).contains("admin123");
+        assertThat(detail.masked()).isFalse();
+        verify(auditService).record(eq("admin"), eq(7L), eq("REVEAL_HELM_VALUES"),
+            eq("HelmRelease/monitoring/grafana"), eq(null), eq(true), eq(null));
+    }
+
+    @Test
+    void aFailedRevealIsAuditedToo() {
+        when(cli.run(anyLong(), any()))
+            .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "helm: forbidden"));
+
+        assertThatThrownBy(() -> service.reveal("admin", 7L, "monitoring", "grafana"))
+            .isInstanceOf(ResponseStatusException.class);
+
+        verify(auditService).record(eq("admin"), eq(7L), eq("REVEAL_HELM_VALUES"), any(),
+            eq(null), eq(false), any());
+    }
+
+    /**
+     * Saving masked text back would overwrite live credentials with the mask —
+     * silent configuration loss of the same family as a bare `helm upgrade`
+     * resetting a release to chart defaults.
+     */
+    @Test
+    void refusesToSaveValuesThatStillContainMasks() {
+        assertThatThrownBy(() -> service.upgradeValues(
+            "admin", 7L, "monitoring", "grafana", "auth:\n  adminPassword: " + HelmSecretMasker.MASK + "\n"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("400")
+            .hasMessageContaining("Reveal them before saving");
+
+        verify(cli, never()).run(anyLong(), any());
+    }
+
     @Test
     void historyIsScopedToTheNamespaceItWasAskedFor() {
         when(cli.run(anyLong(), any())).thenReturn("[]");

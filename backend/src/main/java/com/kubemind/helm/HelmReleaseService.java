@@ -79,15 +79,59 @@ public class HelmReleaseService {
      *                       upgrade time by the verification gate, which is the expensive check.
      */
     public record ReleaseDetail(String values, String manifest, String notes, String chartRef,
-                                boolean valuesEditable) {}
+                                boolean valuesEditable, boolean masked) {}
 
+    /**
+     * Values and manifest come back with credentials masked.
+     *
+     * Chart values are where passwords and signing keys live, and
+     * `helm get manifest` renders every Secret the chart defines — this app's own
+     * chart writes them as stringData, in the clear. The Secrets page has always
+     * required ADMIN and written an audit record for exactly this data
+     * (SecretService.reveal); serving it unguarded here was a way around that
+     * rule, not an exception to it. {@link #reveal} is the way through.
+     */
     public ReleaseDetail detail(long clusterId, String namespace, String name) {
+        Raw raw = raw(clusterId, namespace, name);
+        return describe(clusterId, namespace, name,
+            HelmSecretMasker.maskValues(raw.values()), HelmSecretMasker.maskManifest(raw.manifest()),
+            raw.notes(), true);
+    }
+
+    /**
+     * The unmasked values and manifest — ADMIN-only at the controller, and
+     * audited here, matching how revealing a Secret works.
+     *
+     * Editing goes through this too: the masked text is display-only, so saving
+     * it back would write "[REDACTED]" over real credentials. Requiring a reveal
+     * before an edit makes that impossible and leaves a record of who read what.
+     */
+    public ReleaseDetail reveal(String username, long clusterId, String namespace, String name) {
+        String ref = "HelmRelease/" + namespace + "/" + name;
+        try {
+            Raw raw = raw(clusterId, namespace, name);
+            auditService.record(username, clusterId, "REVEAL_HELM_VALUES", ref, null, true, null);
+            return describe(clusterId, namespace, name, raw.values(), raw.manifest(), raw.notes(), false);
+        } catch (RuntimeException e) {
+            auditService.record(username, clusterId, "REVEAL_HELM_VALUES", ref, null, false, e.getMessage());
+            throw e;
+        }
+    }
+
+    private record Raw(String values, String manifest, String notes) {}
+
+    private Raw raw(long clusterId, String namespace, String name) {
         // `-o yaml` matters: the default output prefixes a "USER-SUPPLIED VALUES:"
         // header, and this string is what the editor round-trips back into a
         // values file on save — where that header parses as a junk top-level key.
         String values = cli.run(clusterId, List.of("get", "values", name, "-n", namespace, "-o", "yaml"));
         String manifest = cli.run(clusterId, List.of("get", "manifest", name, "-n", namespace));
         String notes = cli.runAllowingEmpty(clusterId, List.of("get", "notes", name, "-n", namespace));
+        return new Raw(values, manifest, notes);
+    }
+
+    private ReleaseDetail describe(long clusterId, String namespace, String name,
+                                   String values, String manifest, String notes, boolean masked) {
         String chartRef = installRepository.findByClusterIdAndNamespaceAndReleaseName(clusterId, namespace, name)
             .map(HelmInstall::getChartRef)
             .orElseGet(() -> resolveChartRef(clusterId, namespace, name));
@@ -96,7 +140,8 @@ public class HelmReleaseService {
         var stored = extractor.extract(clusterId, namespace, name);
         stored.ifPresent(c -> HelmReleaseChartExtractor.deleteRecursively(c.chartDir()));
 
-        return new ReleaseDetail(values, manifest, notes, chartRef, stored.isPresent() || chartRef != null);
+        return new ReleaseDetail(values, manifest, notes, chartRef,
+            stored.isPresent() || chartRef != null, masked);
     }
 
     /**
@@ -204,6 +249,14 @@ public class HelmReleaseService {
      */
     public void upgradeValues(String username, long clusterId, String namespace, String name, String valuesYaml) {
         String ref = "HelmRelease/" + namespace + "/" + name;
+        // Belt and braces behind the UI's "reveal before you edit" flow: masked
+        // text is display-only, and writing it back would replace live
+        // credentials with the mask. Refuse it here too, so no client can.
+        if (valuesYaml != null && valuesYaml.contains(HelmSecretMasker.MASK)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "These values still contain masked credentials. Reveal them before saving, "
+                + "or the masks would overwrite the real ones.");
+        }
         var extracted = extractor.extract(clusterId, namespace, name);
         Path valuesFile = null;
         String source = null;

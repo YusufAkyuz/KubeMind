@@ -343,6 +343,14 @@ export interface HelmReleaseDetail {
    * Charts whose subcharts Helm did not persist fall back to needing a chartRef.
    */
   valuesEditable: boolean
+  /**
+   * True while credentials in `values`/`manifest` are masked. Chart values carry
+   * passwords and signing keys, and the manifest carries rendered Secrets — the
+   * same data the Secrets page reveals only to an ADMIN, with an audit record.
+   * Masked text is display-only: saving it back would write the mask over the
+   * real credentials, so editing waits for a reveal.
+   */
+  masked: boolean
 }
 
 /**

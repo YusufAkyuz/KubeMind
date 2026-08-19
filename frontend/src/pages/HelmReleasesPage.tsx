@@ -38,6 +38,8 @@ export function HelmReleasesPage() {
   const [tab, setTab] = useState<'values' | 'history' | 'manifest' | 'notes'>('values')
   const [rollbackTo, setRollbackTo] = useState<HelmRevision | null>(null)
   const [chartUpgradeOpen, setChartUpgradeOpen] = useState(false)
+  /** Reset per release: revealing one release's credentials must not reveal the next one's. */
+  const [revealed, setRevealed] = useState(false)
   const [editedValues, setEditedValues] = useState('')
   const [upgrading, setUpgrading] = useState(false)
   const [linkRepo, setLinkRepo] = useState('')
@@ -47,10 +49,14 @@ export function HelmReleasesPage() {
   const [linkOpen, setLinkOpen] = useState(false)
   const showNsColumn = ns === 'all'
 
+  // Credentials arrive masked. Revealing is a separate, ADMIN-only, audited
+  // request — the same bar the Secrets page sets for the same data — so it is
+  // kept out of this query rather than folded in behind a flag.
   const { data: detail, isLoading: detailLoading } = useQuery<HelmReleaseDetail>({
-    queryKey: ['helm-release-detail', clusterId, selected?.namespace, selected?.name],
+    queryKey: ['helm-release-detail', clusterId, selected?.namespace, selected?.name, revealed],
     queryFn: async () => (await api.get<HelmReleaseDetail>(
-      `/clusters/${clusterId}/namespaces/${selected!.namespace}/helm/releases/${selected!.name}`)).data,
+      `/clusters/${clusterId}/namespaces/${selected!.namespace}/helm/releases/${selected!.name}`
+      + (revealed ? '/reveal' : ''))).data,
     enabled: !!selected,
   })
 
@@ -205,7 +211,7 @@ export function HelmReleasesPage() {
       {data && data.length > 0 && (
         <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>
           {data.map((r) => (
-            <Tr key={`${r.namespace}/${r.name}`} onClick={() => { setSelected(r); setTab('values') }}
+            <Tr key={`${r.namespace}/${r.name}`} onClick={() => { setSelected(r); setTab('values'); setRevealed(false) }}
                 highlighted={selected?.name === r.name && selected?.namespace === r.namespace}>
               <Td className="font-medium text-gray-900 dark:text-neutral-100">{r.name}</Td>
               {showNsColumn && <Td className="text-neutral-500 dark:text-neutral-400">{r.namespace}</Td>}
@@ -277,6 +283,28 @@ export function HelmReleasesPage() {
               ))}
             </div>
             {detailLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
+
+            {/* Values and rendered Secrets are credentials; the Secrets page has
+                always required ADMIN and an audit record to show them. Spelling
+                out why the editor is read-only beats leaving it inert. */}
+            {detail?.masked && (tab === 'values' || tab === 'manifest') && (
+              <div className="flex items-center gap-2 rounded-md border border-gray-200 dark:border-neutral-700
+                              bg-gray-50 dark:bg-neutral-800/60 px-2.5 py-2 mb-1.5">
+                <p className="flex-1 text-[11px] text-gray-500 dark:text-neutral-400">
+                  Credentials are hidden.{isAdmin ? ' Revealing them is recorded in the audit log, and editing needs them.' : ' An admin can reveal them.'}
+                </p>
+                {isAdmin && (
+                  <button
+                    onClick={() => setRevealed(true)}
+                    className="shrink-0 rounded border border-gray-300 dark:border-neutral-600 px-2.5 py-1
+                               text-[11px] font-medium text-gray-700 dark:text-neutral-300
+                               hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
+                  >
+                    Reveal
+                  </button>
+                )}
+              </div>
+            )}
 
             {detail && tab === 'values' && (
               <>
@@ -353,13 +381,13 @@ export function HelmReleasesPage() {
                 <textarea
                   value={editedValues}
                   onChange={(e) => setEditedValues(e.target.value)}
-                  readOnly={!isAdmin || !detail.valuesEditable}
+                  readOnly={!isAdmin || !detail.valuesEditable || detail.masked}
                   spellCheck={false}
                   rows={16}
                   className="w-full rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 font-mono text-xs
                              leading-5 p-3 resize-none focus:outline-none disabled:opacity-60"
                 />
-                {isAdmin && detail.valuesEditable && (
+                {isAdmin && detail.valuesEditable && !detail.masked && (
                   <div className="flex items-center justify-between mt-2">
                     <button
                       onClick={() => setEditedValues(detail.values)}
