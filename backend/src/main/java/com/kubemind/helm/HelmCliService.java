@@ -1,6 +1,8 @@
 package com.kubemind.helm;
 
 import com.kubemind.cluster.ClusterClientFactory;
+import com.kubemind.cluster.ImpersonationProperties;
+import com.kubemind.cluster.ImpersonationResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -23,8 +25,9 @@ import java.util.concurrent.TimeUnit;
  * There's no mature Helm SDK for Java, and reimplementing chart rendering,
  * hooks, and atomic install/rollback ourselves would be a project on its own —
  * shelling out gets the real thing for free. This is the same trust tier as
- * the Cluster Terminal (CLAUDE.md's disclosed exceptions): every call here is
- * ADMIN-gated and audited by its caller, and the `helm` binary must be present
+ * the Cluster Terminal (CLAUDE.md's disclosed exceptions): write calls are
+ * gated and audited by their callers, reads are open to anyone who may reach
+ * the cluster, and the `helm` binary must be present
  * in the backend's runtime image (documented in the Helm chart / Dockerfile
  * when KubeMind ships one).
  *
@@ -54,9 +57,46 @@ public class HelmCliService {
     private static final Path HELM_HOME = Path.of(System.getProperty("user.home"), ".kubemind", "helm");
 
     private final ClusterClientFactory clientFactory;
+    private final ImpersonationProperties impersonation;
+    private final ImpersonationResolver impersonationResolver;
 
-    public HelmCliService(ClusterClientFactory clientFactory) {
+    public HelmCliService(ClusterClientFactory clientFactory,
+                          ImpersonationProperties impersonation,
+                          ImpersonationResolver impersonationResolver) {
         this.clientFactory = clientFactory;
+        this.impersonation = impersonation;
+        this.impersonationResolver = impersonationResolver;
+    }
+
+    /**
+     * Makes the subprocess act as the caller, the way every Fabric8 call already
+     * does (ClusterClientFactory.getClient).
+     *
+     * Without this the built-in cluster's Helm endpoints ran as the installation's
+     * own ServiceAccount — cluster-admin in a default install — while impersonation
+     * was busy scoping the rest of the app to each person. Since impersonation
+     * being on is exactly what opens cluster 0 to non-admins
+     * (ClusterAccessService.canRead), that combination handed any authenticated
+     * user the ServiceAccount's reach over every release in the cluster.
+     *
+     * Only the built-in cluster is affected: a registered cluster is already
+     * reached through its owner's own kubeconfig, which is their identity.
+     */
+    void addImpersonation(List<String> command, long clusterId) {
+        if (clusterId != ClusterClientFactory.DEFAULT_CLUSTER_ID || !impersonation.enabled()) {
+            return;
+        }
+        // Fails closed, like ClusterClientFactory: running as the ServiceAccount
+        // because we could not name the caller is the bug this method exists for.
+        ImpersonationResolver.Identity identity = impersonationResolver.currentIdentity()
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Impersonation is enabled but the caller could not be identified"));
+        command.add("--kube-as-user");
+        command.add(identity.username());
+        for (String group : identity.groups()) {
+            command.add("--kube-as-group");
+            command.add(group);
+        }
     }
 
     /** Runs `helm <args>` against the given cluster and returns stdout. Throws on nonzero exit. */
@@ -66,6 +106,7 @@ public class HelmCliService {
             List<String> command = new ArrayList<>();
             command.add("helm");
             command.addAll(args);
+            addImpersonation(command, clusterId);
 
             String kubeconfig = clientFactory.getKubeconfig(clusterId);
             if (kubeconfig != null) {
