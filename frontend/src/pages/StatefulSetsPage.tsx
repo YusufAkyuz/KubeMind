@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiErrorMessage } from '../api/client'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
 import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
@@ -43,7 +44,7 @@ export function StatefulSetsPage() {
 
       {noNamespace && <EmptyState message={noNamespaceMessage('statefulsets')} />}
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load statefulsets: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load statefulsets: ${apiErrorMessage(error)}`} />}
 
       {data && (
         <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>

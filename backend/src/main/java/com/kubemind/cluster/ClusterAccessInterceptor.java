@@ -42,8 +42,15 @@ public class ClusterAccessInterceptor implements HandlerInterceptor {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
         if (!clusterAccessService.canRead(auth, clusterId)) {
+            // "No access" alone leaves people guessing whether to ask for a role, a
+            // kubeconfig, or an approval — and the answer differs between the two
+            // cases, so say which one this is.
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "You don't have access to this cluster.");
+                clusterId == ClusterClientFactory.DEFAULT_CLUSTER_ID
+                    ? "The built-in cluster is administrator-only: it runs as this installation's own "
+                      + "identity rather than yours. Register your own cluster with a kubeconfig to work here."
+                    : "This cluster isn't yours to use. You reach the clusters you registered yourself, "
+                      + "once an administrator has approved them.");
         }
         return true;
     }

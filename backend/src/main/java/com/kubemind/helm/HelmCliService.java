@@ -3,6 +3,7 @@ package com.kubemind.helm;
 import com.kubemind.cluster.ClusterClientFactory;
 import com.kubemind.cluster.ImpersonationProperties;
 import com.kubemind.cluster.ImpersonationResolver;
+import com.kubemind.common.KubernetesRefusal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -137,7 +138,7 @@ public class HelmCliService {
             }
             if (process.exitValue() != 0) {
                 String message = !stderr.isBlank() ? stderr.trim() : stdout.trim();
-                throw new ResponseStatusException(statusFor(message), "helm: " + message);
+                throw new ResponseStatusException(statusFor(message), explain(message));
             }
             return stdout;
         } catch (IOException e) {
@@ -165,6 +166,28 @@ public class HelmCliService {
      * The API server's own wording is what we match on; it's stable across
      * versions and shows up verbatim in helm's stderr.
      */
+    /**
+     * Rewrites helm's stderr into something worth showing a person.
+     *
+     * The RBAC case earns its own wording rather than the generic one: Helm keeps
+     * every release in a Secret, so "cannot list secrets" does not read as "Helm
+     * is unavailable here" to anyone who does not already know that. Saying which
+     * verbs are missing turns a dead end into a request an admin can act on.
+     *
+     * Anything we do not recognise is passed through as helm wrote it — a
+     * mangled real error is worse than a raw one.
+     */
+    static String explain(String stderr) {
+        if (!KubernetesRefusal.isForbidden(stderr)) {
+            return "helm: " + stderr;
+        }
+        return KubernetesRefusal.parse(stderr)
+            .map(r -> KubernetesRefusal.describe(r) + " Helm keeps its releases in Secrets, so managing them "
+                + "here needs get and list on secrets — plus create, update and delete to install, upgrade "
+                + "or roll back. That is this cluster's RBAC, not a KubeMind restriction.")
+            .orElse("helm: " + stderr);
+    }
+
     static HttpStatus statusFor(String stderr) {
         String s = stderr.toLowerCase(java.util.Locale.ROOT);
         if (s.contains("is forbidden:") || s.contains("forbidden: user")) {

@@ -90,7 +90,7 @@ export function PodsPage() {
         </div>
       )}
       {isLoading && !isError && !streamError && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load pods: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load pods: ${apiErrorMessage(error)}`} />}
       {!isError && streamError && <ErrorBanner message={streamError} />}
 
       {data && (

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { api } from '../api/client'
+import { api, apiErrorMessage } from '../api/client'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
 import { Table, Tr, Td } from '../components/Table'
@@ -55,7 +55,7 @@ export function EventsPage() {
         </div>
       )}
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load events: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load events: ${apiErrorMessage(error)}`} />}
 
       {data && data.length === 0 && (
         <div className="rounded-lg border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
