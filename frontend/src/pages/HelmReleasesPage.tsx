@@ -11,6 +11,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import type { HelmChart, HelmChartUpdate, HelmRelease, HelmReleaseDetail, HelmRepo, HelmRevision } from '../types/k8s'
 
 const COLUMNS = [
@@ -30,7 +31,12 @@ const STATUS_MAP: Record<string, string> = {
 
 export function HelmReleasesPage() {
   const { clusterId, ns, noNamespace, data, isLoading, isError, error } = useNamespacedList<HelmRelease>('helm/releases')
+  // Write actions follow the same rule as every other resource page: cluster
+  // access plus whatever the caller's kubeconfig RBAC allows, not an app-level
+  // role. Revealing credentials stays ADMIN-only — that one is gated the same
+  // way on the backend, and matches the Secrets page.
   const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const toast = useToast()
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<HelmRelease | null>(null)
@@ -86,7 +92,7 @@ export function HelmReleasesPage() {
   const { data: repos } = useQuery<HelmRepo[]>({
     queryKey: ['helm-repos', clusterId],
     queryFn: async () => (await api.get<HelmRepo[]>(`/clusters/${clusterId}/helm/repos`)).data,
-    enabled: !!selected && isAdmin,
+    enabled: !!selected && canWrite,
   })
   const { data: repoCharts } = useQuery<HelmChart[]>({
     queryKey: ['helm-charts-for-repo', clusterId, linkRepo],
@@ -200,7 +206,7 @@ export function HelmReleasesPage() {
 
       {noNamespace && <EmptyState message={noNamespaceMessage('helm releases')} />}
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load releases: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load releases: ${apiErrorMessage(error)}`} />}
 
       {data && data.length === 0 && !isLoading && (
         <div className="rounded-xl border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
@@ -229,7 +235,7 @@ export function HelmReleasesPage() {
                     onClose={() => setSelected(null)}>
         {selected && (
           <>
-            {isAdmin && (
+            {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
                 <button
                   onClick={() => setUninstallOpen(true)}
@@ -254,7 +260,7 @@ export function HelmReleasesPage() {
                   <span className="font-mono">{chartUpdate.currentVersion}</span> →{' '}
                   <span className="font-mono font-semibold">{chartUpdate.latestVersion}</span>
                 </p>
-                {isAdmin && (
+                {canWrite && (
                   <button
                     onClick={() => setChartUpgradeOpen(true)}
                     className="shrink-0 rounded bg-blue-600 px-2.5 py-1 text-xs font-medium text-white
@@ -312,7 +318,7 @@ export function HelmReleasesPage() {
                     pickers folded away. Three form controls sitting above the
                     editor read as a required step no matter what the copy says —
                     which is exactly how this landed the first time. */}
-                {isAdmin && detail.valuesEditable && !chartUpdate?.chartRef && !linkOpen && (
+                {canWrite && detail.valuesEditable && !chartUpdate?.chartRef && !linkOpen && (
                   <p className="text-[11px] text-gray-400 dark:text-neutral-500 mb-1.5">
                     Editing uses the chart stored in the cluster.{' '}
                     <button
@@ -327,7 +333,7 @@ export function HelmReleasesPage() {
 
                 {/* Nothing to upgrade against, so editing really is off until a
                     chart is picked — here the pickers are the point. */}
-                {isAdmin && !chartUpdate?.chartRef && (!detail.valuesEditable || linkOpen) && (
+                {canWrite && !chartUpdate?.chartRef && (!detail.valuesEditable || linkOpen) && (
                   <div className={`rounded-md border px-2.5 py-2 mb-1.5 ${
                     detail.valuesEditable
                       ? 'border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60'
@@ -381,13 +387,13 @@ export function HelmReleasesPage() {
                 <textarea
                   value={editedValues}
                   onChange={(e) => setEditedValues(e.target.value)}
-                  readOnly={!isAdmin || !detail.valuesEditable || detail.masked}
+                  readOnly={!canWrite || !detail.valuesEditable || detail.masked}
                   spellCheck={false}
                   rows={16}
                   className="w-full rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 font-mono text-xs
                              leading-5 p-3 resize-none focus:outline-none disabled:opacity-60"
                 />
-                {isAdmin && detail.valuesEditable && !detail.masked && (
+                {canWrite && detail.valuesEditable && !detail.masked && (
                   <div className="flex items-center justify-between mt-2">
                     <button
                       onClick={() => setEditedValues(detail.values)}
@@ -435,7 +441,7 @@ export function HelmReleasesPage() {
                             </p>
                           </div>
                           <StatusBadge status={STATUS_MAP[rev.status] ?? rev.status} />
-                          {isAdmin && (
+                          {canWrite && (
                             <button
                               onClick={() => setRollbackTo(rev)}
                               disabled={isCurrent}

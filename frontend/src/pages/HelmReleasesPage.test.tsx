@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
+import { AxiosError, AxiosHeaders } from 'axios'
 import { HelmReleasesPage } from './HelmReleasesPage'
 import { renderWithProviders } from '../test/renderWithProviders'
 import { mockGet } from '../test/mockApi'
@@ -9,7 +10,12 @@ import { mockGet } from '../test/mockApi'
 const { mockApi } = vi.hoisted(() => ({
   mockApi: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }))
-vi.mock('../api/client', () => ({ api: mockApi, apiErrorMessage: () => 'error' }))
+// The real apiErrorMessage, because what regressed across 27 pages was the
+// wiring: they rendered axios's own `.message` and dropped the server's.
+vi.mock('../api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/client')>()
+  return { api: mockApi, apiErrorMessage: actual.apiErrorMessage }
+})
 
 const PATH = '/clusters/:clusterId/namespaces/:ns/helm/releases'
 const ROUTE = '/clusters/7/namespaces/monitoring/helm/releases'
@@ -76,6 +82,34 @@ async function openHistoryTab() {
   await userEvent.click(await screen.findByText('grafana'))
   await userEvent.click(await screen.findByRole('button', { name: 'history' }))
 }
+
+/**
+ * Every list page used to render `(error as Error).message`, which for an axios
+ * failure is "Request failed with status code 403" — the server's explanation of
+ * *why* was thrown away at the last step. This is that path end to end.
+ */
+describe('HelmReleasesPage — a refusal explains itself', () => {
+  it('shows what the cluster actually refused, not the HTTP status text', async () => {
+    const explained = 'ServiceAccount "kubemind-developer" (namespace dev-team) is not allowed to '
+      + 'list secrets in namespace dev-team. Helm keeps its releases in Secrets, so managing them here '
+      + 'needs get and list on secrets.'
+    const refusal = new AxiosError('Request failed with status code 403')
+    refusal.response = {
+      status: 403, statusText: 'Forbidden', data: { error: explained },
+      headers: new AxiosHeaders(), config: { headers: new AxiosHeaders() },
+    }
+    mockGet(mockApi, {
+      '/auth/me': { username: 'admin', role: 'ADMIN' },
+      [BASE]: refusal,
+      '/clusters': [{ id: 7, name: 'staging', status: 'APPROVED', builtIn: false }],
+      '/clusters/7/namespaces': [{ name: 'monitoring' }],
+    })
+    renderPage()
+
+    expect(await screen.findByText(new RegExp('not allowed to list secrets'))).toBeInTheDocument()
+    expect(screen.queryByText(/status code 403/)).not.toBeInTheDocument()
+  })
+})
 
 /**
  * Both of these work off what Helm stored in the cluster rather than a chart
@@ -167,6 +201,51 @@ describe('HelmReleasesPage — credentials are hidden until revealed', () => {
 
     expect(await screen.findByText(/Credentials are hidden/)).toBeInTheDocument()
   })
+})
+
+/**
+ * The Helm pages used to gate every action on `isAdmin` while the other twenty
+ * resource pages used `useCanWrite` — cluster access plus whatever the caller's
+ * own kubeconfig allows. The backend was always the looser of the two, so a
+ * USER could install through the API but had no button. These lock in the
+ * alignment, and the one place it does not apply.
+ */
+describe('HelmReleasesPage — a USER on their own cluster', () => {
+  function asUser() {
+    mockGet(mockApi, {
+      '/auth/me': { username: 'bob', role: 'USER' },
+      '/config': { privilegedFeatures: true },
+      [BASE]: [RELEASE],
+      [`${BASE}/grafana`]: DETAIL_FROM_STORED_CHART,
+      [`${BASE}/grafana/reveal`]: DETAIL_REVEALED,
+      [`${BASE}/grafana/history`]: HISTORY,
+      [`${BASE}/grafana/chart-update`]: NO_REPO_LINKED,
+      '/clusters/7/helm/repos': [],
+      '/clusters': [{ id: 7, name: 'staging', status: 'APPROVED', builtIn: false }],
+      '/clusters/7/namespaces': [{ name: 'monitoring' }],
+    })
+  }
+
+  it('can act on releases their kubeconfig lets them touch', async () => {
+    asUser()
+    renderPage()
+    await userEvent.click(await screen.findByText('grafana'))
+
+    // Cluster 7 is one they registered themselves, so writes are theirs to try;
+    // the cluster's RBAC still has the final say server-side.
+    expect(await screen.findByRole('button', { name: 'Uninstall' })).toBeInTheDocument()
+  })
+
+  it('still cannot reveal credentials — that stays ADMIN-only, as on the backend', async () => {
+    asUser()
+    renderPage()
+    await userEvent.click(await screen.findByText('grafana'))
+    await screen.findByRole('textbox')
+
+    expect(screen.queryByRole('button', { name: 'Reveal' })).not.toBeInTheDocument()
+    expect(screen.getByText(/An admin can reveal them/)).toBeInTheDocument()
+  })
+
 })
 
 /**

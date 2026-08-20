@@ -12,6 +12,49 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class HelmCliServiceTest {
 
+    /**
+     * "cannot list secrets" does not read as "Helm is unavailable here" unless you
+     * already know Helm keeps every release in a Secret. Naming the verbs that are
+     * missing turns a dead end into a request an admin can act on.
+     */
+    @Test
+    void anRbacRefusalExplainsWhatHelmActuallyNeeds() {
+        String stderr = "Error: list: failed to list: secrets is forbidden: User "
+            + "\"system:serviceaccount:dev-team:kubemind-developer\" cannot list resource "
+            + "\"secrets\" in API group \"\" in the namespace \"dev-team\"";
+
+        String explained = HelmCliService.explain(stderr);
+
+        assertThat(explained)
+            .contains("kubemind-developer")
+            .contains("list")
+            .contains("dev-team")
+            .contains("Helm keeps its releases in Secrets")
+            .contains("create, update and delete");
+        // The raw dump is what this replaced.
+        assertThat(explained).doesNotContain("failed to list:");
+    }
+
+    /** Rewriting an error we did not understand would hide the real one. */
+    @Test
+    void leavesUnrecognisedHelmErrorsAsHelmWroteThem() {
+        String stderr = "Error: UPGRADE FAILED: another operation (install/upgrade/rollback) is in progress";
+
+        assertThat(HelmCliService.explain(stderr)).isEqualTo("helm: " + stderr);
+    }
+
+    /**
+     * runAllowingEmpty swallows reasons containing "not found"; the rewritten
+     * refusal must not accidentally land in that bucket and disappear.
+     */
+    @Test
+    void theRewrittenRefusalIsNotMistakenForAnEmptyResult() {
+        String stderr = "Error: list: failed to list: secrets is forbidden: User \"alice\" cannot "
+            + "list resource \"secrets\" in API group \"\" in the namespace \"dev-team\"";
+
+        assertThat(HelmCliService.explain(stderr).toLowerCase()).doesNotContain("not found");
+    }
+
     /** Verbatim from a kubeconfig scoped to a ServiceAccount without secret access. */
     @Test
     void rbacRefusalIsForbiddenNotBadGateway() {

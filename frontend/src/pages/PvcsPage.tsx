@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { apiErrorMessage } from '../api/client'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
 import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
@@ -43,7 +44,7 @@ export function PvcsPage() {
 
       {noNamespace && <EmptyState message={noNamespaceMessage('persistent volume claims')} />}
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load claims: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load claims: ${apiErrorMessage(error)}`} />}
 
       {data && (
         <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>

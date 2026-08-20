@@ -9,12 +9,18 @@ import { Modal } from '../components/Modal'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../auth/AuthContext'
+import { useCanWrite } from '../auth/useCanWrite'
 import { IconPlus, IconSearch, IconX } from '../components/Icons'
 import type { HelmChart, HelmRepo } from '../types/k8s'
 
 export function HelmChartsPage() {
   const { clusterId, ns } = useParams<{ clusterId: string; ns: string }>()
+  // Installing is a write against the cluster, so it follows the same rule as
+  // every other resource page (useCanWrite) rather than an app-level role.
+  // Repository management stays ADMIN-only: the repo list lives in one
+  // backend-wide helm config, so one person's repo is everyone's.
   const { isAdmin } = useAuth()
+  const canWrite = useCanWrite(clusterId)
   const toast = useToast()
   const queryClient = useQueryClient()
 
@@ -176,7 +182,7 @@ export function HelmChartsPage() {
         <p className="text-sm text-gray-400 dark:text-neutral-500">Add a chart repository above to start searching.</p>
       )}
       {chartsLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Searching…</p>}
-      {isError && <ErrorBanner message={`Search failed: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Search failed: ${apiErrorMessage(error)}`} />}
 
       {charts && charts.length === 0 && !chartsLoading && (repos?.length ?? 0) > 0 && (
         <p className="text-sm text-gray-400 dark:text-neutral-500">No charts found{searchTerm ? ` for "${searchTerm}"` : ''}.</p>
@@ -197,7 +203,7 @@ export function HelmChartsPage() {
               <Td className="hidden md:table-cell text-neutral-500 dark:text-neutral-400">{c.appVersion || '—'}</Td>
               <Td className="hidden lg:table-cell text-neutral-500 dark:text-neutral-400 max-w-md truncate">{c.description}</Td>
               <Td>
-                {isAdmin && (
+                {canWrite && (
                   <button
                     onClick={() => openInstall(c)}
                     disabled={noNamespace}

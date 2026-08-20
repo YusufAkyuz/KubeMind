@@ -111,7 +111,7 @@ export function UsersPage() {
       />
 
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load users: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load users: ${apiErrorMessage(error)}`} />}
 
       {data && (
         <Table columns={COLUMNS} minWidth="480px">
