@@ -9,6 +9,7 @@ import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
 import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedList'
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import { StatefulSetActions } from '../components/StatefulSetActions'
+import { ChangeEffectNotice } from '../components/ChangeEffectNotice'
 import { ExplainPanel } from '../components/ExplainPanel'
 import { useCanWrite } from '../auth/useCanWrite'
 import { formatAge } from '../utils/format'
@@ -69,6 +70,10 @@ export function StatefulSetsPage() {
         {selected && ns && (
           <>
             <div className="pb-3">
+              <ChangeEffectNotice
+                clusterId={clusterId!}
+                resourceRef={`StatefulSet/${selected.namespace}/${selected.name}`}
+              />
               <ExplainPanel
                 key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}

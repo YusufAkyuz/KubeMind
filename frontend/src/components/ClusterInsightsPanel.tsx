@@ -45,6 +45,31 @@ export function ClusterInsightsPanel({ clusterId }: Props) {
           <div className="space-y-1.5">{renderLiteMarkdown(data.incidentNarrative)}</div>
         )}
 
+        {/* Above the plain change list on purpose: a change with a warning
+            behind it is the one worth reading first. Worded as sequence, never
+            cause — the timing is evidence, not a verdict. */}
+        {data.changeEffects.length > 0 && (
+          <div className="rounded-md border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-2">
+            <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider mb-1">
+              Warnings after a change
+            </p>
+            <ul className="space-y-1">
+              {data.changeEffects.slice(0, 5).map((e, i) => (
+                <li key={i} className="text-xs text-amber-900 dark:text-amber-200">
+                  <span className="font-mono">{e.warningSignature}</span>: {e.warningReason}
+                  <span className="block text-amber-700 dark:text-amber-400">
+                    started {e.minutesAfter} min after {e.action}{' '}
+                    <span className="font-mono">{e.resourceRef}</span> by {e.username}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-400">
+              Timing only — check before assuming the change is the cause.
+            </p>
+          </div>
+        )}
+
         {data.recentChanges.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wider mb-1">Recent changes</p>
