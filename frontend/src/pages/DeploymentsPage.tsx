@@ -13,6 +13,7 @@ import { formatAge } from '../utils/format'
 import { useCanWrite } from '../auth/useCanWrite'
 import { DeploymentActions } from '../components/DeploymentActions'
 import { CreateResourceButton } from '../components/CreateResourceButton'
+import { ChangeEffectNotice } from '../components/ChangeEffectNotice'
 import { ExplainPanel } from '../components/ExplainPanel'
 import type { Deployment } from '../types/k8s'
 
@@ -99,6 +100,10 @@ export function DeploymentsPage() {
         {selected && ns && (
           <>
             <div className="pb-3">
+              <ChangeEffectNotice
+                clusterId={clusterId!}
+                resourceRef={`Deployment/${selected.namespace}/${selected.name}`}
+              />
               <ExplainPanel
                 key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}

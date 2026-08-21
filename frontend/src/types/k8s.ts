@@ -67,6 +67,23 @@ export interface ChangeEntry {
   createdAt: string | null
 }
 
+/**
+ * A warning that appeared shortly after a change made through KubeMind.
+ * Deliberately not called a "cause": the link is timing plus object ownership,
+ * which is evidence, not proof. See backend ChangeEffectLinker.
+ */
+export interface ChangeEffect {
+  action: string
+  resourceRef: string
+  username: string
+  changedAt: string
+  warningSignature: string
+  warningReason: string
+  minutesAfter: number
+  /** SAME_OBJECT — the very thing that was changed; OWNED_OBJECT — something it owns, e.g. its pods. */
+  matchLevel: 'SAME_OBJECT' | 'OWNED_OBJECT'
+}
+
 export interface ClusterInsights {
   available: boolean
   nodeCount: number
@@ -78,6 +95,7 @@ export interface ClusterInsights {
   incidentNarrative: string | null
   topIncidents: IncidentPattern[]
   recentChanges: ChangeEntry[]
+  changeEffects: ChangeEffect[]
   lastUpdated: string | null
 }
 

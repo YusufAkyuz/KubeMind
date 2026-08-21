@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -22,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -42,6 +44,7 @@ public class ClusterProfileService {
     public static final String SECTION_WORKLOAD_SUMMARY = "workload_summary";
     public static final String SECTION_INCIDENT_PATTERNS = "incident_patterns";
     public static final String SECTION_CHANGES = "changes";
+    public static final String SECTION_CHANGE_EFFECTS = "change_effects";
     public static final String SECTION_AI_HISTORY = "ai_history";
 
     private static final Logger log = LoggerFactory.getLogger(ClusterProfileService.class);
@@ -70,6 +73,21 @@ public class ClusterProfileService {
 
     // ── Scheduling ───────────────────────────────────────────────────────────
 
+    /** Kubernetes discards Events after about an hour; older changes have nothing left to link to. */
+    private static final Duration CHANGE_LOOKBACK = Duration.ofHours(1);
+
+    /**
+     * Audit actions that open a session or administer the app rather than alter
+     * the cluster. A pod exec cannot make a workload start crash-looping, so
+     * pairing one with a warning would only manufacture a coincidence.
+     */
+    private static final Set<String> NON_MUTATING_ACTIONS = Set.of(
+        "EXEC_POD", "OPEN_CLUSTER_TERMINAL", "NODE_EXEC", "OPEN_PORT_FORWARD",
+        "REVEAL_SECRET", "REVEAL_HELM_VALUES", "CREATE_RUNBOOK", "DELETE_RUNBOOK",
+        "RESET_USER_PASSWORD", "CREATE_USER", "DELETE_USER",
+        "REQUEST_CLUSTER", "APPROVE_CLUSTER", "REJECT_CLUSTER", "DELETE_CLUSTER",
+        "ADD_HELM_REPO", "REMOVE_HELM_REPO", "LINK_HELM_CHART_REF");
+
     @Scheduled(fixedDelay = 900_000, initialDelay = 60_000)
     public void refreshAll() {
         List<Long> clusterIds = new ArrayList<>();
@@ -96,7 +114,16 @@ public class ClusterProfileService {
         refreshWorkloadSummary(clusterId);
         refreshChanges(clusterId);
         refreshAiHistory(clusterId);
-        refreshIncidentPatterns(clusterId);
+
+        // One Event listing serves both sections below; they read the same data
+        // for different questions ("what keeps happening" / "what did we just
+        // cause"), and a cluster-wide event list is not cheap enough to fetch twice.
+        List<Event> warnings = clientFactory.getSystemClient(clusterId)
+            .resources(Event.class).inAnyNamespace().list().getItems().stream()
+            .filter(e -> "Warning".equals(e.getType()))
+            .toList();
+        refreshIncidentPatterns(clusterId, warnings);
+        refreshChangeEffects(clusterId, warnings);
     }
 
     // ── Topology (pure aggregation) ─────────────────────────────────────────
@@ -172,16 +199,68 @@ public class ClusterProfileService {
         return line.length() > 200 ? line.substring(0, 200) + "…" : line;
     }
 
+    // ── Change effects (join of the audit log with what the cluster reported next) ──
+
+    /**
+     * Ties changes made through KubeMind to warnings that followed them.
+     *
+     * The one thing here that a desktop Kubernetes client structurally cannot
+     * do: it needs a record of who changed what and when, which only a server
+     * that mediates the changes has. See ChangeEffectLinker for why this looks
+     * forward from a change rather than back from an incident, and for the
+     * measurement that ruled the backward version out.
+     *
+     * Only changes from the last hour are considered, because Kubernetes
+     * discards Events after roughly that long — older changes have nothing left
+     * to corroborate them either way.
+     */
+    private void refreshChangeEffects(long clusterId, List<Event> warnings) {
+        Instant since = Instant.now().minus(CHANGE_LOOKBACK);
+        List<ChangeEffectLinker.Change> changes =
+            auditLogRepository.findByClusterIdAndCreatedAtAfterOrderByCreatedAtDesc(clusterId, since).stream()
+                // A change that failed changed nothing, so it cannot be the cause of anything.
+                .filter(a -> "SUCCESS".equals(a.getResult()))
+                .filter(a -> !NON_MUTATING_ACTIONS.contains(a.getAction()))
+                .map(a -> new ChangeEffectLinker.Change(
+                    a.getAction(), a.getResourceRef(), a.getUsername(), a.getCreatedAt()))
+                .toList();
+
+        List<ChangeEffectLinker.Warning> observed = warnings.stream()
+            .map(ClusterProfileService::toWarning)
+            .filter(Objects::nonNull)
+            .toList();
+
+        String content = writeJson(ChangeEffectLinker.link(changes, observed));
+        upsert(clusterId, SECTION_CHANGE_EFFECTS, content, sha256(content));
+    }
+
+    /**
+     * An Event's own firstTimestamp is when the condition began; lastTimestamp
+     * only says it is still going. Using the latter would make a warning that
+     * started yesterday look like it began seconds after today's change.
+     */
+    private static ChangeEffectLinker.Warning toWarning(Event e) {
+        var obj = e.getInvolvedObject();
+        if (obj == null || obj.getNamespace() == null || obj.getName() == null || e.getReason() == null) {
+            return null;
+        }
+        String started = e.getFirstTimestamp() != null ? e.getFirstTimestamp() : e.getEventTime() != null
+            ? e.getEventTime().getTime() : e.getLastTimestamp();
+        if (started == null) return null;
+        try {
+            return new ChangeEffectLinker.Warning(obj.getKind(), obj.getNamespace(), obj.getName(),
+                e.getReason(), Instant.parse(started));
+        } catch (Exception parseFailure) {
+            return null; // an unparseable timestamp is one we cannot order against a change
+        }
+    }
+
     // ── Incident patterns (aggregation, cumulative across runs, + hash-gated LLM narrative) ──
 
     record IncidentPattern(String signature, int count, String firstSeen, String lastSeen) {}
     record IncidentPatternsContent(String narrative, List<IncidentPattern> patterns) {}
 
-    private void refreshIncidentPatterns(long clusterId) {
-        var warnings = clientFactory.getSystemClient(clusterId).resources(Event.class).inAnyNamespace().list().getItems().stream()
-            .filter(e -> "Warning".equals(e.getType()))
-            .toList();
-
+    private void refreshIncidentPatterns(long clusterId, List<Event> warnings) {
         Map<String, Integer> currentCounts = new HashMap<>();
         for (Event e : warnings) {
             var obj = e.getInvolvedObject();
@@ -288,6 +367,23 @@ public class ClusterProfileService {
             }
         }
 
+        var effects = rows.get(SECTION_CHANGE_EFFECTS);
+        if (effects != null) {
+            List<ChangeEffectLinker.ChangeEffect> list =
+                readJsonList(effects.getContent(), ChangeEffectLinker.ChangeEffect.class);
+            if (!list.isEmpty()) {
+                // Worded as sequence, never causation: the model must not upgrade
+                // "followed by" into "caused by" when it repeats this back.
+                sb.append("Warnings that appeared right after a change made here "
+                    + "(timing only — not established causation):\n");
+                list.stream().limit(5).forEach(e -> sb.append("- ").append(e.warningSignature())
+                    .append(": ").append(e.warningReason())
+                    .append(", ").append(e.minutesAfter()).append(" min after ")
+                    .append(e.action()).append(' ').append(e.resourceRef())
+                    .append(" by ").append(e.username()).append('\n'));
+            }
+        }
+
         var changes = rows.get(SECTION_CHANGES);
         if (changes != null) {
             List<ChangeEntry> list = readJsonList(changes.getContent(), ChangeEntry.class);
@@ -307,13 +403,17 @@ public class ClusterProfileService {
         boolean available, int nodeCount, List<String> nodeVersions,
         int namespaceCount, int podCount, int unhealthyPodCount, List<String> unhealthyHighlights,
         String incidentNarrative, List<IncidentPattern> topIncidents,
-        List<ChangeEntry> recentChanges, Instant lastUpdated
+        List<ChangeEntry> recentChanges,
+        /** Warnings that appeared shortly after a change made through KubeMind. Timing, not proof. */
+        List<ChangeEffectLinker.ChangeEffect> changeEffects,
+        Instant lastUpdated
     ) {}
 
     public ClusterInsightsDto getInsights(long clusterId) {
         var rowList = profileRepository.findByClusterId(clusterId);
         if (rowList.isEmpty()) {
-            return new ClusterInsightsDto(false, 0, List.of(), 0, 0, 0, List.of(), null, List.of(), List.of(), null);
+            return new ClusterInsightsDto(false, 0, List.of(), 0, 0, 0, List.of(), null,
+                List.of(), List.of(), List.of(), null);
         }
         Map<String, ClusterProfile> rows = rowList.stream()
             .collect(Collectors.toMap(ClusterProfile::getSection, r -> r, (a, b) -> a));
@@ -324,6 +424,9 @@ public class ClusterProfileService {
             ? readJson(rows.get(SECTION_WORKLOAD_SUMMARY).getContent(), WorkloadSummaryContent.class) : null;
         var incidents = rows.get(SECTION_INCIDENT_PATTERNS) != null
             ? readJson(rows.get(SECTION_INCIDENT_PATTERNS).getContent(), IncidentPatternsContent.class) : null;
+        List<ChangeEffectLinker.ChangeEffect> changeEffects = rows.get(SECTION_CHANGE_EFFECTS) != null
+            ? readJsonList(rows.get(SECTION_CHANGE_EFFECTS).getContent(), ChangeEffectLinker.ChangeEffect.class)
+            : List.of();
         var changes = rows.get(SECTION_CHANGES) != null
             ? readJsonList(rows.get(SECTION_CHANGES).getContent(), ChangeEntry.class) : List.<ChangeEntry>of();
 
@@ -340,6 +443,7 @@ public class ClusterProfileService {
             incidents != null ? incidents.narrative() : null,
             incidents != null ? incidents.patterns() : List.of(),
             changes,
+            changeEffects,
             lastUpdated
         );
     }
