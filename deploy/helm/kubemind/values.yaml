@@ -35,11 +35,11 @@
 image:
   backend:
     repository: kubemind/backend
-    tag: 0.3.1
+    tag: 0.4.0
     pullPolicy: IfNotPresent
   frontend:
     repository: kubemind/frontend
-    tag: 0.3.1
+    tag: 0.4.0
     pullPolicy: IfNotPresent
   # imagePullSecrets: [{ name: my-registry-secret }]
   imagePullSecrets: []

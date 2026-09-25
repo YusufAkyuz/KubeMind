@@ -108,7 +108,21 @@ public class PortForwardController {
 
             response.setStatus(upstream.statusCode());
             upstream.headers().map().forEach((h, values) -> {
-                if (!HOP_BY_HOP_HEADERS.contains(h.toLowerCase())) {
+                String lower = h.toLowerCase();
+                if (HOP_BY_HOP_HEADERS.contains(lower)) {
+                    return;
+                }
+                // The proxied app doesn't know it's mounted under our session
+                // prefix. Its own root-relative redirects and cookies would
+                // otherwise resolve against KubeMind's real origin instead —
+                // e.g. a target app's "not logged in, go to /login" redirect
+                // lands the browser on KubeMind's own /login, which looks
+                // indistinguishable from KubeMind itself kicking you out.
+                if (lower.equals("location")) {
+                    values.forEach(v -> response.addHeader(h, rewriteLocation(v, prefix)));
+                } else if (lower.equals("set-cookie")) {
+                    values.forEach(v -> response.addHeader(h, rewriteSetCookiePath(v, prefix)));
+                } else {
                     values.forEach(v -> response.addHeader(h, v));
                 }
             });
@@ -119,5 +133,44 @@ public class PortForwardController {
                 response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "Port-forward target unreachable: " + e.getMessage());
             }
         }
+    }
+
+    /**
+     * Root-relative Location values ("/login", not "//other-host/..." or an
+     * absolute URL) are the proxied app redirecting within itself — those
+     * need the session prefix so the browser stays inside the tunnel instead
+     * of landing on KubeMind's own route of the same name.
+     */
+    private static String rewriteLocation(String location, String prefix) {
+        if (location.startsWith("/") && !location.startsWith("//")) {
+            return prefix + location;
+        }
+        return location;
+    }
+
+    /**
+     * Confines a proxied app's cookies to this session's own path so they
+     * can't collide with KubeMind's own cookies on the same origin, and so
+     * the browser keeps sending them back on later requests here (which all
+     * live under `prefix`).
+     */
+    private static String rewriteSetCookiePath(String setCookie, String prefix) {
+        String[] parts = setCookie.split(";");
+        StringBuilder result = new StringBuilder(parts[0]);
+        boolean sawPath = false;
+        for (int i = 1; i < parts.length; i++) {
+            String trimmed = parts[i].strip();
+            if (trimmed.regionMatches(true, 0, "Path=", 0, 5)) {
+                String originalPath = trimmed.substring(5);
+                result.append("; Path=").append("/".equals(originalPath) ? prefix : prefix + originalPath);
+                sawPath = true;
+            } else {
+                result.append(";").append(parts[i]);
+            }
+        }
+        if (!sawPath) {
+            result.append("; Path=").append(prefix);
+        }
+        return result.toString();
     }
 }

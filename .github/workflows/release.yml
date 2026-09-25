@@ -66,11 +66,17 @@ jobs:
       # the image tag, so a version left un-bumped would publish a chart that
       # points at images this release never built. frontend/package.json is
       # deliberately not checked — it isn't tracked as the product version.
+      #
+      # image.*.tag are checked too — 0.4.0 shipped with Chart.yaml/pom.xml
+      # bumped but these two left at the previous version, so a plain
+      # `helm upgrade` silently kept serving the old images despite the chart
+      # claiming to be current. Catch that class of mistake here instead.
       - name: Chart and backend versions must match the tag
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           chart=deploy/helm/kubemind/Chart.yaml
+          values=deploy/helm/kubemind/values.yaml
           fail=0
           check() {
             if [ "$2" != "$VERSION" ]; then
@@ -82,6 +88,8 @@ jobs:
           check "Chart.yaml appVersion" "$(grep '^appVersion:' "$chart" | awk '{print $2}' | tr -d '\"')"
           check "backend/pom.xml version" \
             "$(sed -n '/<artifactId>kubemind-backend<\/artifactId>/{n;s/.*<version>\(.*\)<\/version>.*/\1/p;}' backend/pom.xml)"
+          check "values.yaml image.backend.tag"  "$(yq '.image.backend.tag'  "$values")"
+          check "values.yaml image.frontend.tag" "$(yq '.image.frontend.tag' "$values")"
           exit $fail
 
   images:
