@@ -125,9 +125,9 @@ public class PortForwardController {
                     Collections.list(request.getHeaders(h)).forEach(v -> builder.header(h, v));
                 }
             });
-            byte[] body = request.getInputStream().readAllBytes();
-            builder.method(request.getMethod(), body.length > 0
-                ? HttpRequest.BodyPublishers.ofByteArray(body) : HttpRequest.BodyPublishers.noBody());
+            byte[] requestBody = request.getInputStream().readAllBytes();
+            builder.method(request.getMethod(), requestBody.length > 0
+                ? HttpRequest.BodyPublishers.ofByteArray(requestBody) : HttpRequest.BodyPublishers.noBody());
 
             HttpResponse<byte[]> upstream = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
 
@@ -154,13 +154,13 @@ public class PortForwardController {
 
             String contentType = upstream.headers().firstValue("content-type")
                 .orElse("").toLowerCase(Locale.ROOT);
-            byte[] body = upstream.body();
+            byte[] responseBody = upstream.body();
             if (contentType.startsWith("text/html")) {
-                body = rewriteHtmlUrls(body, prefix, extractCharset(contentType));
+                responseBody = rewriteHtmlUrls(responseBody, prefix, extractCharset(contentType));
             } else if (contentType.startsWith("text/css")) {
-                body = rewriteCssUrls(body, prefix, extractCharset(contentType));
+                responseBody = rewriteCssUrls(responseBody, prefix, extractCharset(contentType));
             }
-            response.getOutputStream().write(body);
+            response.getOutputStream().write(responseBody);
         } catch (Exception e) {
             log.debug("Port-forward proxy error for session {}: {}", sessionId, e.getMessage());
             if (!response.isCommitted()) {
