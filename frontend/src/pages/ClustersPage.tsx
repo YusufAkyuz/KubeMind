@@ -208,7 +208,7 @@ export function ClustersPage() {
       {isAdmin && <PendingRequests />}
 
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load clusters: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load clusters: ${apiErrorMessage(error)}`} />}
 
       {data && data.length === 0 && (
         <div className="rounded-md border border-dashed border-gray-300 dark:border-neutral-600 px-4 py-8 text-center">

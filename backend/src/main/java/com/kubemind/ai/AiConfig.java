@@ -31,6 +31,13 @@ public class AiConfig {
         - PVC stuck Pending: no matching StorageClass/PV, or WaitForFirstConsumer waiting \
           for a pod to be scheduled.
 
+        When the state names a Kubernetes reason, condition or exit code — ImagePullBackOff, \
+        ErrImagePull, OOMKilled, CrashLoopBackOff, FailedScheduling, exit code 137, an \
+        initContainer's name — repeat that term verbatim in your Diagnosis rather than \
+        describing it in your own words. Whoever reads this will paste that exact string \
+        into a search box or an incident ticket; "failed to pull the image" is true but \
+        unsearchable, "ImagePullBackOff" is what the rest of the world calls it.
+
         Answer using this structure: **Diagnosis** (one or two sentences) → **Evidence** \
         (the specific facts from the state that support it) → **Fix** (concrete steps; \
         suggest kubectl commands as read-only suggestions, never as actions you took). \

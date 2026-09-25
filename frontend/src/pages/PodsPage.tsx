@@ -15,6 +15,7 @@ import { useSSE } from '../hooks/useSSE'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { formatAge } from '../utils/format'
 import { IconTerminal } from '../components/Icons'
+import { ChangeEffectNotice } from '../components/ChangeEffectNotice'
 import { ExplainPanel } from '../components/ExplainPanel'
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import type { Pod, PodMetrics } from '../types/k8s'
@@ -90,7 +91,7 @@ export function PodsPage() {
         </div>
       )}
       {isLoading && !isError && !streamError && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load pods: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load pods: ${apiErrorMessage(error)}`} />}
       {!isError && streamError && <ErrorBanner message={streamError} />}
 
       {data && (
@@ -151,7 +152,11 @@ export function PodsPage() {
             {selected && ns && (
               <>
                 <div className="pb-3">
-                  <ExplainPanel
+                  <ChangeEffectNotice
+                clusterId={clusterId!}
+                resourceRef={`Pod/${selected.namespace}/${selected.name}`}
+              />
+              <ExplainPanel
                     key={`${clusterId}/${selected.namespace}/${selected.name}`}
                     clusterId={clusterId!}
                     namespace={selected.namespace}

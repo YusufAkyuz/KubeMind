@@ -64,7 +64,8 @@ export function ScaleButton({ endpoint, resourceName, currentReplicas, readyRepl
               max={500}
               value={replicas}
               onChange={(e) => setReplicas(Math.max(0, Math.min(500, Number(e.target.value) || 0)))}
-              className="w-28 rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm tabular-nums
+              className="w-28 rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                         text-gray-900 dark:text-neutral-100 px-3 py-2 text-sm tabular-nums
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>

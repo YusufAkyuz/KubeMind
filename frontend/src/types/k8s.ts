@@ -67,6 +67,23 @@ export interface ChangeEntry {
   createdAt: string | null
 }
 
+/**
+ * A warning that appeared shortly after a change made through KubeMind.
+ * Deliberately not called a "cause": the link is timing plus object ownership,
+ * which is evidence, not proof. See backend ChangeEffectLinker.
+ */
+export interface ChangeEffect {
+  action: string
+  resourceRef: string
+  username: string
+  changedAt: string
+  warningSignature: string
+  warningReason: string
+  minutesAfter: number
+  /** SAME_OBJECT — the very thing that was changed; OWNED_OBJECT — something it owns, e.g. its pods. */
+  matchLevel: 'SAME_OBJECT' | 'OWNED_OBJECT'
+}
+
 export interface ClusterInsights {
   available: boolean
   nodeCount: number
@@ -78,6 +95,7 @@ export interface ClusterInsights {
   incidentNarrative: string | null
   topIncidents: IncidentPattern[]
   recentChanges: ChangeEntry[]
+  changeEffects: ChangeEffect[]
   lastUpdated: string | null
 }
 
@@ -335,8 +353,48 @@ export interface HelmReleaseDetail {
   values: string
   manifest: string
   notes: string
-  /** Null when this release wasn't installed through KubeMind — editing values is disabled then. */
+  /** Repository reference, when one could be resolved. No longer what gates editing. */
   chartRef: string | null
+  /**
+   * Whether there is any chart to re-apply with — normally the one Helm stored in
+   * the cluster, so this is true even for releases installed from a terminal.
+   * Charts whose subcharts Helm did not persist fall back to needing a chartRef.
+   */
+  valuesEditable: boolean
+  /**
+   * True while credentials in `values`/`manifest` are masked. Chart values carry
+   * passwords and signing keys, and the manifest carries rendered Secrets — the
+   * same data the Secrets page reveals only to an ADMIN, with an audit record.
+   * Masked text is display-only: saving it back would write the mask over the
+   * real credentials, so editing waits for a reveal.
+   */
+  masked: boolean
+}
+
+/**
+ * One entry from a release's revision log. Unlike HelmRelease.revision this is
+ * a number, because it is what a rollback is addressed to. Reading it needs no
+ * chart reference — Helm keeps every revision in the cluster.
+ */
+export interface HelmRevision {
+  revision: number
+  updated: string
+  status: string
+  chart: string
+  appVersion: string
+  description: string
+}
+
+/**
+ * What a chart repository buys you now. It used to be the price of editing a
+ * release at all; it now only answers "is there a newer chart version?" —
+ * everything else works without one.
+ */
+export interface HelmChartUpdate {
+  chartRef: string | null
+  currentVersion: string | null
+  latestVersion: string | null
+  updateAvailable: boolean
 }
 
 export interface HelmRepo {

@@ -9,7 +9,7 @@ interface Props {
   clusterId: string
   surface: Surface
   /** A key tying this rating to the answer it's about — the diagnosis's cache
-   *  state_hash for Explain, a client-generated id for stateless surfaces like Chat. */
+   *  state_hash for Explain, the stored chat_messages id for Chat. */
   contextHash: string
 }
 

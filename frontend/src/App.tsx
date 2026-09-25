@@ -37,6 +37,7 @@ import { ChatWidget } from './components/ChatWidget'
 import { TerminalPanelProvider, useTerminalPanel } from './terminal/TerminalPanelContext'
 import { ChatPanelProvider } from './chat/ChatPanelContext'
 import { RightReserveProvider } from './layout/RightReserveContext'
+import { useAuth } from './auth/AuthContext'
 
 // Code-split: xterm.js only loads once a terminal session is actually opened.
 const TerminalPanel = lazy(() => import('./terminal/TerminalPanel').then((m) => ({ default: m.TerminalPanel })))
@@ -52,6 +53,7 @@ function TerminalPanelHost() {
 }
 
 export default function App() {
+  const { username } = useAuth()
   return (
     <TerminalPanelProvider>
     <RightReserveProvider>
@@ -102,7 +104,14 @@ export default function App() {
         <Route path="/audit" element={<ProtectedRoute><AuditPage /></ProtectedRoute>} />
         <Route path="/clusters/:clusterId/runbooks" element={<ProtectedRoute><RunbooksPage /></ProtectedRoute>} />
       </Routes>
-      <ChatWidget />
+      {/* Keyed on username: ChatWidget lives outside the Routes tree and its own
+          guard (`if (!username) return null`) only hides it, it doesn't unmount
+          it — so its message history used to survive a logout/login in the same
+          tab. Switching accounts changes the key, forcing React to remount the
+          component and drop its state (messages, draft input, streaming flag)
+          instead of showing the previous user's conversation to whoever logs
+          in next. */}
+      <ChatWidget key={username ?? 'anonymous'} />
       <TerminalPanelHost />
     </ChatPanelProvider>
     </RightReserveProvider>

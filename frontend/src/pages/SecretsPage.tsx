@@ -52,7 +52,7 @@ export function SecretsPage() {
 
       {noNamespace && <EmptyState message={noNamespaceMessage('secrets')} />}
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load secrets: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load secrets: ${apiErrorMessage(error)}`} />}
 
       {data && (
         <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)} minWidth="480px">

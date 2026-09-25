@@ -54,12 +54,13 @@ public class ApiExceptionHandler {
     @ExceptionHandler(KubernetesClientException.class)
     public ResponseEntity<Map<String, String>> handleKubernetesError(KubernetesClientException ex) {
         if (ex.getCode() == HttpStatus.FORBIDDEN.value()) {
-            // The API server's own wording names the verb, resource and namespace
-            // it refused — far more actionable than "forbidden", and it makes clear
-            // the limit is the kubeconfig's, not something KubeMind decided.
+            // KubernetesRefusal keeps every fact the API server gave (who, verb,
+            // resource, namespace) and puts them in a sentence, so nothing is lost
+            // by not showing the raw wording. It also makes clear the limit is the
+            // kubeconfig's rather than something KubeMind decided. Anything it
+            // does not recognise falls through as the cluster wrote it.
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(Map.of("error", "Your kubeconfig for this cluster isn't allowed to do that. "
-                    + kubernetesReason(ex)));
+                .body(Map.of("error", KubernetesRefusal.explain(kubernetesReason(ex))));
         }
         if (ex.getCode() == HttpStatus.NOT_FOUND.value()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

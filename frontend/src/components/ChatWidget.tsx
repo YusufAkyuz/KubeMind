@@ -1,24 +1,53 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
-import { streamText } from '../utils/streamFetch'
+import { StreamHttpError, streamText } from '../utils/streamFetch'
 import { renderLiteMarkdown } from '../utils/markdownLite'
-import { IconSparkles, IconX, Logo } from './Icons'
+import { IconHistory, IconPlus, IconSparkles, IconSpinner, IconX, Logo } from './Icons'
 import { useTerminalPanel } from '../terminal/TerminalPanelContext'
 import { useChatPanel } from '../chat/ChatPanelContext'
+import { ChatHistoryList } from '../chat/ChatHistoryList'
+import { deleteChatSession, fetchTranscript, renameChatSession, useChatSessions, useRefreshChatSessions } from '../chat/useChatSessions'
 import { useRightReserve } from '../layout/RightReserveContext'
 import { AiFeedbackButtons } from './AiFeedbackButtons'
 import { randomId } from '../utils/id'
 import type { Cluster } from '../types/k8s'
 
+/**
+ * The one signal that the model is actually working. `role="status"` announces
+ * it once to a screen reader; the dots themselves are decorative, so they stay
+ * out of the accessibility tree rather than being read as three empty spans.
+ */
+function TypingDots({ className = '' }: { className?: string }) {
+  return (
+    <span
+      role="status"
+      aria-label="Generating response"
+      className={`inline-flex items-center gap-1 ${className}`}
+    >
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          aria-hidden
+          // Staggered so the three read as one travelling wave rather than a blink.
+          style={{ animationDelay: `${i * 160}ms` }}
+          className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-neutral-400 animate-typing-dot"
+        />
+      ))}
+    </span>
+  )
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
-  /** Client-generated — chat has no server-side record to key feedback on (it's
-   *  stateless streaming; see ChatController), so this id exists purely to give
-   *  AiFeedbackButtons a stable contextHash per assistant answer. */
+  /** The persisted chat_messages id for anything loaded from history, and a
+   *  client-generated stand-in for a turn that is still streaming (the server
+   *  only writes the answer once it is complete, so there is no id to hand
+   *  back mid-stream). Either way it gives AiFeedbackButtons a stable
+   *  contextHash per answer. */
   id: string
 }
 
@@ -29,6 +58,10 @@ export function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
+  /** null = a new conversation that has not been saved yet. */
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const terminalPanel = useTerminalPanel()
   // The bottom-docked terminal (see terminal/TerminalPanel.tsx) sits on top of everything —
@@ -61,6 +94,25 @@ export function ChatWidget() {
     staleTime: 30_000,
   })
   const clusterId = clusterMatch ? clusterMatch[1] : clusters?.[0] ? String(clusters[0].id) : null
+
+  const sessionsQuery = useChatSessions(clusterId, chatPanel.isOpen)
+  const refreshSessions = useRefreshChatSessions(clusterId)
+
+  const startNewChat = useCallback(() => {
+    setMessages([])
+    setSessionId(null)
+    setInput('')
+    setHistoryOpen(false)
+    setLoadError(null)
+  }, [])
+
+  // A session belongs to the cluster it was started against — the server serves
+  // it under that cluster's URL and nowhere else. Following the user to another
+  // cluster with a stale session id would just 404 on their next message, so
+  // switching clusters starts a fresh conversation instead.
+  useEffect(() => {
+    startNewChat()
+  }, [clusterId, startNewChat])
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -103,18 +155,51 @@ export function ChatWidget() {
   // Only for authenticated users
   if (!username || location.pathname === '/login') return null
 
-  const send = async () => {
-    const text = input.trim()
-    if (!text || streaming || !clusterId) return
-
-    const history: Message[] = [...messages, { role: 'user', content: text, id: randomId() }]
-    setMessages([...history, { role: 'assistant', content: '', id: randomId() }])
-    setInput('')
-    setStreaming(true)
-
+  const openSession = async (id: string) => {
+    if (!clusterId) return
+    setHistoryOpen(false)
+    setLoadError(null)
     try {
-      const payload = { messages: history.map(({ role, content }) => ({ role, content })) }
-      await streamText(`/api/clusters/${clusterId}/chat`, payload, (chunk) => {
+      const transcript = await fetchTranscript(clusterId, id)
+      setMessages(transcript.map((m) => ({ id: m.id, role: m.role, content: m.content })))
+      setSessionId(id)
+    } catch {
+      setLoadError('Could not open that chat.')
+    }
+  }
+
+  const renameSession = async (id: string, title: string) => {
+    if (!clusterId) return
+    try {
+      await renameChatSession(clusterId, id, title)
+      refreshSessions()
+    } catch {
+      setLoadError('Could not rename that chat.')
+    }
+  }
+
+  const removeSession = async (id: string) => {
+    if (!clusterId) return
+    try {
+      await deleteChatSession(clusterId, id)
+      // Deleting the conversation on screen leaves nothing to continue.
+      if (id === sessionId) startNewChat()
+      refreshSessions()
+    } catch {
+      setLoadError('Could not delete that chat.')
+    }
+  }
+
+  /** One request/response round trip, streamed into the last message bubble.
+   *  Separate from send() so a turn can be replayed against a fresh session
+   *  without re-running the optimistic bubble setup. */
+  const streamTurn = async (cluster: string, session: string | null, text: string) => {
+    // Only the new question goes over the wire — the server reads the rest of
+    // the conversation back from the session it owns.
+    await streamText(
+      `/api/clusters/${cluster}/chat`,
+      { sessionId: session, message: text },
+      (chunk) => {
         setMessages((prev) => {
           const next = [...prev]
           next[next.length - 1] = {
@@ -123,7 +208,57 @@ export function ChatWidget() {
           }
           return next
         })
-      })
+      },
+      {
+        // Both ids arrive before the first token. The session id is what turns
+        // the next message into a continuation instead of a second orphan
+        // conversation; the message id is the row this answer will be stored
+        // under, so a rating filed on the bubble below points at real content
+        // rather than a throwaway client id.
+        onResponse: (res) => {
+          const id = res.headers.get('X-Chat-Session-Id')
+          if (id) setSessionId(id)
+          const messageId = res.headers.get('X-Chat-Message-Id')
+          if (messageId) {
+            setMessages((prev) => {
+              const next = [...prev]
+              next[next.length - 1] = { ...next[next.length - 1], id: messageId }
+              return next
+            })
+          }
+        },
+      },
+    )
+  }
+
+  const send = async () => {
+    const text = input.trim()
+    if (!text || streaming || !clusterId) return
+
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: text, id: randomId() },
+      { role: 'assistant', content: '', id: randomId() },
+    ])
+    setInput('')
+    setStreaming(true)
+
+    try {
+      try {
+        await streamTurn(clusterId, sessionId, text)
+      } catch (e) {
+        // The conversation is gone server-side — deleted from another tab, or by
+        // this user on another device. The stale id would otherwise 404 every
+        // further message in this panel, with "New chat" as the only way out.
+        // Our own bookkeeping shouldn't cost the user their question, so resend
+        // it once as a new conversation.
+        if (e instanceof StreamHttpError && e.status === 404 && sessionId) {
+          setSessionId(null)
+          await streamTurn(clusterId, null, text)
+        } else {
+          throw e
+        }
+      }
     } catch (e) {
       setMessages((prev) => {
         const next = [...prev]
@@ -135,6 +270,9 @@ export function ChatWidget() {
       })
     } finally {
       setStreaming(false)
+      // The title of a new session, and the ordering of an existing one, only
+      // settle once the turn is written — so refresh the list after, not during.
+      refreshSessions()
     }
   }
 
@@ -192,19 +330,64 @@ export function ChatWidget() {
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
-          <div className="flex items-center gap-2">
-            <Logo className="w-5 h-5" />
-            <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100">KubeMind Assistant</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <Logo className="w-5 h-5 shrink-0" />
+            <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100 truncate">
+              {historyOpen ? 'Chat history' : 'KubeMind Assistant'}
+            </span>
           </div>
-          <button
-            onClick={chatPanel.close}
-            className="p-1 rounded-md text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
-            aria-label="Close"
-          >
-            <IconX className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-0.5 shrink-0">
+            {!historyOpen && messages.length > 0 && (
+              <button
+                onClick={startNewChat}
+                title="New chat"
+                aria-label="New chat"
+                className="p-1.5 rounded-md text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
+              >
+                <IconPlus className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={() => setHistoryOpen((o) => !o)}
+              title={historyOpen ? 'Back to chat' : 'Chat history'}
+              aria-label={historyOpen ? 'Back to chat' : 'Chat history'}
+              className={`p-1.5 rounded-md transition-colors ${
+                historyOpen
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+                  : 'text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700'
+              }`}
+            >
+              <IconHistory className="w-4 h-4" />
+            </button>
+            <button
+              onClick={chatPanel.close}
+              className="p-1.5 rounded-md text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
+              aria-label="Close"
+            >
+              <IconX className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
+        {loadError && (
+          <p className="px-4 py-2 text-xs text-red-600 dark:text-red-400 border-b border-gray-200 dark:border-neutral-700">
+            {loadError}
+          </p>
+        )}
+
+        {historyOpen ? (
+          <ChatHistoryList
+            sessions={sessionsQuery.data}
+            isLoading={sessionsQuery.isLoading}
+            isError={sessionsQuery.isError}
+            activeSessionId={sessionId}
+            onSelect={openSession}
+            onDelete={removeSession}
+            onRename={renameSession}
+            onNewChat={startNewChat}
+          />
+        ) : (
+        <>
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {messages.length === 0 && (
@@ -226,9 +409,18 @@ export function ChatWidget() {
                     : 'bg-gray-100 dark:bg-neutral-700 text-gray-800 dark:text-neutral-200'
                 }`}
               >
-                {m.role === 'assistant'
-                  ? (m.content ? renderLiteMarkdown(m.content) : (streaming ? '…' : ''))
-                  : m.content}
+                {m.role === 'assistant' ? (
+                  <>
+                    {m.content && renderLiteMarkdown(m.content)}
+                    {/* Stays up for the whole turn, not just the empty wait: once
+                        text starts arriving it trails below as the "there is more
+                        coming" signal, and it sits outside the markdown output so
+                        no code fence or bullet list can displace it. */}
+                    {streaming && i === messages.length - 1 && (
+                      <TypingDots className={m.content ? 'mt-2' : ''} />
+                    )}
+                  </>
+                ) : m.content}
               </div>
               {m.role === 'assistant' && m.content && clusterId
                 && !(streaming && i === messages.length - 1) && (
@@ -258,14 +450,20 @@ export function ChatWidget() {
             <button
               onClick={send}
               disabled={streaming || !input.trim() || !clusterId}
-              className="shrink-0 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white
+              // Only labelled while streaming — otherwise the visible "Send" text
+              // is the accessible name, and overriding it would be noise.
+              aria-label={streaming ? 'Generating response' : undefined}
+              className="shrink-0 inline-flex items-center justify-center min-w-[4rem] rounded-md bg-blue-600 px-3 py-2
+                         text-sm font-medium text-white
                          hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {streaming ? '…' : 'Send'}
+              {streaming ? <IconSpinner className="w-4 h-4" /> : 'Send'}
             </button>
           </div>
           <p className="mt-1.5 text-[10px] text-gray-400 dark:text-neutral-500">AI-generated — verify before acting.</p>
         </div>
+        </>
+        )}
       </div>
     </>
   )

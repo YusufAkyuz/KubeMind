@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiErrorMessage } from '../api/client'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
 import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
@@ -50,7 +51,7 @@ export function HpasPage() {
 
       {noNamespace && <EmptyState message={noNamespaceMessage('HPAs')} />}
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load HPAs: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load HPAs: ${apiErrorMessage(error)}`} />}
 
       {data && (
         <Table columns={withNamespaceColumn(COLUMNS, showNsColumn)}>

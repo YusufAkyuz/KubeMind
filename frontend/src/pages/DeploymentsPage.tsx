@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { api } from '../api/client'
+import { api, apiErrorMessage } from '../api/client'
 import { Layout } from '../components/Layout'
 import { PageHeader } from '../components/PageHeader'
 import { Table, Tr, Td, withNamespaceColumn } from '../components/Table'
@@ -13,6 +13,7 @@ import { formatAge } from '../utils/format'
 import { useCanWrite } from '../auth/useCanWrite'
 import { DeploymentActions } from '../components/DeploymentActions'
 import { CreateResourceButton } from '../components/CreateResourceButton'
+import { ChangeEffectNotice } from '../components/ChangeEffectNotice'
 import { ExplainPanel } from '../components/ExplainPanel'
 import type { Deployment } from '../types/k8s'
 
@@ -65,7 +66,7 @@ export function DeploymentsPage() {
         </div>
       )}
       {isLoading && !isError && !streamError && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load deployments: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load deployments: ${apiErrorMessage(error)}`} />}
       {!isError && streamError && <ErrorBanner message={streamError} />}
 
       {data && (
@@ -99,6 +100,10 @@ export function DeploymentsPage() {
         {selected && ns && (
           <>
             <div className="pb-3">
+              <ChangeEffectNotice
+                clusterId={clusterId!}
+                resourceRef={`Deployment/${selected.namespace}/${selected.name}`}
+              />
               <ExplainPanel
                 key={`${clusterId}/${selected.namespace}/${selected.name}`}
                 clusterId={clusterId!}

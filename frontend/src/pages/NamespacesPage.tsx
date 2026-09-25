@@ -54,7 +54,7 @@ export function NamespacesPage() {
       <PageHeader title="Namespaces" count={data?.length} noun="namespace" />
 
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load namespaces: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load namespaces: ${apiErrorMessage(error)}`} />}
 
       {data && (
         <Table columns={COLUMNS} minWidth="360px">

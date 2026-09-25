@@ -68,7 +68,8 @@ export function RunbooksPage() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title, e.g. Restarting the payments worker"
-          className="w-full rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
+          className="w-full rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                     text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <textarea
@@ -76,7 +77,8 @@ export function RunbooksPage() {
           onChange={(e) => setContent(e.target.value)}
           rows={4}
           placeholder="Steps, context, gotchas — anything your AI should know when it sees a related problem in this cluster."
-          className="w-full resize-y rounded-md border border-gray-300 dark:border-neutral-600 px-3 py-2 text-sm
+          className="w-full resize-y rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800
+                     text-gray-900 dark:text-neutral-100 placeholder:text-gray-400 dark:placeholder:text-neutral-500 px-3 py-2 text-sm
                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         {create.isError && (
@@ -95,7 +97,7 @@ export function RunbooksPage() {
       </div>
 
       {isLoading && <p className="text-sm text-gray-400 dark:text-neutral-500">Loading…</p>}
-      {isError && <ErrorBanner message={`Could not load runbooks: ${(error as Error).message}`} />}
+      {isError && <ErrorBanner message={`Could not load runbooks: ${apiErrorMessage(error)}`} />}
 
       {data && data.length === 0 && (
         <div className="rounded-lg border border-dashed border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-6 py-12 text-center">
