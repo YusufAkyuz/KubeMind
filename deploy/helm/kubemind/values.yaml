@@ -26,6 +26,11 @@
 # 2. NEVER expose KubeMind directly to the internet. Put it behind your
 #    ingress with TLS and network-level access control (VPN/allowlist), or
 #    keep ingress disabled and access it via `kubectl port-forward`.
+# 3. `networkPolicy.enabled` (default true) keeps a plain ClusterIP Service
+#    from being reachable by every pod in the cluster regardless of which of
+#    the two paths above you chose — see the note in templates/networkpolicy.yaml
+#    for exactly what it does and does not cover (it cannot block
+#    `kubectl port-forward` itself; that stays an RBAC concern).
 
 image:
   backend:
@@ -186,6 +191,19 @@ ingress:
   tls:
     enabled: false
     secretName: kubemind-tls
+
+networkPolicy:
+  # Restricts which pods may reach KubeMind's own Services at the pod-network
+  # layer: frontend accepts only from the ingress controller (when ingress is
+  # enabled), backend accepts only from frontend, and the bundled
+  # Postgres/Ollama accept only from backend. See the security note above and
+  # templates/networkpolicy.yaml. Requires a CNI that enforces NetworkPolicy
+  # (Calico, Cilium, etc.) — on one that doesn't, this renders but has no effect.
+  enabled: true
+  # Namespace the ingress controller's pods run in. Only used when
+  # ingress.enabled is true. Adjust if your ingress controller isn't
+  # ingress-nginx or lives elsewhere.
+  ingressControllerNamespace: ingress-nginx
 
 nodeSelector: {}
 tolerations: []
