@@ -1,0 +1,124 @@
+{{- if .Values.networkPolicy.enabled }}
+# Closes the gap the security note at the top of values.yaml can only
+# document, not enforce: a ClusterIP Service is reachable from every pod in
+# the cluster by default, regardless of whether ingress or VPN is meant to be
+# the front door. These policies restrict who may reach KubeMind's own
+# Services at the pod-network layer.
+#
+# NOT covered, on purpose: `kubectl port-forward` tunnels through the
+# kubelet directly into the target pod, bypassing the pod network entirely —
+# no NetworkPolicy can see or block it. Restricting who may reach KubeMind
+# stays partly an RBAC problem (the `pods/portforward` subresource on this
+# namespace) outside this chart's reach, same as any other kubectl-level
+# access to the cluster.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "kubemind.fullname" . }}-frontend
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kubemind.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: frontend
+  policyTypes: [Ingress]
+  {{- if .Values.ingress.enabled }}
+  ingress:
+    # Only the ingress controller's own pods — identified by namespace, since
+    # ingress-controller labels vary by distribution but every namespace
+    # carries the built-in kubernetes.io/metadata.name label (k8s 1.21+).
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressControllerNamespace }}
+      ports:
+        - port: http
+          protocol: TCP
+  {{- else }}
+  # Explicitly no rules: with ingress disabled, the only supported access
+  # path is kubectl port-forward, which this policy cannot and does not
+  # need to allow (see note above) — deny-all-ingress is intentional here.
+  ingress: []
+  {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "kubemind.fullname" . }}-backend
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kubemind.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: backend
+  policyTypes: [Ingress]
+  ingress:
+    # Only the frontend proxies to the backend (see frontend-deployment.yaml's
+    # nginx /api + /ws proxy). Nothing else in the cluster needs a path in.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "kubemind.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: frontend
+      ports:
+        - port: http
+          protocol: TCP
+{{- if .Values.postgresql.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "kubemind.fullname" . }}-postgresql
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kubemind.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: postgresql
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "kubemind.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: backend
+      ports:
+        - port: 5432
+          protocol: TCP
+{{- end }}
+{{- if .Values.ollama.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "kubemind.fullname" . }}-ollama
+  labels:
+    {{- include "kubemind.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kubemind.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: ollama
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "kubemind.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: backend
+      ports:
+        - port: 11434
+          protocol: TCP
+{{- end }}
+{{- end }}
