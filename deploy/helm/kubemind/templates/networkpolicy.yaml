@@ -1,4 +1,9 @@
-{{- if .Values.networkPolicy.enabled }}
+{{- if and .Values.networkPolicy .Values.networkPolicy.enabled }}
+# nil-safe on purpose: `helm upgrade --reuse-values` carries over the OLD
+# release's computed values, not the new chart's defaults, so a brand-new
+# top-level key like networkPolicy is simply absent (not merged in) on any
+# upgrade from a pre-networkPolicy release — a plain `.Values.networkPolicy.enabled`
+# panics with "nil pointer evaluating interface {}.enabled" in that case.
 # Closes the gap the security note at the top of values.yaml can only
 # document, not enforce: a ClusterIP Service is reachable from every pod in
 # the cluster by default, regardless of whether ingress or VPN is meant to be
