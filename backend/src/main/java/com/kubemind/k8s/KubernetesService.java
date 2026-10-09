@@ -487,6 +487,94 @@ public class KubernetesService {
             .toList();
     }
 
+    // A path that is a URL as-is. Excludes regex paths (ingress-nginx
+    // rewrite-target rules like "/api(/|$)(.*)"), which have no single URL.
+    private static final java.util.regex.Pattern LITERAL_INGRESS_PATH =
+        java.util.regex.Pattern.compile("^/[A-Za-z0-9._~%/:@-]*$");
+
+    /**
+     * Browsable URLs for a Service through the Ingresses in its namespace that
+     * route to it — the way to really use an app that's already exposed, rather
+     * than through a port-forward tunnel. A rule without a host falls back to the
+     * Ingress's load-balancer address; wildcard hosts and regex paths are skipped
+     * because there's no one URL to open.
+     */
+    public List<ServiceIngressLinkDto> serviceIngressLinks(long clusterId, String namespace, String serviceName) {
+        var client = clientFactory.getClient(clusterId);
+        var links = new java.util.LinkedHashMap<String, ServiceIngressLinkDto>();
+        for (var ing : client.network().v1().ingresses().inNamespace(namespace).list().getItems()) {
+            var spec = ing.getSpec();
+            if (spec == null) {
+                continue;
+            }
+            String ingressName = ing.getMetadata().getName();
+            String lbAddress = loadBalancerAddress(ing);
+            List<String> tlsHosts = spec.getTls() == null ? List.of() : spec.getTls().stream()
+                .filter(t -> t.getHosts() != null)
+                .flatMap(t -> t.getHosts().stream())
+                .toList();
+
+            for (var rule : spec.getRules() == null ? List.<io.fabric8.kubernetes.api.model.networking.v1.IngressRule>of() : spec.getRules()) {
+                if (rule.getHttp() == null || rule.getHttp().getPaths() == null) {
+                    continue;
+                }
+                boolean hasHost = rule.getHost() != null && !rule.getHost().isBlank();
+                String host = hasHost ? rule.getHost() : lbAddress;
+                if (host == null || host.contains("*")) {
+                    continue;
+                }
+                String scheme = hasHost && tlsCovers(tlsHosts, host) ? "https://" : "http://";
+                for (var path : rule.getHttp().getPaths()) {
+                    if (!routesTo(path.getBackend(), serviceName)) {
+                        continue;
+                    }
+                    String p = path.getPath() == null || path.getPath().isBlank() ? "/" : path.getPath();
+                    if (LITERAL_INGRESS_PATH.matcher(p).matches()) {
+                        String url = scheme + host + p;
+                        links.putIfAbsent(url, new ServiceIngressLinkDto(ingressName, url));
+                    }
+                }
+            }
+            if (routesTo(spec.getDefaultBackend(), serviceName) && lbAddress != null) {
+                String url = "http://" + lbAddress + "/";
+                links.putIfAbsent(url, new ServiceIngressLinkDto(ingressName, url));
+            }
+        }
+        return List.copyOf(links.values());
+    }
+
+    private static boolean routesTo(io.fabric8.kubernetes.api.model.networking.v1.IngressBackend backend, String serviceName) {
+        return backend != null && backend.getService() != null && serviceName.equals(backend.getService().getName());
+    }
+
+    private static boolean tlsCovers(List<String> tlsHosts, String host) {
+        for (String tlsHost : tlsHosts) {
+            if (tlsHost.equalsIgnoreCase(host)) {
+                return true;
+            }
+            if (tlsHost.startsWith("*.")) {
+                String suffix = tlsHost.substring(1);
+                if (host.toLowerCase().endsWith(suffix.toLowerCase())
+                        && !host.substring(0, host.length() - suffix.length()).contains(".")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static String loadBalancerAddress(io.fabric8.kubernetes.api.model.networking.v1.Ingress ing) {
+        if (ing.getStatus() == null || ing.getStatus().getLoadBalancer() == null
+                || ing.getStatus().getLoadBalancer().getIngress() == null) {
+            return null;
+        }
+        return ing.getStatus().getLoadBalancer().getIngress().stream()
+            .map(lb -> lb.getHostname() != null && !lb.getHostname().isBlank() ? lb.getHostname() : lb.getIp())
+            .filter(a -> a != null && !a.isBlank())
+            .findFirst()
+            .orElse(null);
+    }
+
     // ── Storage ───────────────────────────────────────────────────────────────
 
     public List<PvcDto> listPersistentVolumeClaims(long clusterId, String namespace) {

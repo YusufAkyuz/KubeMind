@@ -26,4 +26,10 @@ public class NetworkController {
     public List<IngressDto> ingresses(@PathVariable long clusterId, @PathVariable String ns) {
         return kubernetesService.listIngresses(clusterId, ns);
     }
+
+    @GetMapping("/namespaces/{ns}/services/{name}/ingress-links")
+    public List<ServiceIngressLinkDto> serviceIngressLinks(@PathVariable long clusterId, @PathVariable String ns,
+                                                           @PathVariable String name) {
+        return kubernetesService.serviceIngressLinks(clusterId, ns, name);
+    }
 }

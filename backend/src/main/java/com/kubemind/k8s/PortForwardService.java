@@ -12,6 +12,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.InetAddress;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -24,21 +26,33 @@ import java.util.concurrent.ConcurrentHashMap;
  * to that pod's port, and hands the caller a session id that
  * {@link PortForwardController}'s reverse proxy uses to bridge browser HTTP
  * traffic to it. Same trust tier as the Cluster Terminal / Node Shell
- * (CLAUDE.md "two disclosed exceptions"): ADMIN-gated, audited at open/close,
- * time-boxed by an idle sweep rather than per-request auditing — proxied
- * traffic inside the tunnel is opaque to us by design (it's someone else's app).
+ * (CLAUDE.md "two disclosed exceptions"): gated on cluster access, audited at
+ * open/close, time-boxed by an idle sweep rather than per-request auditing —
+ * proxied traffic inside the tunnel is opaque to us by design (it's someone
+ * else's app).
+ *
+ * That app's pages are served from KubeMind's own origin (under the session
+ * prefix), so its JavaScript runs with the same origin as KubeMind itself.
+ * Stripping KubeMind's cookies from what we forward keeps them away from the
+ * app's server, but not from its scripts in the browser — only forward apps
+ * you'd trust with your KubeMind session. A per-session origin (wildcard DNS)
+ * would close that; this design doesn't need one.
  */
 @Service
 public class PortForwardService {
 
     private static final Logger log = LoggerFactory.getLogger(PortForwardService.class);
     private static final long IDLE_TIMEOUT_MINUTES = 15;
+    private static final Duration TLS_PROBE_TIMEOUT = Duration.ofSeconds(3);
 
     /** The owner is part of the session because /api/port-forward/{id}/** carries no
      *  cluster id: without it there is nothing to authorize the proxy against, and
      *  the session id alone would let any logged-in user ride someone else's tunnel. */
-    private record Session(String owner, long clusterId, LocalPortForward forward,
+    private record Session(String owner, long clusterId, LocalPortForward forward, boolean tls,
                            java.util.concurrent.atomic.AtomicReference<Instant> lastAccess) {}
+
+    /** Where the proxy should send a session's traffic, and in which scheme. */
+    public record Target(InetAddress address, int port, boolean tls) {}
 
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
     private final ClusterClientFactory clientFactory;
@@ -74,15 +88,23 @@ public class PortForwardService {
 
             int targetPort = resolveTargetPort(svc, pod, requestedPort);
 
+            // Loopback explicitly: Fabric8's portForward(int) binds the wildcard
+            // address, which leaves the tunnel open on this pod's own IP — any
+            // workload in the cluster could connect to it and reach the target
+            // without logging in or owning the session.
             LocalPortForward forward = client.pods().inNamespace(ns).withName(pod.getMetadata().getName())
-                .portForward(targetPort);
+                .portForward(targetPort, InetAddress.getLoopbackAddress(), 0);
+
+            // Probed once here rather than guessed from port names: plenty of
+            // pods (argocd-server, dashboards) serve TLS on a port named "http".
+            boolean tls = TunnelTls.speaksTls(forward.getLocalAddress(), forward.getLocalPort(), TLS_PROBE_TIMEOUT);
 
             String sessionId = UUID.randomUUID().toString();
-            sessions.put(sessionId, new Session(username, clusterId, forward,
+            sessions.put(sessionId, new Session(username, clusterId, forward, tls,
                 new java.util.concurrent.atomic.AtomicReference<>(Instant.now())));
 
             auditService.record(username, clusterId, "OPEN_PORT_FORWARD", ref,
-                Map.of("pod", pod.getMetadata().getName(), "port", targetPort), true, null);
+                Map.of("pod", pod.getMetadata().getName(), "port", targetPort, "tls", tls), true, null);
 
             return new OpenedSession(sessionId, "/api/port-forward/" + sessionId + "/");
         } catch (ResponseStatusException e) {
@@ -122,16 +144,16 @@ public class PortForwardService {
     }
 
     /**
-     * @return the local port to proxy to, touching the session's idle clock. Null
-     *         when the session doesn't exist (expired or bogus id) or belongs to
-     *         someone else — the caller turns both into the same 404, so a probe
+     * @return where to proxy to, touching the session's idle clock. Null when the
+     *         session doesn't exist (expired or bogus id) or belongs to someone
+     *         else — the caller turns both into the same response, so a probe
      *         can't tell a live session it doesn't own from one that never existed.
      */
-    public Integer touch(String sessionId, String username) {
+    public Target touch(String sessionId, String username) {
         Session s = sessions.get(sessionId);
         if (s == null || !s.owner().equals(username)) return null;
         s.lastAccess().set(Instant.now());
-        return s.forward().getLocalPort();
+        return new Target(s.forward().getLocalAddress(), s.forward().getLocalPort(), s.tls());
     }
 
     /** Silently does nothing for an unknown or someone else's session. */

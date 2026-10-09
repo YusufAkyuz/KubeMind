@@ -222,6 +222,12 @@ export interface Ingress {
   creationTimestamp: string | null
 }
 
+/** A browsable URL for a Service through one of its Ingresses. */
+export interface ServiceIngressLink {
+  ingress: string
+  url: string
+}
+
 export interface Pvc {
   name: string
   namespace: string
