@@ -43,7 +43,7 @@ class PortForwardSessionOwnershipTest {
         Class<?> sessionClass = Class.forName("com.kubemind.k8s.PortForwardService$Session");
         var ctor = sessionClass.getDeclaredConstructors()[0];
         ctor.setAccessible(true);
-        Object session = ctor.newInstance(owner, 7L, null, new AtomicReference<>(Instant.now()));
+        Object session = ctor.newInstance(owner, 7L, null, false, new AtomicReference<>(Instant.now()));
 
         Field sessions = PortForwardService.class.getDeclaredField("sessions");
         sessions.setAccessible(true);

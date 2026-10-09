@@ -10,6 +10,7 @@ import { useNamespacedList, noNamespaceMessage } from '../hooks/useNamespacedLis
 import { CreateResourceButton } from '../components/CreateResourceButton'
 import { EditYamlButton } from '../components/EditYamlButton'
 import { ForwardServiceButton } from '../components/ForwardServiceButton'
+import { ServiceIngressLinks } from '../components/ServiceIngressLinks'
 import { DeleteResourceButton } from '../components/DeleteResourceButton'
 import { ExplainPanel } from '../components/ExplainPanel'
 import { useCanWrite } from '../auth/useCanWrite'
@@ -71,6 +72,8 @@ export function ServicesPage() {
                 name={selected.name}
               />
             </div>
+
+            <ServiceIngressLinks clusterId={clusterId!} ns={selected.namespace} name={selected.name} />
 
             {canWrite && (
               <div className="pb-3 flex flex-wrap gap-2">
