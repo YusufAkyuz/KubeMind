@@ -35,11 +35,11 @@
 image:
   backend:
     repository: kubemind/backend
-    tag: 0.4.2
+    tag: 0.5.0
     pullPolicy: IfNotPresent
   frontend:
     repository: kubemind/frontend
-    tag: 0.4.2
+    tag: 0.5.0
     pullPolicy: IfNotPresent
   # imagePullSecrets: [{ name: my-registry-secret }]
   imagePullSecrets: []
@@ -191,6 +191,28 @@ ingress:
   tls:
     enabled: false
     secretName: kubemind-tls
+
+portForward:
+  # Where a service's "Forward" opens in the browser.
+  #
+  # host: "" (default) -> under /api/port-forward/<id>/ on KubeMind's own host.
+  #   Needs nothing extra, but apps that build their URLs in JavaScript from "/"
+  #   (Grafana, for one) escape that prefix and land on KubeMind's own pages, and
+  #   the forwarded app's scripts run on KubeMind's origin.
+  #
+  # host: pf.kubemind.example.internal -> each forward gets its own origin,
+  #   <id>.pf.kubemind.example.internal, where every app works as on its own host
+  #   and its scripts are kept off KubeMind's origin. Needs a WILDCARD DNS record
+  #   *.pf.kubemind.example.internal pointing at your ingress. With ingress.enabled
+  #   the chart adds the matching wildcard rule; with ingress.tls.enabled the TLS
+  #   secret must also hold a certificate valid for that wildcard.
+  #   For the strongest isolation, use a domain unrelated to ingress.host (a
+  #   different registrable domain), so forwarded apps aren't even same-site.
+  subdomain:
+    host: ""
+    # The scheme browsers use to reach host — https when your ingress
+    # terminates TLS for it.
+    scheme: http
 
 networkPolicy:
   # Restricts which pods may reach KubeMind's own Services at the pod-network

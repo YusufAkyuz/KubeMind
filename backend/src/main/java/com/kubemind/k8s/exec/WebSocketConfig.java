@@ -23,16 +23,14 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        // Spring's WebSocketHandlerRegistration same-origin-checks handshakes by default,
-        // computed from request.getServerName()/getServerPort() — behind nginx/an ingress
-        // that's proxying to the backend's Service DNS name, that doesn't match the Origin
-        // header a real browser sends for the address it's actually loaded from, so every
-        // handshake gets rejected with a bare 403 (no Spring Security involved — this check
-        // runs before the security filter chain's ADMIN-role check even applies). Access
-        // here is already gated by session auth + hasRole("ADMIN") in SecurityConfig, so the
-        // Origin check is redundant defense-in-depth, not the actual guard — safe to open up.
-        registry.addHandler(execHandler, "/ws/exec").setAllowedOriginPatterns("*");
-        registry.addHandler(nodeExecHandler, "/ws/exec-node").setAllowedOriginPatterns("*");
-        registry.addHandler(clusterTerminalHandler, "/ws/exec-cluster").setAllowedOriginPatterns("*");
+        // Spring's built-in origin check compares scheme+host+port, and behind
+        // nginx's `Host $host` the port never matches (see SameHostOriginInterceptor),
+        // so it's switched off with "*" and replaced by a hostname-only check. That
+        // check is the real guard here, not defence-in-depth: session auth can't stop
+        // another page from opening a socket with this browser's session cookie.
+        var sameHost = new SameHostOriginInterceptor();
+        registry.addHandler(execHandler, "/ws/exec").setAllowedOriginPatterns("*").addInterceptors(sameHost);
+        registry.addHandler(nodeExecHandler, "/ws/exec-node").setAllowedOriginPatterns("*").addInterceptors(sameHost);
+        registry.addHandler(clusterTerminalHandler, "/ws/exec-cluster").setAllowedOriginPatterns("*").addInterceptors(sameHost);
     }
 }

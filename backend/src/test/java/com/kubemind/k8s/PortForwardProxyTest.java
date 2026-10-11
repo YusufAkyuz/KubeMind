@@ -81,7 +81,7 @@ class PortForwardProxyTest {
 
     @BeforeEach
     void setUp() {
-        controller = new PortForwardController(service, Duration.ofMillis(800));
+        controller = new PortForwardController(service, new PortForwardProxy(Duration.ofMillis(800)));
     }
 
     @AfterEach

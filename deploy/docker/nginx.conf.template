@@ -68,3 +68,28 @@ server {
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
     }
 }
+
+# Port-forward sessions on their own origins, <session-id>.<domain> (see
+# portForward in the chart's values.yaml). Every path goes to the backend, which
+# decides whether the host is a live session — so nginx needs no domain setting.
+# The SPA and KubeMind's own routes don't exist on these hosts.
+server {
+    listen 8080;
+    # Plain "~": server_name has no "~*", and nginx lower-cases the Host before matching.
+    server_name "~^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.";
+
+    # Forwarded apps upload dashboards, manifests, files.
+    client_max_body_size 64m;
+
+    location / {
+        proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # X-Forwarded-Proto is left as the ingress set it, so a session behind
+        # TLS keeps its apps' Secure cookies.
+        # Live updates (SSE, long polls) die if nginx buffers or times them out.
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+    }
+}

@@ -39,7 +39,7 @@ services:
       retries: 10
 
   backend:
-    image: kubemind/backend:0.3.1
+    image: kubemind/backend:0.5.0
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +64,14 @@ services:
       #   kubectl create clusterrolebinding kubemind-admin \
       #     --clusterrole=cluster-admin --user=admin
       KUBEMIND_IMPERSONATION_ENABLED: ${KUBEMIND_IMPERSONATION_ENABLED:-false}
+      # Where a service's "Forward" opens. Blank: under /api/port-forward/<id>/ on
+      # this host. Set (e.g. pf.kubemind.example.internal): each forward gets its
+      # own origin, <id>.pf.kubemind.example.internal:8080 — needs wildcard DNS for
+      # *.pf.kubemind.example.internal pointing at this machine. See portForward
+      # in the Helm chart's values.yaml for why some apps (Grafana) need it.
+      KUBEMIND_PORT_FORWARD_DOMAIN: ${KUBEMIND_PORT_FORWARD_DOMAIN:-}
+      KUBEMIND_PORT_FORWARD_SCHEME: ${KUBEMIND_PORT_FORWARD_SCHEME:-http}
+      KUBEMIND_PORT_FORWARD_PORT: ${KUBEMIND_PORT_FORWARD_PORT:-8080}
     extra_hosts:
       # Makes host.docker.internal work on Linux too (no-op on Docker Desktop).
       - "host.docker.internal:host-gateway"
@@ -73,7 +81,7 @@ services:
     #   - ~/.kube/config:/home/kubemind/.kube/config:ro
 
   frontend:
-    image: kubemind/frontend:0.3.1
+    image: kubemind/frontend:0.5.0
     depends_on:
       - backend
     environment:

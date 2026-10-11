@@ -11,14 +11,16 @@ interface Props {
 
 interface OpenedSession {
   sessionId: string
-  proxyPath: string
+  /** The session's own origin (a one-time handoff link) when the install has
+   *  a forward domain configured, else a path under this origin. */
+  url: string
 }
 
 /**
  * Opens an HTTP tunnel to a Service's backing pod (see PortForwardController)
- * and opens it in a new tab. ADMIN-only, same trust tier as the Cluster
- * Terminal — every session open/close is audited backend-side. Idle sessions
- * are swept automatically; nothing to clean up client-side.
+ * and opens it in a new tab. Same trust tier as the Cluster Terminal — every
+ * session open/close is audited backend-side. Idle sessions are swept
+ * automatically; nothing to clean up client-side.
  */
 export function ForwardServiceButton({ clusterId, ns, name }: Props) {
   const [loading, setLoading] = useState(false)
@@ -28,7 +30,7 @@ export function ForwardServiceButton({ clusterId, ns, name }: Props) {
     setLoading(true)
     try {
       const res = await api.post<OpenedSession>(`/clusters/${clusterId}/namespaces/${ns}/services/${name}/forward`)
-      window.open(res.data.proxyPath, '_blank', 'noopener,noreferrer')
+      window.open(res.data.url, '_blank', 'noopener,noreferrer')
     } catch (e) {
       toast.error(apiErrorMessage(e, 'Could not forward this service'))
     } finally {

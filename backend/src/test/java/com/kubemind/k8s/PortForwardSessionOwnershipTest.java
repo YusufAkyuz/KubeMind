@@ -2,18 +2,15 @@ package com.kubemind.k8s;
 
 import com.kubemind.audit.AuditService;
 import com.kubemind.cluster.ClusterClientFactory;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
+import io.fabric8.kubernetes.client.LocalPortForward;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
-import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
+import java.net.InetAddress;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Port-forwarding used to be ADMIN-only end to end, so the proxy never had to
@@ -22,66 +19,53 @@ import static org.mockito.Mockito.mock;
  * and the session id would otherwise be enough for any logged-in user to ride
  * someone else's tunnel straight into a cluster they cannot reach.
  */
-@EnableKubernetesMockClient(crud = true)
 class PortForwardSessionOwnershipTest {
-
-    KubernetesClient client; // injected by @EnableKubernetesMockClient
 
     private PortForwardService service;
 
     @BeforeEach
     void setUp() {
-        var factory = mock(ClusterClientFactory.class);
-        service = new PortForwardService(factory, mock(AuditService.class));
+        service = new PortForwardService(mock(ClusterClientFactory.class), mock(AuditService.class),
+            new PortForwardProperties("", "http", null));
     }
 
-    /**
-     * Registers a session directly: opening one for real needs a live pod and a
-     * working tunnel, and what's under test is the ownership check, not the tunnel.
-     */
-    private void givenSessionOwnedBy(String sessionId, String owner) throws Exception {
-        Class<?> sessionClass = Class.forName("com.kubemind.k8s.PortForwardService$Session");
-        var ctor = sessionClass.getDeclaredConstructors()[0];
-        ctor.setAccessible(true);
-        Object session = ctor.newInstance(owner, 7L, null, false, new AtomicReference<>(Instant.now()));
-
-        Field sessions = PortForwardService.class.getDeclaredField("sessions");
-        sessions.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        var map = (Map<String, Object>) sessions.get(service);
-        map.put(sessionId, session);
+    /** Registers a session directly: opening one for real needs a live pod and a working tunnel. */
+    private String givenSessionOwnedBy(String owner) {
+        LocalPortForward forward = mock(LocalPortForward.class);
+        when(forward.getLocalAddress()).thenReturn(InetAddress.getLoopbackAddress());
+        when(forward.getLocalPort()).thenReturn(40000);
+        return service.registerSession(owner, 7L, forward, false).sessionId();
     }
 
     @Test
-    void anotherUserCannotProxyThroughSomeoneElsesSession() throws Exception {
-        givenSessionOwnedBy("s1", "alice");
+    void theOwnerCanProxyThroughTheirSession() {
+        String id = givenSessionOwnedBy("alice");
 
-        assertThat(service.touch("s1", "bob")).isNull();
+        assertThat(service.touch(id, "alice")).isNotNull();
     }
 
     @Test
-    void anotherUserCannotCloseSomeoneElsesSession() throws Exception {
-        givenSessionOwnedBy("s1", "alice");
+    void anotherUserCannotProxyThroughSomeoneElsesSession() {
+        String id = givenSessionOwnedBy("alice");
 
-        service.close("bob", "s1");
+        assertThat(service.touch(id, "bob")).isNull();
+    }
+
+    @Test
+    void anotherUserCannotCloseSomeoneElsesSession() {
+        String id = givenSessionOwnedBy("alice");
+
+        service.close("bob", id);
 
         // Still there for its owner — bob's attempt changed nothing.
-        assertThat(sessionExists("s1")).isTrue();
+        assertThat(service.touch(id, "alice")).isNotNull();
     }
 
     @Test
-    void anUnknownSessionIsIndistinguishableFromOneYouDoNotOwn() throws Exception {
-        givenSessionOwnedBy("s1", "alice");
+    void anUnknownSessionIsIndistinguishableFromOneYouDoNotOwn() {
+        String id = givenSessionOwnedBy("alice");
 
-        assertThat(service.touch("s1", "bob")).isNull();
+        assertThat(service.touch(id, "bob")).isNull();
         assertThat(service.touch("does-not-exist", "bob")).isNull();
-    }
-
-    private boolean sessionExists(String sessionId) throws Exception {
-        Field sessions = PortForwardService.class.getDeclaredField("sessions");
-        sessions.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        var map = (Map<String, Object>) sessions.get(service);
-        return map.containsKey(sessionId);
     }
 }

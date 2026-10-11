@@ -105,6 +105,12 @@ spec:
             # which case the app behaves exactly as it did before this existed.
             - name: KUBEMIND_IMPERSONATION_ENABLED
               value: {{ .Values.impersonation.enabled | quote }}
+            # See portForward in values.yaml. Blank host keeps forwards under a
+            # path prefix on KubeMind's own origin.
+            - name: KUBEMIND_PORT_FORWARD_DOMAIN
+              value: {{ .Values.portForward.subdomain.host | quote }}
+            - name: KUBEMIND_PORT_FORWARD_SCHEME
+              value: {{ .Values.portForward.subdomain.scheme | quote }}
             {{- with .Values.backend.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
