@@ -101,6 +101,35 @@ class PortForwardUrlRewriteTest {
             .isEmpty();
     }
 
+    @Test
+    void aSameOriginOriginHeaderBecomesTheTunnelsOriginSoTheAppDoesNotRejectItsOwnPage() {
+        assertThat(PortForwardProxy.rewriteOrigin("http://0b1e.pf.kubemind.my.kubernetes", "0b1e.pf.kubemind.my.kubernetes",
+                "http://127.0.0.1:40000"))
+            .isEqualTo("http://127.0.0.1:40000");
+    }
+
+    @Test
+    void anOriginFromAnotherSiteIsLeftForTheAppToRefuse() {
+        assertThat(PortForwardProxy.rewriteOrigin("https://evil.example.com", "0b1e.pf.kubemind.my.kubernetes",
+                "http://127.0.0.1:40000"))
+            .isEqualTo("https://evil.example.com");
+        assertThat(PortForwardProxy.rewriteOrigin("null", "0b1e.pf.kubemind.my.kubernetes", "http://127.0.0.1:40000"))
+            .isEqualTo("null");
+    }
+
+    @Test
+    void refererMovesToTheTunnelAndLosesTheSessionPrefix() {
+        assertThat(PortForwardProxy.rewriteReferer("http://kubemind.my.kubernetes/api/port-forward/abc123/d/x?a=1",
+                "kubemind.my.kubernetes", "http://127.0.0.1:40000", PREFIX))
+            .isEqualTo("http://127.0.0.1:40000/d/x?a=1");
+        assertThat(PortForwardProxy.rewriteReferer("http://0b1e.pf.test/d/x", "0b1e.pf.test",
+                "http://127.0.0.1:40000", ""))
+            .isEqualTo("http://127.0.0.1:40000/d/x");
+        assertThat(PortForwardProxy.rewriteReferer("https://other.example.com/p", "0b1e.pf.test",
+                "http://127.0.0.1:40000", ""))
+            .isEqualTo("https://other.example.com/p");
+    }
+
     // ── At the root of a session's own origin there's no prefix to add ──────
 
     @Test

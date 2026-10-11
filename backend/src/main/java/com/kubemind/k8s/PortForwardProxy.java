@@ -159,12 +159,19 @@ public class PortForwardProxy {
      */
     public void forward(PortForwardService.Target target, String sessionId, String path,
                         HttpServletRequest request, HttpServletResponse response, Mount mount) throws IOException {
+        if ("websocket".equalsIgnoreCase(request.getHeader("Upgrade"))) {
+            // Not proxied: forwarded as a plain GET the app would refuse with a
+            // confusing error of its own (Grafana: a 403 "origin not allowed").
+            writeError(response, HttpServletResponse.SC_NOT_IMPLEMENTED,
+                "WebSockets aren't supported through port-forward. The page usually falls back to polling.");
+            return;
+        }
         String query = request.getQueryString();
         String origin = (target.tls() ? "https://" : "http://") + hostLiteral(target.address()) + ":" + target.port();
         HttpRequest upstreamRequest;
         try {
             var builder = HttpRequest.newBuilder(URI.create(origin + path + (query != null ? "?" + query : "")));
-            copyRequestHeaders(request, builder, mount);
+            copyRequestHeaders(request, builder, mount, origin);
             byte[] requestBody = request.getInputStream().readAllBytes();
             builder.method(request.getMethod(), requestBody.length > 0
                 ? HttpRequest.BodyPublishers.ofByteArray(requestBody) : HttpRequest.BodyPublishers.noBody());
@@ -240,7 +247,8 @@ public class PortForwardProxy {
         response.getWriter().write(message);
     }
 
-    private static void copyRequestHeaders(HttpServletRequest request, HttpRequest.Builder builder, Mount mount) {
+    private static void copyRequestHeaders(HttpServletRequest request, HttpRequest.Builder builder, Mount mount,
+                                           String upstreamOrigin) {
         Set<String> hiddenCookies = mount.atRoot() ? FORWARD_COOKIES : KUBEMIND_COOKIES;
         for (String name : Collections.list(request.getHeaderNames())) {
             String lower = name.toLowerCase(Locale.ROOT);
@@ -254,9 +262,49 @@ public class PortForwardProxy {
                     if (value.isEmpty()) {
                         continue;
                     }
+                } else if (lower.equals("origin")) {
+                    value = rewriteOrigin(value, request.getServerName(), upstreamOrigin);
+                } else if (lower.equals("referer")) {
+                    value = rewriteReferer(value, request.getServerName(), upstreamOrigin, mount.prefix());
                 }
                 builder.header(name, value);
             }
+        }
+    }
+
+    /**
+     * The app is reached at the tunnel's address and sees that as its Host —
+     * java.net.http won't let us send the browser's — so a same-origin Origin
+     * has to say the same, or an app that checks the two (Grafana: "origin not
+     * allowed" on every POST) rejects its own page. An Origin from another site
+     * is left as it is: that check is there to catch exactly that.
+     */
+    static String rewriteOrigin(String origin, String requestHost, String upstreamOrigin) {
+        return hostOf(origin).equalsIgnoreCase(requestHost) ? upstreamOrigin : origin;
+    }
+
+    /** Same for Referer, which also carries the path — minus the session prefix the app doesn't know about. */
+    static String rewriteReferer(String referer, String requestHost, String upstreamOrigin, String prefix) {
+        if (!hostOf(referer).equalsIgnoreCase(requestHost)) {
+            return referer;
+        }
+        URI uri = URI.create(referer);
+        String path = uri.getRawPath() == null || uri.getRawPath().isEmpty() ? "/" : uri.getRawPath();
+        if (!prefix.isEmpty() && path.startsWith(prefix)) {
+            path = path.substring(prefix.length());
+            if (path.isEmpty()) {
+                path = "/";
+            }
+        }
+        return upstreamOrigin + path + (uri.getRawQuery() != null ? "?" + uri.getRawQuery() : "");
+    }
+
+    private static String hostOf(String url) {
+        try {
+            String host = URI.create(url).getHost();
+            return host == null ? "" : host;
+        } catch (IllegalArgumentException e) {
+            return "";
         }
     }
 
