@@ -117,6 +117,54 @@ class PortForwardProxyTest {
     }
 
     @Test
+    void aPostFromTheAppsOwnPageIsNotRejectedForAnOriginThatDoesNotMatchItsHost() throws Exception {
+        // Grafana: Origin must equal the Host the app saw, or every POST is a 403.
+        startServer(false, exchange -> {
+            received.set(exchange.getRequestHeaders());
+            respond(exchange, 200, "application/json", "{}");
+        });
+        var request = new MockHttpServletRequest("POST", PREFIX + "/api/ds/query");
+        request.addHeader("Origin", "http://localhost");
+        request.addHeader("Referer", "http://localhost" + PREFIX + "/d/abc");
+
+        proxy(request);
+
+        String tunnel = "http://127.0.0.1:" + server.getAddress().getPort();
+        assertThat(received.get().getFirst("Origin")).isEqualTo(tunnel);
+        assertThat(received.get().getFirst("Referer")).isEqualTo(tunnel + "/d/abc");
+    }
+
+    @Test
+    void anOriginFromAnotherSiteReachesTheAppUnchanged() throws Exception {
+        startServer(false, exchange -> {
+            received.set(exchange.getRequestHeaders());
+            respond(exchange, 200, "application/json", "{}");
+        });
+        var request = new MockHttpServletRequest("POST", PREFIX + "/api/ds/query");
+        request.addHeader("Origin", "https://evil.example.com");
+
+        proxy(request);
+
+        assertThat(received.get().getFirst("Origin")).isEqualTo("https://evil.example.com");
+    }
+
+    @Test
+    void aWebSocketUpgradeIsRefusedClearlyInsteadOfReachingTheAsAPlainGet() throws Exception {
+        startServer(false, exchange -> {
+            received.set(exchange.getRequestHeaders());
+            respond(exchange, 200, "text/plain", "unused");
+        });
+        var request = request("/api/live/ws");
+        request.addHeader("Upgrade", "websocket");
+
+        var response = proxy(request);
+
+        assertThat(response.getStatus()).isEqualTo(501);
+        assertThat(response.getContentAsString()).contains("WebSockets aren't supported");
+        assertThat(received.get()).isNull();
+    }
+
+    @Test
     void forwardsToAnHttpsPodWithASelfSignedCertificateForAnotherName() throws Exception {
         startServer(true, exchange -> respond(exchange, 200, "application/json", "{\"ok\":true}"));
         assertThat(TunnelTls.speaksTls(LOOPBACK, server.getAddress().getPort(), Duration.ofSeconds(3))).isTrue();
