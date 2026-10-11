@@ -7,6 +7,12 @@ server:
   # Harmless when unproxied (local `mvn spring-boot:run`) — those headers
   # simply aren't sent, so this has no effect there.
   forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        # Explicit rather than left to each browser's default: the login session
+        # must never ride along on requests started by another site.
+        same-site: lax
 
 spring:
   mvc:
@@ -118,3 +124,13 @@ kubemind:
     client-secret: ${KUBEMIND_OIDC_CLIENT_SECRET:}
     groups-claim: ${KUBEMIND_OIDC_GROUPS_CLAIM:groups}
     admin-group: ${KUBEMIND_OIDC_ADMIN_GROUP:}
+  # Where port-forward sessions open — see PortForwardProperties. Blank domain
+  # (the default): under /api/port-forward/{id}/ on this origin, which breaks
+  # apps that build their URLs in JavaScript (Grafana). Set: each session gets
+  # its own origin at <id>.<domain>, which needs wildcard DNS for that domain.
+  # Referenced by name for the same spring-dotenv reason as the OIDC block.
+  port-forward:
+    subdomain:
+      domain: ${KUBEMIND_PORT_FORWARD_DOMAIN:}
+      scheme: ${KUBEMIND_PORT_FORWARD_SCHEME:http}
+      port: ${KUBEMIND_PORT_FORWARD_PORT:}
